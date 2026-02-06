@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: tapea-backend
+    env: node
+    plan: free
+    # Build command : installer les dépendances et builder le projet
+    buildCommand: npm install && npm run build
+    # Start command : lancer le serveur en production
+    startCommand: npm start
+    # Variables d'environnement
+    # Note: Les secrets (DATABASE_URL, STRIPE_SECRET_KEY, etc.) doivent être
+    # définis manuellement dans l'interface Render pour des raisons de sécurité
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VAPID_SUBJECT
+        value: mailto:tape-a.pf@gmail.com
+    # Health check endpoint
+    healthCheckPath: /health

@@ -1,0 +1,11 @@
+{
+  "name": "TĀPE'A - VTC Polynésie",
+  "short_name": "TĀPE'A",
+  "description": "Application de réservation de VTC en Polynésie française",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffdf6d",
+  "categories": ["transportation", "travel"]
+}
