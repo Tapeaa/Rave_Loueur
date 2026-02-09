@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Share,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -221,9 +223,7 @@ export default function CourseDetailsScreen() {
     setIsDownloadingPdf(true);
     try {
       let FileSystem: any;
-      let Sharing: any;
       try { FileSystem = require('expo-file-system/legacy'); } catch { FileSystem = require('expo-file-system'); }
-      Sharing = require('expo-sharing');
 
       const rideOpt = order.rideOption as any;
       const rd = rideOpt?.rentalData;
@@ -277,11 +277,11 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
       const fileUri = `${FileSystem.documentDirectory}contrat-location-${ref}.html`;
       await FileSystem.writeAsStringAsync(fileUri, html, { encoding: FileSystem.EncodingType.UTF8 });
 
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(fileUri, { mimeType: 'text/html', dialogTitle: 'Contrat de location RAVE' });
+      // Utiliser l'API Share native de React Native (pas besoin de module natif expo-sharing)
+      if (Platform.OS === 'ios') {
+        await Share.share({ url: fileUri, title: 'Contrat de location RAVE' });
       } else {
-        Alert.alert('Contrat généré', 'Le partage n\'est pas disponible sur cet appareil.');
+        await Share.share({ message: html, title: 'Contrat de location RAVE' });
       }
     } catch (err: any) {
       console.error('[PDF] Error:', err);
