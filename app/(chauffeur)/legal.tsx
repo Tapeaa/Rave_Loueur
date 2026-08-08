@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -169,7 +170,7 @@ export default function LegalScreen() {
   };
 
   const openPrivacyPolicy = () => {
-    const url = 'https://tape-a.com/politique-de-confidentialite-tapea/';
+    const url = 'https://rave-location.com/politique-de-confidentialite/';
     Linking.openURL(url).catch(() => {
       Alert.alert('Erreur', 'Impossible d\'ouvrir la page web');
     });
@@ -180,7 +181,7 @@ export default function LegalScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => safeBack(router)}
         >
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>

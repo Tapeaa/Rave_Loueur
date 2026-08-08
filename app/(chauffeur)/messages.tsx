@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { safeBack } from '@/lib/navigation';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -306,7 +307,8 @@ export default function DriverMessagesScreen() {
                 <View style={styles.routeInfo}>
                   <Ionicons name="location" size={12} color="#6B7280" />
                   <Text style={styles.routeText} numberOfLines={1}>
-                    {item.pickup} → {item.destination}
+                    {item.pickup || 'Véhicule'}
+                    {item.destination ? ` · ${item.destination}` : ''}
                   </Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusBadge.bgColor }]}>
@@ -336,7 +338,7 @@ export default function DriverMessagesScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Messages</Text>
@@ -352,7 +354,7 @@ export default function DriverMessagesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Messages</Text>
@@ -369,7 +371,7 @@ export default function DriverMessagesScreen() {
               <View style={styles.conversationContent}>
                 <View style={styles.conversationHeader}>
                   <Text style={styles.clientName} numberOfLines={1}>
-                    Support TĀPE'A
+                    Support RAVE
                   </Text>
                   {latestSupportMessage ? (
                     <Text style={styles.messageDate}>

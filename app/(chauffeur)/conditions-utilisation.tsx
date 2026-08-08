@@ -1,5 +1,6 @@
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+﻿import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
@@ -12,7 +13,7 @@ export default function ConditionsUtilisationScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => safeBack(router)}
         >
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
@@ -20,11 +21,11 @@ export default function ConditionsUtilisationScreen() {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        <Text variant="h1" style={styles.mainTitle}>Conditions Générales d'Utilisation — TAPEA</Text>
+        <Text variant="h1" style={styles.mainTitle}>Conditions Générales d'Utilisation — RAVE</Text>
         <Text variant="caption" style={styles.version}>Date d'entrée en vigueur : 21 janvier 2026</Text>
 
         <Text variant="body" style={styles.intro}>
-          Les présentes Conditions Générales d'Utilisation (les "CGU") régissent l'accès et l'utilisation de l'application mobile TAPEA (la "Plateforme"), disponible sur iOS et Android, ainsi que les services associés.
+          Les présentes Conditions Générales d'Utilisation (les "CGU") régissent l'accès et l'utilisation de l'application mobile RAVE (la "Plateforme"), disponible sur iOS et Android, ainsi que les services associés.
         </Text>
 
         <Text variant="body" style={styles.intro}>
@@ -37,33 +38,33 @@ export default function ConditionsUtilisationScreen() {
             La Plateforme est éditée par :{'\n'}
             Entreprise Individuelle (EI) – SIRET 92457387600019{'\n'}
             Adresse : Résidence Hinaraurea, FAAA, Tahiti, Polynésie française{'\n'}
-            Email : Tapea.pf@gmail.com{'\n'}
+            Email : contact@rave-location.com{'\n'}
             Téléphone : +689 87 75 98 97{'\n'}
-            Site : Tape-a.com
+            Site : rave-location.com
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>2) Définitions</Text>
           <Text variant="body" style={styles.text}>
-            "Plateforme" : application TAPEA et services numériques associés.{'\n\n'}
-            "Passager" : utilisateur réservant une course via TAPEA.{'\n\n'}
-            "Conducteur" : chauffeur de taxi utilisant TAPEA pour accepter/réaliser une course (lorsqu'une interface conducteur existe).{'\n\n'}
-            "Course" : prestation de transport réalisée par un Conducteur au bénéfice d'un Passager.{'\n\n'}
-            "Prix" / "Tarif" : montant total dû au titre d'une Course, incluant, le cas échéant, suppléments et frais.
+            "Plateforme" : application RAVE et services numériques associés.{'\n\n'}
+            "Locataire" : utilisateur réservant une Location via RAVE.{'\n\n'}
+            "Loueur" : professionnel mettant des véhicules à disposition via RAVE.{'\n\n'}
+            "Location" : prestation de location réalisée par un Loueur au bénéfice d'un Locataire.{'\n\n'}
+            "Prix" / "Tarif" : montant total dû au titre d'une Location, incluant, le cas échéant, suppléments et frais.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text variant="h2" style={styles.sectionTitle}>3) Objet et rôle de TAPEA</Text>
+          <Text variant="h2" style={styles.sectionTitle}>3) Objet et rôle de RAVE</Text>
           <Text variant="body" style={styles.text}>
-            TAPEA est une plateforme de mise en relation entre Passagers et Conducteurs de taxi. Elle permet notamment :
+            RAVE est une plateforme de mise en relation entre Locataires et Loueurs. Elle permet notamment :
           </Text>
-          <Text variant="body" style={styles.listItem}>• la demande de courses immédiates ou à l'avance (si disponible),</Text>
-          <Text variant="body" style={styles.listItem}>• le suivi en temps réel de la course,</Text>
+          <Text variant="body" style={styles.listItem}>• la demande de locations immédiates ou à l'avance (si disponible),</Text>
+          <Text variant="body" style={styles.listItem}>• le suivi en temps réel de la Location,</Text>
           <Text variant="body" style={styles.listItem}>• le paiement sécurisé (notamment via Stripe).</Text>
           <Text variant="body" style={styles.text}>
-            Sauf mention contraire, TAPEA n'est pas un transporteur : la prestation de transport est réalisée par le Conducteur, sous sa responsabilité et selon la réglementation applicable.
+            Sauf mention contraire, RAVE n'est pas un loueur de véhicules au sens strict : la prestation de location est réalisée par le Loueur, sous sa responsabilité et selon la réglementation applicable.
           </Text>
         </View>
 
@@ -71,7 +72,7 @@ export default function ConditionsUtilisationScreen() {
           <Text variant="h2" style={styles.sectionTitle}>4) Conditions d'accès et création de compte</Text>
           <Text variant="body" style={styles.subTitle}>4.1 Éligibilité</Text>
           <Text variant="body" style={styles.text}>
-            Pour utiliser TAPEA, vous devez :
+            Pour utiliser RAVE, vous devez :
           </Text>
           <Text variant="body" style={styles.listItem}>• être majeur et capable juridiquement,</Text>
           <Text variant="body" style={styles.listItem}>• fournir des informations exactes, à jour et complètes,</Text>
@@ -85,42 +86,42 @@ export default function ConditionsUtilisationScreen() {
           <Text variant="body" style={styles.listItem}>• toute activité effectuée via votre compte,</Text>
           <Text variant="body" style={styles.listItem}>• la mise à jour de vos informations.</Text>
           <Text variant="body" style={styles.text}>
-            En cas d'utilisation non autorisée ou de suspicion de fraude, vous devez contacter immédiatement : Tapea.pf@gmail.com
+            En cas d'utilisation non autorisée ou de suspicion de fraude, vous devez contacter immédiatement : contact@rave-location.com
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>5) Utilisation de la Plateforme — Obligations des utilisateurs</Text>
-          <Text variant="body" style={styles.subTitle}>5.1 Obligations des Passagers</Text>
+          <Text variant="body" style={styles.subTitle}>5.1 Obligations des Locataires</Text>
           <Text variant="body" style={styles.text}>
-            Le Passager s'engage à :
+            Le Locataire s'engage à :
           </Text>
-          <Text variant="body" style={styles.listItem}>• respecter les Conducteurs et les autres passagers,</Text>
+          <Text variant="body" style={styles.listItem}>• respecter les Loueurs et les autres Locataires,</Text>
           <Text variant="body" style={styles.listItem}>• indiquer un point de prise en charge et une destination exploitables,</Text>
           <Text variant="body" style={styles.listItem}>• ne pas utiliser la Plateforme pour des activités illégales ou dangereuses,</Text>
           <Text variant="body" style={styles.listItem}>• respecter les règles de sécurité (ceinture, comportement, etc.),</Text>
           <Text variant="body" style={styles.listItem}>• ne pas détériorer le véhicule, ne pas provoquer de nuisances, et signaler tout incident.</Text>
 
-          <Text variant="body" style={styles.subTitle}>5.2 Obligations des Conducteurs (si applicable)</Text>
+          <Text variant="body" style={styles.subTitle}>5.2 Obligations des Loueurs (si applicable)</Text>
           <Text variant="body" style={styles.text}>
-            Le Conducteur s'engage à :
+            Le Loueur s'engage à :
           </Text>
           <Text variant="body" style={styles.listItem}>• détenir un permis de conduire valide et toute autorisation/qualification requise pour exercer,</Text>
           <Text variant="body" style={styles.listItem}>• respecter le code de la route et la réglementation locale,</Text>
           <Text variant="body" style={styles.listItem}>• maintenir le véhicule en bon état (sécurité, entretien, propreté),</Text>
-          <Text variant="body" style={styles.listItem}>• traiter les Passagers avec respect, sans discrimination,</Text>
+          <Text variant="body" style={styles.listItem}>• traiter les Locataires avec respect, sans discrimination,</Text>
           <Text variant="body" style={styles.listItem}>• disposer des assurances obligatoires applicables à son activité,</Text>
-          <Text variant="body" style={styles.listItem}>• assurer une prise en charge conforme aux informations de la Course.</Text>
+          <Text variant="body" style={styles.listItem}>• assurer une prise en charge conforme aux informations de la Location.</Text>
         </View>
 
         <View style={styles.section}>
-          <Text variant="h2" style={styles.sectionTitle}>6) Réservation, acceptation et déroulement des courses</Text>
+          <Text variant="h2" style={styles.sectionTitle}>6) Réservation, acceptation et déroulement des locations</Text>
           <Text variant="body" style={styles.text}>
-            Le Passager effectue une demande de Course via la Plateforme.{'\n\n'}
-            La Course peut être proposée à un ou plusieurs Conducteurs.{'\n\n'}
-            Une Course est considérée comme acceptée lorsqu'un Conducteur confirme sa prise en charge via la Plateforme.{'\n\n'}
-            Le Passager doit être présent au point de prise en charge au moment convenu, sous réserve des tolérances/temps d'attente éventuellement appliqués.{'\n\n'}
-            TAPEA peut proposer des fonctionnalités de suivi, messagerie ou appel (selon disponibilité), destinées à faciliter la prise en charge.
+            Le Locataire effectue une demande de Location via la Plateforme.{'\n\n'}
+            La Location peut être proposée à un ou plusieurs Loueurs.{'\n\n'}
+            Une Location est considérée comme acceptée lorsqu'un Loueur confirme sa prise en charge via la Plateforme.{'\n\n'}
+            Le Locataire doit être présent au point de prise en charge au moment convenu, sous réserve des tolérances/temps d'attente éventuellement appliqués.{'\n\n'}
+            RAVE peut proposer des fonctionnalités de suivi, messagerie ou appel (selon disponibilité), destinées à faciliter la prise en charge.
           </Text>
         </View>
 
@@ -138,42 +139,42 @@ export default function ConditionsUtilisationScreen() {
 
           <Text variant="body" style={styles.subTitle}>7.3 Paiement</Text>
           <Text variant="body" style={styles.text}>
-            Le paiement est généralement déclenché à la fin de la Course.{'\n\n'}
+            Le paiement est généralement déclenché à la fin de la Location.{'\n\n'}
             Les paiements par carte sont traités via Stripe (prestataire de paiement).{'\n\n'}
-            En cas d'échec de paiement, TAPEA peut suspendre temporairement l'accès au service jusqu'à régularisation.{'\n\n'}
-            TAPEA se réserve la possibilité d'ajouter d'autres moyens de paiement (ex. espèces) si cela est activé dans l'app et autorisé localement.
+            En cas d'échec de paiement, RAVE peut suspendre temporairement l'accès au service jusqu'à régularisation.{'\n\n'}
+            RAVE se réserve la possibilité d'ajouter d'autres moyens de paiement (ex. espèces) si cela est activé dans l'app et autorisé localement.
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>8) Annulations et remboursements (version sans frais)</Text>
-          <Text variant="body" style={styles.subTitle}>8.1 Annulation par le Passager</Text>
+          <Text variant="body" style={styles.subTitle}>8.1 Annulation par le Locataire</Text>
           <Text variant="body" style={styles.text}>
-            Le Passager peut annuler une demande de Course tant que celle-ci n'est pas terminée. En cas d'annulation, la Plateforme met fin au processus de mise en relation et/ou de suivi de la Course.
+            Le Locataire peut annuler une demande de Location tant que celle-ci n'est pas terminée. En cas d'annulation, la Plateforme met fin au processus de mise en relation et/ou de suivi de la Location.
           </Text>
 
-          <Text variant="body" style={styles.subTitle}>8.2 Annulation par le Conducteur</Text>
+          <Text variant="body" style={styles.subTitle}>8.2 Annulation par le Loueur</Text>
           <Text variant="body" style={styles.text}>
-            Un Conducteur peut annuler une Course avant la prise en charge. Dans ce cas, la Plateforme peut proposer la Course à un autre Conducteur ou annuler la demande.
+            Un Loueur peut annuler une Location avant la prise en charge. Dans ce cas, la Plateforme peut proposer la Location à un autre Loueur ou annuler la demande.
           </Text>
 
           <Text variant="body" style={styles.subTitle}>8.3 Paiements et ajustements</Text>
           <Text variant="body" style={styles.text}>
-            Si un paiement a été initié, le montant final correspond à la Course telle qu'exécutée (trajet effectivement réalisé, temps d'attente, options éventuelles). En cas d'anomalie, l'utilisateur peut contacter le support à Tapea.pf@gmail.com
+            Si un paiement a été initié, le montant final correspond à la Location telle qu'exécutée (trajet effectivement réalisé, temps d'attente, options éventuelles). En cas d'anomalie, l'utilisateur peut contacter le support à contact@rave-location.com
           </Text>
 
           <Text variant="body" style={styles.subTitle}>8.4 Demandes de remboursement / contestations</Text>
           <Text variant="body" style={styles.text}>
-            Toute contestation (trajet, tarif, incident) doit être signalée dans un délai raisonnable en précisant la date et l'heure de la Course. TAPEA analysera la demande au regard des éléments disponibles.
+            Toute contestation (trajet, tarif, incident) doit être signalée dans un délai raisonnable en précisant la date et l'heure de la Location. RAVE analysera la demande au regard des éléments disponibles.
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>9) Sécurité, incidents et assurance</Text>
           <Text variant="body" style={styles.text}>
-            Les Conducteurs peuvent faire l'objet de vérifications (selon les processus disponibles).{'\n\n'}
-            Le Passager peut signaler un incident via la Plateforme (si fonctionnalité disponible) ou par email.{'\n\n'}
-            Les courses sont réalisées par des Conducteurs soumis à leurs propres obligations professionnelles, notamment en matière d'assurance et de sécurité.{'\n\n'}
+            Les Loueurs peuvent faire l'objet de vérifications (selon les processus disponibles).{'\n\n'}
+            Le Locataire peut signaler un incident via la Plateforme (si fonctionnalité disponible) ou par email.{'\n\n'}
+            Les locations sont réalisées par des Loueurs soumis à leurs propres obligations professionnelles, notamment en matière d'assurance et de sécurité.{'\n\n'}
             En cas d'urgence, contactez les services d'urgence compétents.
           </Text>
         </View>
@@ -190,38 +191,38 @@ export default function ConditionsUtilisationScreen() {
           <Text variant="body" style={styles.listItem}>• perturber le fonctionnement (attaque, injection, scraping abusif, reverse engineering, etc.),</Text>
           <Text variant="body" style={styles.listItem}>• créer de faux comptes ou usurper l'identité d'autrui.</Text>
           <Text variant="body" style={styles.text}>
-            TAPEA se réserve le droit de suspendre ou supprimer tout compte en cas de violation.
+            RAVE se réserve le droit de suspendre ou supprimer tout compte en cas de violation.
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>11) Données personnelles</Text>
           <Text variant="body" style={styles.text}>
-            Le traitement des données personnelles est décrit dans la Politique de Confidentialité disponible sur : Tape-a.com (page "Politique de confidentialité").{'\n\n'}
+            Le traitement des données personnelles est décrit dans la Politique de Confidentialité disponible sur : rave-location.com (page "Politique de confidentialité").{'\n\n'}
             L'utilisation de certaines fonctionnalités (notamment la géolocalisation) peut être nécessaire pour le bon fonctionnement du service.
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>12) Responsabilités et limitations</Text>
-          <Text variant="body" style={styles.subTitle}>12.1 Responsabilité de TAPEA (Plateforme)</Text>
+          <Text variant="body" style={styles.subTitle}>12.1 Responsabilité de RAVE (Plateforme)</Text>
           <Text variant="body" style={styles.text}>
-            TAPEA met en œuvre des moyens raisonnables pour assurer le fonctionnement de la Plateforme. Toutefois, TAPEA ne garantit pas :
+            RAVE met en œuvre des moyens raisonnables pour assurer le fonctionnement de la Plateforme. Toutefois, RAVE ne garantit pas :
           </Text>
           <Text variant="body" style={styles.listItem}>• l'absence d'interruptions, de bugs, ou d'indisponibilités,</Text>
-          <Text variant="body" style={styles.listItem}>• la disponibilité permanente de Conducteurs,</Text>
-          <Text variant="body" style={styles.listItem}>• la réalisation d'une Course dans un délai déterminé.</Text>
+          <Text variant="body" style={styles.listItem}>• la disponibilité permanente de Loueurs,</Text>
+          <Text variant="body" style={styles.listItem}>• la réalisation d'une Location dans un délai déterminé.</Text>
           <Text variant="body" style={styles.text}>
-            TAPEA n'est pas responsable :
+            RAVE n'est pas responsable :
           </Text>
           <Text variant="body" style={styles.listItem}>• des retards liés aux conditions de circulation, météo, incidents,</Text>
           <Text variant="body" style={styles.listItem}>• des objets oubliés dans les véhicules,</Text>
-          <Text variant="body" style={styles.listItem}>• des comportements ou manquements des Conducteurs ou Passagers,</Text>
+          <Text variant="body" style={styles.listItem}>• des comportements ou manquements des Loueurs ou Locataires,</Text>
           <Text variant="body" style={styles.listItem}>• des problèmes techniques indépendants de sa volonté (réseaux, OS, stores, etc.).</Text>
 
           <Text variant="body" style={styles.subTitle}>12.2 Responsabilité des utilisateurs</Text>
           <Text variant="body" style={styles.text}>
-            Chaque utilisateur est responsable de ses actes et du respect des lois. Le Conducteur demeure responsable de la prestation de transport et de sa conformité réglementaire.
+            Chaque utilisateur est responsable de ses actes et du respect des lois. Le Loueur demeure responsable de la prestation de location et de sa conformité réglementaire.
           </Text>
 
           <Text variant="body" style={styles.subTitle}>12.3 Force majeure</Text>
@@ -233,27 +234,27 @@ export default function ConditionsUtilisationScreen() {
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>13) Propriété intellectuelle</Text>
           <Text variant="body" style={styles.text}>
-            TAPEA, la marque, le logo, l'interface, les textes, éléments graphiques et logiciels associés sont protégés. Toute reproduction, extraction, modification ou exploitation non autorisée est interdite.
+            RAVE, la marque, le logo, l'interface, les textes, éléments graphiques et logiciels associés sont protégés. Toute reproduction, extraction, modification ou exploitation non autorisée est interdite.
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>14) Suspension, résiliation et suppression de compte</Text>
           <Text variant="body" style={styles.text}>
-            TAPEA peut suspendre ou résilier l'accès à la Plateforme, notamment en cas :
+            RAVE peut suspendre ou résilier l'accès à la Plateforme, notamment en cas :
           </Text>
           <Text variant="body" style={styles.listItem}>• de violation des CGU,</Text>
           <Text variant="body" style={styles.listItem}>• de fraude ou tentative de fraude,</Text>
           <Text variant="body" style={styles.listItem}>• de risque pour la sécurité des utilisateurs ou du service.</Text>
           <Text variant="body" style={styles.text}>
-            L'utilisateur peut demander la suppression de son compte via Tapea.pf@gmail.com, sous réserve des obligations légales de conservation (ex. comptabilité, litiges).
+            L'utilisateur peut demander la suppression de son compte via contact@rave-location.com, sous réserve des obligations légales de conservation (ex. comptabilité, litiges).
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text variant="h2" style={styles.sectionTitle}>15) Modifications des CGU</Text>
           <Text variant="body" style={styles.text}>
-            TAPEA peut modifier les présentes CGU afin de refléter des évolutions légales, techniques ou fonctionnelles. La version applicable est celle publiée sur le site et/ou dans l'application, avec sa date d'entrée en vigueur.
+            RAVE peut modifier les présentes CGU afin de refléter des évolutions légales, techniques ou fonctionnelles. La version applicable est celle publiée sur le site et/ou dans l'application, avec sa date d'entrée en vigueur.
           </Text>
         </View>
 
@@ -269,7 +270,7 @@ export default function ConditionsUtilisationScreen() {
           <Text variant="h2" style={styles.sectionTitle}>17) Contact</Text>
           <Text variant="body" style={styles.text}>
             Pour toute question relative aux CGU :{'\n'}
-            Email : Tapea.pf@gmail.com{'\n\n'}
+            Email : contact@rave-location.com{'\n\n'}
             Téléphone : +689 87 75 98 97
           </Text>
         </View>

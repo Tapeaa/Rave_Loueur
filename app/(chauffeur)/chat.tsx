@@ -11,12 +11,13 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { Text } from '@/components/ui/Text';
 import { getDriverSessionId, apiFetch, apiPost } from '@/lib/api';
-import { getSocket, isSocketConnected, joinRideRoom } from '@/lib/socket';
+import { getSocket, isSocketConnected, joinOrderChatRoom } from '@/lib/socket';
 
 // API URL pour le fallback HTTP
 const API_URL = Constants.expoConfig?.extra?.apiUrl || '';
@@ -81,8 +82,8 @@ export default function DriverChatScreen() {
   useEffect(() => {
     if (!orderId || !sessionId) return;
     
-    console.log('[Chat Driver] Joining ride room for order:', orderId);
-    joinRideRoom(orderId, 'driver', { sessionId });
+    console.log('[Chat Driver] Joining order chat room:', orderId);
+    joinOrderChatRoom(orderId, 'driver', { sessionId });
   }, [orderId, sessionId]);
 
   // Écouter les nouveaux messages via Socket.IO
@@ -242,7 +243,7 @@ export default function DriverChatScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerInfo}>
@@ -262,7 +263,7 @@ export default function DriverChatScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>

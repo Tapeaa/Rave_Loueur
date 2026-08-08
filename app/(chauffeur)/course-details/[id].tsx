@@ -8,22 +8,32 @@ import {
   Alert,
   Share,
   Platform,
+  Image,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
-import { apiFetch, getDriverSessionId } from '@/lib/api';
+import * as FileSystem from 'expo-file-system/legacy';
+import { apiFetch, getDriverSessionId, postRentalOrderLifecycle } from '@/lib/api';
+import {
+  getRentalLifecyclePhase,
+  getRentalStepperState,
+  isRentalOrderLike,
+} from '@/lib/rental-lifecycle';
+import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
+import { joinRentalOrderRoom, onRentalLifecycleChanged } from '@/lib/socket';
 import type { Order } from '@/lib/types';
 
 const statusLabels: Record<string, { label: string; color: string; icon: string }> = {
   pending: { label: 'En attente', color: '#F59E0B', icon: 'time' },
   accepted: { label: 'Acceptée', color: '#3B82F6', icon: 'checkmark-circle' },
-  booked: { label: 'Réservée', color: '#8B5CF6', icon: 'calendar' },  // ═══ RÉSERVATION À L'AVANCE ═══
-  driver_enroute: { label: 'En route vers client', color: '#3B82F6', icon: 'car' },
-  driver_arrived: { label: 'Arrivé chez client', color: '#8B5CF6', icon: 'location' },
-  in_progress: { label: 'Course en cours', color: '#10B981', icon: 'navigate' },
+  booked: { label: 'Réservée', color: '#8B5CF6', icon: 'calendar' },
+  in_progress: { label: 'En cours', color: '#10B981', icon: 'navigate' },
   completed: { label: 'Terminée', color: '#22C55E', icon: 'checkmark-done-circle' },
   cancelled: { label: 'Annulée', color: '#EF4444', icon: 'close-circle' },
   expired: { label: 'Expirée', color: '#6B7280', icon: 'timer' },
@@ -38,35 +48,44 @@ export default function CourseDetailsScreen() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tarifs, setTarifs] = useState<any[]>([]);
-  const [startingBooking, setStartingBooking] = useState(false);  // ═══ RÉSERVATION À L'AVANCE ═══
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [contractHTML, setContractHTML] = useState('');
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [loueurSignature, setLoueurSignature] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sigFile = `${FileSystem.documentDirectory}loueur_signature.txt`;
+    console.log('[CONTRACT] Loading loueur signature from:', sigFile);
+    FileSystem.getInfoAsync(sigFile).then(info => {
+      console.log('[CONTRACT] Signature file exists:', info.exists);
+      if (info.exists) {
+        FileSystem.readAsStringAsync(sigFile).then(sig => {
+          console.log('[CONTRACT] Signature loaded, length:', sig?.length || 0);
+          if (sig) setLoueurSignature(sig);
+        });
+      }
+    }).catch((e) => { console.log('[CONTRACT] Error loading signature:', e); });
+  }, []);
 
   useEffect(() => {
     const loadOrder = async () => {
       if (!id) {
-        setError('ID de course manquant');
+        setError('ID de location manquant');
         setLoading(false);
         return;
       }
 
       try {
         const sessionId = await getDriverSessionId();
-        // Charger les tarifs en parallèle
-        const [orderData, tarifsData] = await Promise.all([
-          apiFetch<Order>(`/api/orders/${id}`, {
-            headers: {
-              'X-Driver-Session': sessionId || '',
-            },
-          }),
-          apiFetch<any[]>(`/api/tarifs`).catch(() => []) // Si erreur, retourner tableau vide
-        ]);
-        
+        const orderData = await apiFetch<Order>(`/api/orders/${id}`, {
+          headers: {
+            'X-Driver-Session': sessionId || '',
+          },
+        });
         setOrder(orderData);
-        setTarifs(tarifsData || []);
       } catch (err) {
         console.error('[CourseDetails] Error loading order:', err);
-        setError('Impossible de charger les détails de la course');
+        setError('Impossible de charger les détails de la location');
       } finally {
         setLoading(false);
       }
@@ -75,33 +94,16 @@ export default function CourseDetailsScreen() {
     loadOrder();
   }, [id]);
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RÉSERVATION À L'AVANCE: Démarrer une course réservée
-  // ═══════════════════════════════════════════════════════════════════════════
-  const handleStartBooking = async () => {
-    if (!order || startingBooking) return;
-    
-    setStartingBooking(true);
-    try {
-      const sessionId = await getDriverSessionId();
-      await apiFetch(`/api/orders/${order.id}/start-booking`, {
-        method: 'POST',
-        headers: {
-          'X-Driver-Session': sessionId || '',
-        },
-      });
-      
-      router.push({
-        pathname: '/(chauffeur)/course-en-cours',
-        params: { orderId: order.id },
-      });
-    } catch (err) {
-      console.error('[CourseDetails] Error starting booking:', err);
-      // On pourrait afficher une alerte ici
-    } finally {
-      setStartingBooking(false);
-    }
-  };
+  useEffect(() => {
+    if (!id || !order || !isRentalOrderLike(order)) return;
+    joinRentalOrderRoom(id);
+    const unsub = onRentalLifecycleChanged((data) => {
+      if (data.orderId === id && data.order) {
+        setOrder(data.order);
+      }
+    });
+    return unsub;
+  }, [id, order?.status]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -126,168 +128,119 @@ export default function CourseDetailsScreen() {
     return `${price.toLocaleString('fr-FR')} XPF`;
   };
 
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) {
-      return `${minutes} min`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins > 0 ? `${mins}min` : ''}`;
-  };
+  const buildContractHTML = () => {
+    if (!order) return '';
+    const rideOpt = order.rideOption as any;
+    const rd = rideOpt?.rentalData || {
+      vehicleName: rideOpt?.title || 'Véhicule',
+      vehicleCategory: rideOpt?.categoryLabel || rideOpt?.category || '',
+      days: rideOpt?.days || 0,
+      pricePerDay: (rideOpt?.price || 0) / Math.max(1, rideOpt?.days || 1),
+      startDate: rideOpt?.startDate,
+      endDate: rideOpt?.endDate,
+      pickupAddress: rideOpt?.pickupLocation,
+    };
+    const clientName = order.clientName || 'Client';
+    const loueurName = (order as any).driverName || (order as any).driver?.name || 'Loueur';
+    const signatureImg = rideOpt?.clientSignatureSvg || '';
+    const loueurSigFromDb = rideOpt?.loueurSignatureSvg || '';
+    const effectiveLoueurSig = loueurSigFromDb || loueurSignature || '';
+    const signedAt = rideOpt?.clientSignedAt;
+    const sigName = rideOpt?.clientSignatureName || clientName;
+    const todayStr = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const signedDate = signedAt ? new Date(signedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : todayStr;
+    const signedTime = signedAt ? new Date(signedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const totalPrice = order.totalPrice || 0;
+    const pricePerDay = rd?.pricePerDay || 0;
+    const days = rd?.days || 0;
 
-  const formatDistance = (meters: number) => {
-    if (meters < 1000) {
-      return `${meters} m`;
-    }
-    return `${(meters / 1000).toFixed(1)} km`;
-  };
-
-  // Fonction pour obtenir le tarif kilométrique selon l'heure de la commande
-  const getPricePerKmForOrder = (orderCreatedAt: string): { price: number; period: 'jour' | 'nuit' } => {
-    if (!orderCreatedAt) {
-      // Fallback : utiliser rideOption.pricePerKm ou défaut
-      const fallbackPrice = order?.rideOption?.pricePerKm || 150;
-      return { price: fallbackPrice, period: 'jour' };
-    }
-    
-    const orderDate = new Date(orderCreatedAt);
-    const orderHour = orderDate.getHours();
-    const orderMinutes = orderHour * 60 + orderDate.getMinutes();
-    
-    // Chercher le tarif kilométrique approprié
-    // kilometre_jour : généralement 6h-18h (150 XPF)
-    // kilometre_nuit : généralement 18h-6h (260 XPF)
-    const kilometreTarifs = tarifs.filter(t => 
-      t.typeTarif === 'kilometre_jour' || t.typeTarif === 'kilometre_nuit'
-    );
-    
-    // Trouver le tarif qui correspond à l'heure de la commande
-    for (const tarif of kilometreTarifs) {
-      if (tarif.heureDebut && tarif.heureFin) {
-        // Parser les heures (format HH:MM)
-        const [debutH, debutM] = tarif.heureDebut.split(':').map(Number);
-        const [finH, finM] = tarif.heureFin.split(':').map(Number);
-        const debutMinutes = debutH * 60 + (debutM || 0);
-        const finMinutes = finH * 60 + (finM || 0);
-        
-        // Gérer le cas où la plage horaire traverse minuit (ex: 18h-6h)
-        let isInRange = false;
-        if (debutMinutes <= finMinutes) {
-          // Plage normale (ex: 6h-18h)
-          isInRange = orderMinutes >= debutMinutes && orderMinutes < finMinutes;
-        } else {
-          // Plage qui traverse minuit (ex: 18h-6h)
-          isInRange = orderMinutes >= debutMinutes || orderMinutes < finMinutes;
-        }
-        
-        if (isInRange) {
-          const period = tarif.typeTarif === 'kilometre_jour' ? 'jour' : 'nuit';
-          console.log(`[CourseDetails] Tarif trouvé: ${tarif.typeTarif} (${tarif.heureDebut}-${tarif.heureFin}) = ${tarif.prixXpf} XPF pour commande à ${orderHour}h${orderDate.getMinutes()}`);
-          return { price: tarif.prixXpf, period };
-        }
-      } else {
-        // Si pas de plage horaire, utiliser le type pour déterminer
-        // Par défaut : jour = 6h-18h, nuit = 18h-6h
-        if (tarif.typeTarif === 'kilometre_jour' && orderHour >= 6 && orderHour < 18) {
-          console.log(`[CourseDetails] Tarif jour trouvé (sans plage): ${tarif.prixXpf} XPF`);
-          return { price: tarif.prixXpf, period: 'jour' };
-        }
-        if (tarif.typeTarif === 'kilometre_nuit' && (orderHour >= 18 || orderHour < 6)) {
-          console.log(`[CourseDetails] Tarif nuit trouvé (sans plage): ${tarif.prixXpf} XPF`);
-          return { price: tarif.prixXpf, period: 'nuit' };
-        }
-      }
-    }
-    
-    // Fallback : utiliser rideOption.pricePerKm ou défaut selon l'heure
-    const isNight = orderHour >= 18 || orderHour < 6;
-    const fallbackPrice = order?.rideOption?.pricePerKm || (isNight ? 260 : 150);
-    console.log(`[CourseDetails] Aucun tarif trouvé, utilisation du fallback: ${fallbackPrice} XPF`);
-    return { price: fallbackPrice, period: isNight ? 'nuit' : 'jour' };
-  };
-
-  // Fonction pour obtenir la prise en charge (toujours 1000 XPF)
-  const getBasePrice = (): number => {
-    // Chercher le tarif de prise en charge
-    const priseEnCharge = tarifs.find(t => t.typeTarif === 'prise_en_charge');
-    if (priseEnCharge) {
-      return priseEnCharge.prixXpf;
-    }
-    // Défaut : 1000 XPF
-    return 1000;
-  };
-
-  // Télécharger le contrat de location en HTML (partageable/imprimable en PDF)
-  const handleDownloadContract = async () => {
-    if (!order) return;
-    setIsDownloadingPdf(true);
-    try {
-      let FileSystem: any;
-      try { FileSystem = require('expo-file-system/legacy'); } catch { FileSystem = require('expo-file-system'); }
-
-      const rideOpt = order.rideOption as any;
-      const rd = rideOpt?.rentalData;
-      const clientName = order.clientName || 'Client';
-      const loueurName = (order as any).driverName || 'Loueur';
-      const signatureSvg = rideOpt?.clientSignatureSvg || '';
-      const signedAt = rideOpt?.clientSignedAt;
-      const sigName = rideOpt?.clientSignatureName || clientName;
-      const todayStr = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-      const signedDate = signedAt ? new Date(signedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : todayStr;
-      const signedTime = signedAt ? new Date(signedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-      const totalPrice = order.totalPrice || 0;
-      const pricePerDay = rd?.pricePerDay || 0;
-      const days = rd?.days || 0;
-
-      const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contrat RAVE</title>
+    return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Contrat RAVE</title>
 <style>
-@page{size:A4;margin:20mm}body{font-family:Helvetica,Arial,sans-serif;padding:40px;color:#1a1a1a;font-size:13px;line-height:1.6;max-width:800px;margin:0 auto}
-.header{text-align:center;margin-bottom:30px;border-bottom:2px solid #171717;padding-bottom:20px}.header h1{font-size:22px;margin:0 0 4px;letter-spacing:1px}.header h2{font-size:16px;font-weight:400;color:#6B7280;margin:0 0 12px}.header .date{font-size:12px;color:#9CA3AF}.header .ref{font-size:11px;color:#9CA3AF;margin-top:4px}
-h3{font-size:14px;margin-top:24px;margin-bottom:8px;color:#171717;border-bottom:1px solid #E5E7EB;padding-bottom:4px}p{margin:0 0 12px;color:#374151}
-.details-box{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin:12px 0}table{width:100%;border-collapse:collapse}table td{padding:6px 0}table td:first-child{color:#6B7280;width:45%}table td:last-child{font-weight:500;text-align:right}
-.signatures{display:flex;justify-content:space-between;margin-top:40px;border-top:2px solid #171717;padding-top:20px}.sig-box{width:45%;text-align:center}.sig-label{font-size:12px;color:#6B7280;margin-bottom:8px}.sig-name{font-size:14px;font-weight:600;margin-bottom:8px}
-.sig-image{border:1px dashed #D1D5DB;border-radius:8px;padding:10px;min-height:80px;display:flex;align-items:center;justify-content:center;background:#FAFAFA}.sig-image svg{max-width:100%;height:auto}.signed-info{font-size:10px;color:#22C55E;margin-top:6px}.pending{font-size:11px;color:#F59E0B;font-style:italic}
-.footer{text-align:center;margin-top:40px;padding-top:16px;border-top:1px solid #E5E7EB;font-size:10px;color:#9CA3AF}
-.print-hint{text-align:center;padding:12px;background:#EFF6FF;border-radius:8px;margin-bottom:20px;font-size:11px;color:#1D4ED8}@media print{.print-hint{display:none}}
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;padding:20px;color:#1a1a1a;font-size:14px;line-height:1.6;margin:0}
+.header{text-align:center;margin-bottom:24px;border-bottom:2px solid #171717;padding-bottom:16px}.header h1{font-size:20px;margin:0 0 4px;letter-spacing:1px}.header h2{font-size:14px;font-weight:400;color:#6B7280;margin:0 0 8px}.header .date{font-size:12px;color:#9CA3AF}.header .ref{font-size:11px;color:#9CA3AF;margin-top:4px}
+h3{font-size:15px;margin-top:20px;margin-bottom:6px;color:#171717;border-bottom:1px solid #E5E7EB;padding-bottom:4px}p{margin:0 0 10px;color:#374151}
+.details-box{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:12px;margin:10px 0}table{width:100%;border-collapse:collapse}table td{padding:5px 0;font-size:13px}table td:first-child{color:#6B7280;width:45%}table td:last-child{font-weight:500;text-align:right}
+.sig-section{margin-top:30px;border-top:2px solid #171717;padding-top:16px}
+.sig-box{margin-bottom:20px;text-align:center}.sig-label{font-size:12px;color:#6B7280;margin-bottom:6px}.sig-name{font-size:14px;font-weight:600;margin-bottom:6px}
+.sig-image{border:1px dashed #D1D5DB;border-radius:8px;padding:10px;min-height:60px;display:flex;align-items:center;justify-content:center;background:#FAFAFA}
+.sig-image img{max-width:100%;max-height:100px;height:auto}.signed-info{font-size:11px;color:#22C55E;margin-top:4px}.pending{font-size:11px;color:#F59E0B;font-style:italic}
+.footer{text-align:center;margin-top:30px;padding-top:12px;border-top:1px solid #E5E7EB;font-size:10px;color:#9CA3AF}
 </style></head><body>
-<div class="print-hint">Pour enregistrer en PDF : Partager → Imprimer → Enregistrer en PDF</div>
 <div class="header"><h1>CONTRAT DE LOCATION</h1><h2>DE VÉHICULE</h2><div class="date">En date du ${signedDate}</div><div class="ref">Réf. ${order.id.substring(0, 8).toUpperCase()}</div></div>
-<h3>Article 1 - Objet du contrat</h3><p>Le présent contrat a pour objet la mise à disposition d'un véhicule de location par le loueur au locataire, via la plateforme RAVE.</p>
-<h3>Article 2 - Détails de la réservation</h3><div class="details-box"><table>
+<h3>Article 1 - Objet</h3><p>Mise à disposition d'un véhicule de location par le loueur au locataire, via la plateforme RAVE.</p>
+<h3>Article 2 - Réservation</h3><div class="details-box"><table>
 <tr><td>Véhicule</td><td>${rd?.vehicleName || 'N/A'}</td></tr>
 <tr><td>Catégorie</td><td style="text-transform:capitalize">${rd?.vehicleCategory || 'N/A'}</td></tr>
 <tr><td>Prise en charge</td><td>${rd?.startDate ? new Date(rd.startDate).toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'}) : 'N/A'}</td></tr>
 <tr><td>Retour</td><td>${rd?.endDate ? new Date(rd.endDate).toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'}) : 'N/A'}</td></tr>
 <tr><td>Durée</td><td>${days} jour${days > 1 ? 's' : ''}</td></tr>
+<tr><td>Tarif / jour</td><td>${pricePerDay.toLocaleString()} XPF</td></tr>
 <tr><td>Montant total</td><td style="font-weight:700">${totalPrice.toLocaleString()} XPF</td></tr>
-${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}</td></tr>` : ''}
+${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : ''}
 </table></div>
-<h3>Article 3 - Conditions de location</h3><p>Le locataire s'engage à :<br>• Être titulaire d'un permis de conduire valide<br>• Utiliser le véhicule avec soin et prudence<br>• Restituer le véhicule dans l'état où il l'a reçu<br>• Respecter le code de la route en vigueur<br>• Ne pas sous-louer le véhicule à un tiers</p>
-<h3>Article 4 - Tarification et paiement</h3><p>Le prix de la location est de ${totalPrice.toLocaleString()} XPF pour ${days} jour${days > 1 ? 's' : ''}, soit ${pricePerDay.toLocaleString()} XPF par jour.</p>
-<h3>Article 5 - Assurance</h3><p>Le véhicule est couvert par l'assurance du loueur. Le locataire reste responsable de toute infraction commise pendant la durée de la location.</p>
-<h3>Article 6 - État des lieux</h3><p>Un état des lieux sera effectué au moment de la prise en charge et de la restitution du véhicule.</p>
-<h3>Article 7 - Annulation</h3><p>Les conditions d'annulation sont définies par la politique de la plateforme RAVE.</p>
-<div class="signatures"><div class="sig-box"><div class="sig-label">Le locataire</div><div class="sig-name">${sigName}</div>${signatureSvg ? `<div class="sig-image">${signatureSvg}</div><div class="signed-info">✓ Signé le ${signedDate}${signedTime ? ' à ' + signedTime : ''}</div>` : `<div class="sig-image"><span class="pending">Non signé</span></div>`}</div>
-<div class="sig-box"><div class="sig-label">Le loueur</div><div class="sig-name">${loueurName}</div><div class="sig-image"><span class="pending">En attente</span></div></div></div>
+<h3>Article 3 - Conditions</h3><p>Le locataire s'engage à : être titulaire d'un permis valide, utiliser le véhicule avec soin, le restituer dans l'état reçu, respecter le code de la route, ne pas sous-louer.</p>
+<h3>Article 4 - Paiement</h3><p>Prix : ${totalPrice.toLocaleString()} XPF pour ${days} jour${days > 1 ? 's' : ''} (${pricePerDay.toLocaleString()} XPF/jour).</p>
+<h3>Article 5 - Assurance</h3><p>Véhicule couvert par l'assurance du loueur. Le locataire reste responsable des infractions.</p>
+<div class="sig-section">
+<div class="sig-box"><div class="sig-label">Le locataire</div><div class="sig-name">${sigName}</div>${signatureImg ? `<div class="sig-image"><img src="${signatureImg}" alt="Signature"/></div><div class="signed-info">✓ Signé le ${signedDate}${signedTime ? ' à ' + signedTime : ''}</div>` : `<div class="sig-image"><span class="pending">Non signé</span></div>`}</div>
+<div class="sig-box"><div class="sig-label">Le loueur</div><div class="sig-name">${loueurName}</div>${effectiveLoueurSig ? `<div class="sig-image"><img src="${effectiveLoueurSig}" alt="Signature loueur"/></div><div class="signed-info">✓ Signé</div>` : `<div class="sig-image"><span class="pending">En attente</span></div>`}</div>
+</div>
 <div class="footer">Document généré par RAVE • Plateforme de location de véhicules</div>
 </body></html>`;
+  };
 
-      const ref = order.id.substring(0, 8).toUpperCase();
-      const fileUri = `${FileSystem.documentDirectory}contrat-location-${ref}.html`;
+  const handleViewContract = () => {
+    const html = buildContractHTML();
+    if (html) {
+      setContractHTML(html);
+      setShowContractModal(true);
+    }
+  };
+
+  const handleShareContract = async () => {
+    try {
+      const html = contractHTML || buildContractHTML();
+      if (!html) return;
+      let FileSystem: any;
+      try { FileSystem = require('expo-file-system/legacy'); } catch { FileSystem = require('expo-file-system'); }
+      const ref = order?.id?.substring(0, 8).toUpperCase() || 'RAVE';
+      const fileUri = `${FileSystem.documentDirectory}contrat-${ref}.html`;
       await FileSystem.writeAsStringAsync(fileUri, html, { encoding: FileSystem.EncodingType.UTF8 });
-
-      // Utiliser l'API Share native de React Native (pas besoin de module natif expo-sharing)
       if (Platform.OS === 'ios') {
-        await Share.share({ url: fileUri, title: 'Contrat de location RAVE' });
+        await Share.share({ url: fileUri, title: `Contrat RAVE ${ref}` });
       } else {
-        await Share.share({ message: html, title: 'Contrat de location RAVE' });
+        const Sharing = require('expo-sharing');
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, { mimeType: 'text/html', dialogTitle: `Contrat RAVE ${ref}` });
+        } else {
+          Alert.alert('Info', 'Le partage n\'est pas disponible sur cet appareil.');
+        }
       }
-    } catch (err: any) {
-      console.error('[PDF] Error:', err);
-      Alert.alert('Erreur', 'Impossible de générer le contrat.');
-    } finally {
-      setIsDownloadingPdf(false);
+    } catch (err) {
+      console.error('[Share] Error:', err);
+    }
+  };
+
+  const handleShareImage = async (uri: string, name: string) => {
+    try {
+      let FileSystem: any;
+      try { FileSystem = require('expo-file-system/legacy'); } catch { FileSystem = require('expo-file-system'); }
+      const base64Data = uri.replace(/^data:image\/\w+;base64,/, '');
+      const fileUri = `${FileSystem.documentDirectory}${name}.jpg`;
+      await FileSystem.writeAsStringAsync(fileUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+      if (Platform.OS === 'ios') {
+        await Share.share({ url: fileUri, title: name });
+      } else {
+        const Sharing = require('expo-sharing');
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, { mimeType: 'image/jpeg', dialogTitle: name });
+        }
+      }
+    } catch (err) {
+      console.error('[Share] Error:', err);
     }
   };
 
@@ -295,10 +248,10 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
           </TouchableOpacity>
-          <Text variant="h2">Détails de la course</Text>
+          <Text variant="h2">Détails de la location</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
@@ -312,16 +265,16 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
           </TouchableOpacity>
-          <Text variant="h2">Détails de la course</Text>
+          <Text variant="h2">Détails de la location</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-          <Text style={styles.errorText}>{error || 'Course introuvable'}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => router.back()}>
+          <Text style={styles.errorText}>{error || 'Location introuvable'}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => safeBack(router)}>
             <Text style={styles.retryButtonText}>Retour</Text>
           </TouchableOpacity>
         </View>
@@ -330,32 +283,56 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
   }
 
   const status = statusLabels[order.status] || { label: order.status, color: '#6B7280', icon: 'help-circle' };
-  const pickup = order.addresses.find((a) => a.type === 'pickup');
-  const destination = order.addresses.find((a) => a.type === 'destination');
-  const stops = order.addresses.filter((a) => a.type === 'stop');
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RÉSERVATION À L'AVANCE: Vérifier si c'est une réservation
-  // ═══════════════════════════════════════════════════════════════════════════
-  const isBooked = order.status === 'booked';
-
-  // Calcul des gains chauffeur (80% du prix total par exemple)
-  const driverEarnings = order.driverEarnings || Math.round(order.totalPrice * 0.8);
-  const commission = order.totalPrice - driverEarnings;
-
-  // ═══ DÉTECTION COMMANDE DE LOCATION ═══
-  const isRentalOrder = (order.rideOption as any)?.isRentalOrder === true;
-  const rentalData = (order.rideOption as any)?.rentalData;
+  const rentalLike = isRentalOrderLike(order);
   const rideOpt = order.rideOption as any;
+  const rentalData = rideOpt?.rentalData || (rentalLike ? {
+    vehicleName: rideOpt?.title || 'Véhicule',
+    days: rideOpt?.days || 1,
+    pricePerDay: (rideOpt?.price || 0) / Math.max(1, rideOpt?.days || 1),
+    startDate: rideOpt?.startDate,
+    endDate: rideOpt?.endDate,
+    pickupAddress: rideOpt?.pickupLocation,
+    options: order.supplements?.map((s: any) => ({
+      name: s.name || s.id,
+      pricePerDay: (s.price || 0) / Math.max(1, rideOpt?.days || 1),
+    })) || [],
+  } : null);
   const hasClientSignature = !!rideOpt?.clientSignatureSvg;
+  const rentalPhase = getRentalLifecyclePhase(order);
+  const rentalStepperState = getRentalStepperState(order);
+
+  const advanceRentalLifecycle = async (nextPhase: 'with_client' | 'returned') => {
+    const sessionId = await getDriverSessionId();
+    if (!sessionId) {
+      Alert.alert('Erreur', 'Session loueur introuvable.');
+      return;
+    }
+    setLifecycleBusy(true);
+    try {
+      await postRentalOrderLifecycle(order.id, sessionId, { phase: nextPhase });
+      const orderData = await apiFetch<Order>(`/api/orders/${order.id}`, {
+        headers: { 'X-Driver-Session': sessionId },
+      });
+      setOrder(orderData);
+    } catch (err) {
+      console.error('[CourseDetails] lifecycle:', err);
+      Alert.alert(
+        'Erreur',
+        'Impossible de mettre à jour cette étape. Vérifiez que le serveur expose POST /api/rental-orders/.../lifecycle.'
+      );
+    } finally {
+      setLifecycleBusy(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        <Text variant="h2">{isRentalOrder ? 'Détails de la location' : 'Détails de la course'}</Text>
+        <Text variant="h2">Détails de la location</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -363,19 +340,57 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
         {/* Statut et Date */}
         <Card style={styles.statusCard}>
           <View style={[styles.statusBadge, { backgroundColor: status.color + '15' }]}>
-            <Ionicons name={isRentalOrder ? 'key' : (status.icon as any)} size={24} color={status.color} />
+            <Ionicons name="key" size={24} color={status.color} />
             <Text style={[styles.statusText, { color: status.color }]}>
-              {isRentalOrder ? (hasClientSignature ? 'Contrat signé' : status.label) : status.label}
+              {hasClientSignature ? 'Contrat signé' : status.label}
             </Text>
           </View>
           <Text style={styles.dateText}>{formatDate(order.createdAt)}</Text>
           <Text style={styles.timeText}>à {formatTime(order.createdAt)}</Text>
         </Card>
 
-        {isRentalOrder && rentalData ? (
-          <>
-            {/* ═══ CONTENU SPÉCIFIQUE LOCATION ═══ */}
+        {rentalLike && (
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>Suivi de la location</Text>
+            <RentalLifecycleStepper state={rentalStepperState} variant="loueur" />
+            {rentalPhase === 'vehicle_ready' &&
+              (order.status === 'accepted' || order.status === 'booked') && (
+                <TouchableOpacity
+                  style={styles.lifecycleButton}
+                  onPress={() => advanceRentalLifecycle('with_client')}
+                  disabled={lifecycleBusy}
+                >
+                  {lifecycleBusy ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="car-outline" size={20} color="#fff" />
+                      <Text style={styles.lifecycleButtonText}>Véhicule remis au client</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            {rentalPhase === 'with_client' && (
+              <TouchableOpacity
+                style={[styles.lifecycleButton, styles.lifecycleButtonSecondary]}
+                onPress={() => advanceRentalLifecycle('returned')}
+                disabled={lifecycleBusy}
+              >
+                {lifecycleBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
+                    <Text style={styles.lifecycleButtonText}>Confirmer le retour du véhicule</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </Card>
+        )}
 
+        {rentalData && (
+          <>
             {/* Gains */}
             <Card style={styles.earningsCard}>
               <Text style={styles.earningsLabel}>Revenus pour cette location</Text>
@@ -545,7 +560,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
               </Card>
             )}
 
-            {/* ═══ CONTRAT DE LOCATION & SIGNATURE ═══ */}
+            {/* Contrat de location & signature */}
             <Card style={[styles.section, { borderWidth: 1, borderColor: hasClientSignature ? '#22C55E30' : '#F59E0B30' }]}>
               <Text style={styles.sectionTitle}>Contrat de location</Text>
               {hasClientSignature ? (
@@ -580,6 +595,17 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
                       </>
                     )}
                   </View>
+
+                  {rideOpt.clientSignatureSvg && (
+                    <View style={{ marginTop: 12, backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', padding: 8, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Signature</Text>
+                      <Image
+                        source={{ uri: rideOpt.clientSignatureSvg }}
+                        style={{ width: '100%', height: 80 }}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  )}
                 </View>
               ) : (
                 <View style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center' }}>
@@ -590,33 +616,64 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
                 </View>
               )}
 
-              {/* ═══ BOUTON TÉLÉCHARGER LE CONTRAT ═══ */}
-              {hasClientSignature && (
-                <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#171717',
-                    borderRadius: 12,
-                    padding: 14,
-                    marginTop: 16,
-                    gap: 8,
-                  }}
-                  onPress={handleDownloadContract}
-                  disabled={isDownloadingPdf}
-                >
-                  {isDownloadingPdf ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Ionicons name="download-outline" size={20} color="#FFF" />
-                  )}
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>
-                    {isDownloadingPdf ? 'Génération...' : 'Télécharger le contrat'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#171717',
+                  borderRadius: 12,
+                  padding: 14,
+                  marginTop: 16,
+                  gap: 8,
+                }}
+                onPress={handleViewContract}
+              >
+                <Ionicons name="document-text-outline" size={20} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>
+                  Voir le contrat
+                </Text>
+              </TouchableOpacity>
             </Card>
+
+            {/* Documents du client */}
+            {(rideOpt?.clientLicenseFront || rideOpt?.clientLicenseBack) && (
+              <Card style={styles.section}>
+                <Text style={styles.sectionTitle}>Permis de conduire du client</Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  {rideOpt.clientLicenseFront && (
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6, textAlign: 'center' }}>Recto</Text>
+                      <TouchableOpacity onPress={() => handleShareImage(rideOpt.clientLicenseFront, 'permis-recto')} activeOpacity={0.8}>
+                        <Image
+                          source={{ uri: rideOpt.clientLicenseFront }}
+                          style={{ width: '100%', height: 120, borderRadius: 8, backgroundColor: '#F3F4F6' }}
+                          resizeMode="cover"
+                        />
+                        <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 14, padding: 6 }}>
+                          <Ionicons name="download-outline" size={16} color="#FFF" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {rideOpt.clientLicenseBack && (
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6, textAlign: 'center' }}>Verso</Text>
+                      <TouchableOpacity onPress={() => handleShareImage(rideOpt.clientLicenseBack, 'permis-verso')} activeOpacity={0.8}>
+                        <Image
+                          source={{ uri: rideOpt.clientLicenseBack }}
+                          style={{ width: '100%', height: 120, borderRadius: 8, backgroundColor: '#F3F4F6' }}
+                          resizeMode="cover"
+                        />
+                        <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 14, padding: 6 }}>
+                          <Ionicons name="download-outline" size={16} color="#FFF" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </Card>
+            )}
 
             {/* Informations */}
             <Card style={styles.section}>
@@ -652,380 +709,38 @@ ${rd?.pickupAddress ? `<tr><td>Adresse de livraison</td><td>${rd.pickupAddress}<
               <Text style={styles.messagesButtonText}>Contacter le client</Text>
             </TouchableOpacity>
           </>
-        ) : (
-          <>
-            {/* ═══ CONTENU TAXI CLASSIQUE ═══ */}
-
-            {/* Gains */}
-            <Card style={styles.earningsCard}>
-              <Text style={styles.earningsLabel}>
-                {isBooked ? 'Gains estimés pour cette réservation' : 'Vos gains pour cette course'}
-              </Text>
-              <Text style={styles.earningsValue}>{formatPrice(driverEarnings)}</Text>
-              <View style={styles.earningsDetails}>
-                <View style={styles.earningsRow}>
-                  <Text style={styles.earningsDetailLabel}>
-                    {isBooked ? 'Prix estimé client' : 'Prix client'}
-                  </Text>
-                  <Text style={styles.earningsDetailValue}>{formatPrice(order.totalPrice)}</Text>
-                </View>
-                <View style={styles.earningsRow}>
-                  <Text style={styles.earningsDetailLabel}>Commission TAPEA</Text>
-                  <Text style={styles.earningsDetailValue}>-{formatPrice(commission)}</Text>
-                </View>
-              </View>
-            </Card>
-
-            {/* Client */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Client</Text>
-              <View style={styles.clientInfo}>
-                <View style={styles.clientAvatar}>
-                  <Ionicons name="person" size={28} color="#FFFFFF" />
-                </View>
-                <View style={styles.clientDetails}>
-                  <Text style={styles.clientName}>{order.clientName || 'Client TAPEA'}</Text>
-                  {order.clientPhone && (
-                    <View style={styles.clientPhone}>
-                      <Ionicons name="call-outline" size={14} color="#6B7280" />
-                      <Text style={styles.clientPhoneText}>{order.clientPhone}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </Card>
-
-            {/* Trajet */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Trajet effectué</Text>
-              
-              <View style={styles.addressContainer}>
-                {/* Départ */}
-                <View style={styles.addressRow}>
-                  <View style={styles.addressIconContainer}>
-                    <View style={[styles.addressDot, { backgroundColor: '#22C55E' }]} />
-                  </View>
-                  <View style={styles.addressContent}>
-                    <Text style={styles.addressLabel}>Prise en charge</Text>
-                    <Text style={styles.addressValue}>{pickup?.value || 'Non spécifié'}</Text>
-                  </View>
-                </View>
-
-                {/* Ligne de connexion */}
-                <View style={styles.connectionLine} />
-
-                {/* Arrêts intermédiaires */}
-                {stops.map((stop, index) => (
-                  <View key={`stop-${index}`}>
-                    <View style={styles.addressRow}>
-                      <View style={styles.addressIconContainer}>
-                        <View style={[styles.addressDot, { backgroundColor: '#F59E0B' }]}>
-                          <Text style={styles.stopNumber}>{index + 1}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.addressContent}>
-                        <Text style={styles.addressLabel}>Arrêt {index + 1}</Text>
-                        <Text style={styles.addressValue}>{stop.value || 'Non spécifié'}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.connectionLine} />
-                  </View>
-                ))}
-
-                {/* Arrivée */}
-                <View style={styles.addressRow}>
-                  <View style={styles.addressIconContainer}>
-                    <View style={[styles.addressDot, { backgroundColor: '#EF4444' }]} />
-                  </View>
-                  <View style={styles.addressContent}>
-                    <Text style={styles.addressLabel}>Destination</Text>
-                    <Text style={styles.addressValue}>{destination?.value || 'Non spécifié'}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Infos trajet */}
-              <View style={styles.tripInfo}>
-                <View style={styles.tripInfoItem}>
-                  <Ionicons name="time-outline" size={20} color="#6B7280" />
-                  <Text style={styles.tripInfoText}>
-                    {order.estimatedDuration ? formatDuration(order.estimatedDuration) : 'N/A'}
-                  </Text>
-                </View>
-                <View style={styles.tripInfoDivider} />
-                <View style={styles.tripInfoItem}>
-                  <Ionicons name="navigate-outline" size={20} color="#6B7280" />
-                  <Text style={styles.tripInfoText}>
-                    {order.estimatedDistance ? formatDistance(order.estimatedDistance) : 'N/A'}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-
-            {/* Type de service */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Service effectué</Text>
-              <View style={styles.serviceInfo}>
-                <View style={styles.serviceIcon}>
-                  <Ionicons name="car" size={24} color="#F5C400" />
-                </View>
-                <View style={styles.serviceDetails}>
-                  <Text style={styles.serviceName}>{order.rideOption.title}</Text>
-                  <Text style={styles.serviceDescription}>
-                    {order.rideOption.description || 'Service de transport TAPEA'}
-                  </Text>
-                </View>
-              </View>
-              
-              {order.passengers && (
-                <View style={styles.passengerInfo}>
-                  <Ionicons name="people-outline" size={20} color="#6B7280" />
-                  <Text style={styles.passengerText}>
-                    {order.passengers} passager{order.passengers > 1 ? 's' : ''} transporté{order.passengers > 1 ? 's' : ''}
-                  </Text>
-                </View>
-              )}
-            </Card>
-
-            {/* Options et suppléments */}
-            {order.supplements && order.supplements.length > 0 && (
-              <Card style={styles.section}>
-                <Text style={styles.sectionTitle}>Options facturées</Text>
-                {order.supplements.map((supplement, index) => (
-                  <View key={index} style={styles.supplementRow}>
-                    <View style={styles.supplementInfo}>
-                      <Ionicons name="add-circle-outline" size={18} color="#6B7280" />
-                      <Text style={styles.supplementName}>{supplement.name}</Text>
-                    </View>
-                    <Text style={styles.supplementPrice}>
-                      +{formatPrice(supplement.price * (supplement.quantity || 1))}
-                    </Text>
-                  </View>
-                ))}
-              </Card>
-            )}
-
-            {/* Récapitulatif financier */}
-            <Card style={styles.priceCard}>
-              <Text style={styles.sectionTitle}>Récapitulatif</Text>
-              
-              {/* Calcul de la décomposition du prix */}
-              {(() => {
-                // Prise en charge (toujours 1000 XPF depuis les tarifs)
-                const basePrice = getBasePrice();
-                
-                // Distance × tarif kilométrique selon l'heure de la commande
-                const distance = order.routeInfo?.distance ? parseFloat(String(order.routeInfo.distance)) : 0;
-                const { price: pricePerKm, period: pricePeriod } = getPricePerKmForOrder(order.createdAt);
-                const distancePrice = distance * pricePerKm;
-                
-                // Suppléments
-                const supplementsTotal = order.supplements?.reduce((acc, s) => acc + (s.price * (s.quantity || 1)), 0) || 0;
-                
-                // Majoration passagers (500 XPF si >= 5 passagers)
-                const passengers = order.passengers || 1;
-                const majorationPassagers = passengers >= 5 ? 500 : 0;
-                
-                const isBookedLocal = order.status === 'booked';
-                
-                // Temps d'attente (42 XPF par minute après 5 min gratuites) - seulement si course commencée
-                const waitingTime = isBookedLocal ? 0 : (order.waitingTimeMinutes || 0);
-                const waitingFee = isBookedLocal ? 0 : (waitingTime > 5 ? (waitingTime - 5) * 42 : 0);
-                
-                // Prix calculé
-                const calculatedBase = basePrice + distancePrice + supplementsTotal + majorationPassagers + waitingFee;
-                
-                // Arrêts payants
-                const totalPrice = order.totalPrice || 0;
-                const paidStopsFee = isBookedLocal ? 0 : Math.max(0, totalPrice - calculatedBase);
-                
-                return (
-                  <>
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>Prise en charge</Text>
-                      <Text style={styles.priceValue}>{formatPrice(basePrice)}</Text>
-                    </View>
-                    
-                    {distance > 0 && (
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>
-                          {distance.toFixed(1)} km × {formatPrice(pricePerKm)} ({pricePeriod})
-                        </Text>
-                        <View style={styles.priceValueContainer}>
-                          <Text style={styles.priceValue}>{formatPrice(distancePrice)}</Text>
-                        </View>
-                      </View>
-                    )}
-                    
-                    {majorationPassagers > 0 && (
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Majoration passagers (≥5)</Text>
-                        <Text style={styles.priceValue}>{formatPrice(majorationPassagers)}</Text>
-                      </View>
-                    )}
-                    
-                    {supplementsTotal > 0 && (
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Suppléments</Text>
-                        <Text style={styles.priceValue}>{formatPrice(supplementsTotal)}</Text>
-                      </View>
-                    )}
-                    
-                    {!isBookedLocal && waitingFee > 0 && (
-                      <View style={styles.priceRow}>
-                        <View style={styles.priceLabelContainer}>
-                          <Ionicons name="time-outline" size={16} color="#F59E0B" style={styles.waitingIcon} />
-                          <View style={styles.priceLabelTextContainer}>
-                            <Text style={styles.priceLabel}>
-                              Temps d'attente ({waitingTime - 5} min)
-                            </Text>
-                            <Text style={styles.priceSubLabel}>
-                              42 XPF/min après 5 min gratuites
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.priceValueContainer}>
-                          <Text style={[styles.priceValue, styles.waitingFee]}>+{formatPrice(waitingFee)}</Text>
-                        </View>
-                      </View>
-                    )}
-                    
-                    {!isBookedLocal && paidStopsFee > 0 && (
-                      <View style={styles.priceRow}>
-                        <View style={styles.priceLabelContainer}>
-                          <Ionicons name="pause-circle" size={16} color="#EF4444" style={styles.waitingIcon} />
-                          <View style={styles.priceLabelTextContainer}>
-                            <Text style={styles.priceLabel}>
-                              Arrêts payants
-                            </Text>
-                            <Text style={styles.priceSubLabel}>
-                              42 XPF/min pendant la course
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.priceValueContainer}>
-                          <Text style={[styles.priceValue, { color: '#EF4444' }]}>+{formatPrice(paidStopsFee)}</Text>
-                        </View>
-                      </View>
-                    )}
-                    
-                    <View style={styles.priceDivider} />
-                    
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>
-                        {isBookedLocal ? 'Prix estimé' : 'Total client'}
-                      </Text>
-                      <Text style={styles.priceValue}>{formatPrice(order.totalPrice)}</Text>
-                    </View>
-                    
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>Commission TAPEA</Text>
-                      <Text style={[styles.priceValue, { color: '#EF4444' }]}>-{formatPrice(commission)}</Text>
-                    </View>
-                    
-                    <View style={styles.priceDivider} />
-                    
-                    <View style={styles.totalRow}>
-                      <Text style={styles.totalLabel}>
-                        {isBookedLocal ? 'Gains estimés' : 'Vos gains nets'}
-                      </Text>
-                      <Text style={styles.totalValue}>{formatPrice(driverEarnings)}</Text>
-                    </View>
-                  </>
-                );
-              })()}
-            </Card>
-
-            {/* Informations supplémentaires */}
-            <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Informations</Text>
-              
-              <View style={styles.infoRow}>
-                <Ionicons name="receipt-outline" size={20} color="#6B7280" />
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Référence course</Text>
-                  <Text style={styles.infoValue}>{order.id.substring(0, 8).toUpperCase()}</Text>
-                </View>
-              </View>
-              
-              <View style={styles.infoRow}>
-                <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Date de la demande</Text>
-                  <Text style={styles.infoValue}>{formatDate(order.createdAt)} à {formatTime(order.createdAt)}</Text>
-                </View>
-              </View>
-              
-              {order.completedAt && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="checkmark-done-outline" size={20} color="#6B7280" />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Fin de course</Text>
-                    <Text style={styles.infoValue}>{formatDate(order.completedAt)} à {formatTime(order.completedAt)}</Text>
-                  </View>
-                </View>
-              )}
-
-              {order.paymentMethod && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="card-outline" size={20} color="#6B7280" />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Paiement reçu</Text>
-                    <Text style={styles.infoValue}>
-                      {order.paymentMethod === 'card' ? 'Par carte (TPE)' : 
-                       order.paymentMethod === 'cash' ? 'En espèces' : order.paymentMethod}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </Card>
-
-            {/* Bouton Messages */}
-            <TouchableOpacity 
-              style={styles.messagesButton}
-              onPress={() => router.push({
-                pathname: '/(chauffeur)/chat',
-                params: {
-                  orderId: order.id,
-                  clientName: order.clientName || 'Client',
-                },
-              })}
-            >
-              <Ionicons name="chatbubbles-outline" size={22} color="#1a1a1a" />
-              <Text style={styles.messagesButtonText}>Voir les messages</Text>
-            </TouchableOpacity>
-
-            {/* RÉSERVATION À L'AVANCE: Bouton pour démarrer la course */}
-            {order.status === 'booked' && (
-              <TouchableOpacity
-                style={[styles.startBookingButton, startingBooking && styles.startBookingButtonDisabled]}
-                onPress={() => {
-                  Alert.alert(
-                    'Commencer la course',
-                    'Êtes-vous sûr de vouloir commencer cette course réservée maintenant ?',
-                    [
-                      { text: 'Annuler', style: 'cancel' },
-                      { text: 'Commencer', onPress: handleStartBooking },
-                    ]
-                  );
-                }}
-                disabled={startingBooking}
-              >
-                {startingBooking ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="car" size={22} color="#FFFFFF" />
-                    <Text style={styles.startBookingButtonText}>Commencer la course</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
-          </>
         )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Modal Contrat de Location */}
+      <Modal visible={showContractModal} animationType="slide" statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF', paddingTop: Platform.OS === 'android' ? 45 : 55 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', backgroundColor: '#FFFFFF' }}>
+            <Text variant="h2" style={{ fontSize: 18 }}>Contrat de location</Text>
+            <TouchableOpacity onPress={() => setShowContractModal(false)} style={{ padding: 8, backgroundColor: '#F3F4F6', borderRadius: 20 }}>
+              <Ionicons name="close" size={22} color="#1a1a1a" />
+            </TouchableOpacity>
+          </View>
+          <WebView
+            source={{ html: contractHTML }}
+            style={{ flex: 1 }}
+            scrollEnabled
+            showsVerticalScrollIndicator
+            scalesPageToFit={false}
+          />
+          <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#F3F4F6', backgroundColor: '#FFFFFF' }}>
+            <TouchableOpacity
+              onPress={handleShareContract}
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#171717', borderRadius: 12, paddingVertical: 14 }}
+            >
+              <Ionicons name="share-outline" size={18} color="#FFF" />
+              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>Télécharger / Partager</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1135,26 +850,6 @@ const styles = StyleSheet.create({
     minHeight: 45,
     textAlign: 'center',
   },
-  earningsDetails: {
-    width: '100%',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#22C55E20',
-  },
-  earningsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  earningsDetailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  earningsDetailValue: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
   section: {
     padding: 16,
     marginBottom: 16,
@@ -1197,39 +892,25 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginLeft: 6,
   },
-  addressContainer: {
-    marginBottom: 16,
-  },
-  addressRow: {
+  lifecycleButton: {
+    marginTop: 14,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  addressIconContainer: {
-    width: 24,
     alignItems: 'center',
-  },
-  addressDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
     justifyContent: 'center',
-    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#171717',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  stopNumber: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  lifecycleButtonSecondary: {
+    marginTop: 10,
+    backgroundColor: '#15803D',
   },
-  connectionLine: {
-    width: 2,
-    height: 24,
-    backgroundColor: '#E5E5E5',
-    marginLeft: 11,
-    marginVertical: 4,
-  },
-  addressContent: {
-    flex: 1,
-    marginLeft: 12,
+  lifecycleButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   addressLabel: {
     fontSize: 12,
@@ -1249,21 +930,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
-  tripInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   tripInfoText: {
     fontSize: 14,
     color: '#374151',
     marginLeft: 8,
     fontWeight: '500',
-  },
-  tripInfoDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#E5E5E5',
-    marginHorizontal: 20,
   },
   serviceInfo: {
     flexDirection: 'row',
@@ -1339,33 +1010,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#6B7280',
   },
-  priceLabelContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginRight: 12,
-  },
-  priceLabelTextContainer: {
-    flex: 1,
-  },
-  priceSubLabel: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginTop: 2,
-    lineHeight: 14,
-  },
-  waitingIcon: {
-    marginRight: 6,
-    marginTop: 2,
-  },
-  waitingFee: {
-    color: '#F59E0B',
-    fontWeight: '600',
-  },
-  priceValueContainer: {
-    alignItems: 'flex-end',
-    minWidth: 80,
-  },
   priceValue: {
     fontSize: 15,
     color: '#374151',
@@ -1430,37 +1074,9 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginLeft: 10,
   },
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RÉSERVATION À L'AVANCE: Styles pour le bouton de démarrage
-  // ═══════════════════════════════════════════════════════════════════════════
-  startBookingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#22C55E',
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 16,
-    borderRadius: 16,
-    shadowColor: '#22C55E',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  startBookingButtonDisabled: {
-    opacity: 0.7,
-  },
-  startBookingButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginLeft: 10,
-  },
   bottomSpacer: {
     height: 24,
   },
-  // ═══ STYLES LOCATION ═══
   rentalPeriodContainer: {
     gap: 0,
   },

@@ -87,7 +87,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!client && !inAuthGroup && !inDriverGroup) {
       router.replace('/(auth)/welcome');
     } else if (client && inAuthGroup) {
-      router.replace('/(client)/');
+      // App Loueur : pas de groupe (client) — envoyer vers l'espace chauffeur
+      router.replace('/(chauffeur)');
     }
   }, [client, segments, isLoading]);
 

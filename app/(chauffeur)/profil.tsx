@@ -1,24 +1,94 @@
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Alert, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Alert, ScrollView, Image, Modal, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
-import { removeDriverSessionId, getDriverProfile, type DriverProfile } from '@/lib/api';
+import { removeDriverSessionId, getDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
 import { removeExternalId, addDriverTag } from '@/lib/onesignal';
 import * as SecureStore from 'expo-secure-store';
+import * as FileSystem from 'expo-file-system/legacy';
 import { disconnectSocket } from '@/lib/socket';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+const SIGNATURE_FILE = `${FileSystem.documentDirectory}loueur_signature.txt`;
+
+const signaturePadHTML = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff;overflow:hidden;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+.btns{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:12px;background:#fff;border-top:1px solid #e5e7eb}
+.btn{flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+.clear{background:#f3f4f6;color:#374151}.save{background:#171717;color:#fff}
+</style></head><body>
+<canvas id="c"></canvas>
+<div class="btns"><button class="btn clear" onclick="clearSig()">Effacer</button><button class="btn save" onclick="saveSig()">Valider</button></div>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');let drawing=false,hasDrawn=false;
+function resize(){c.width=window.innerWidth;c.height=window.innerHeight-70;ctx.lineWidth=2.5;ctx.lineCap='round';ctx.strokeStyle='#1a1a1a'}
+resize();window.onresize=resize;
+function pos(e){const r=c.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}
+c.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)},{passive:false});
+c.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;hasDrawn=true;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke()},{passive:false});
+c.addEventListener('touchend',()=>{drawing=false});
+c.addEventListener('mousedown',e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)});
+c.addEventListener('mousemove',e=>{if(!drawing)return;hasDrawn=true;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke()});
+c.addEventListener('mouseup',()=>{drawing=false});
+function clearSig(){ctx.clearRect(0,0,c.width,c.height);hasDrawn=false}
+function saveSig(){if(!hasDrawn){window.ReactNativeWebView.postMessage(JSON.stringify({type:'error',msg:'Veuillez signer avant de valider.'}));return}
+const data=c.toDataURL('image/png');window.ReactNativeWebView.postMessage(JSON.stringify({type:'signature',data}))}
+</script></body></html>`;
 
 export default function ChauffeurProfilScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState<DriverProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showVehicleInfo, setShowVehicleInfo] = useState(false);
+  const [savedSignature, setSavedSignature] = useState<string | null>(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const webviewRef = useRef<WebView>(null);
 
   useEffect(() => {
     loadProfile();
+    loadSavedSignature();
   }, []);
+
+  const loadSavedSignature = async () => {
+    try {
+      const info = await FileSystem.getInfoAsync(SIGNATURE_FILE);
+      if (info.exists) {
+        const sig = await FileSystem.readAsStringAsync(SIGNATURE_FILE);
+        if (sig) setSavedSignature(sig);
+      }
+    } catch {}
+  };
+
+  const handleSignatureMessage = (event: any) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === 'signature') {
+        setSavedSignature(msg.data);
+        FileSystem.writeAsStringAsync(SIGNATURE_FILE, msg.data).catch(() => {});
+        setShowSignaturePad(false);
+        Alert.alert('Signature enregistrée', 'Votre signature sera automatiquement appliquée sur tous les contrats de location.');
+      } else if (msg.type === 'error') {
+        Alert.alert('Attention', msg.msg);
+      }
+    } catch {}
+  };
+
+  const handleDeleteSignature = () => {
+    Alert.alert('Supprimer la signature', 'Êtes-vous sûr de vouloir supprimer votre signature par défaut ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer', style: 'destructive', onPress: async () => {
+          setSavedSignature(null);
+          await FileSystem.deleteAsync(SIGNATURE_FILE, { idempotent: true });
+        }
+      },
+    ]);
+  };
 
   const loadProfile = async () => {
     try {
@@ -26,7 +96,12 @@ export default function ChauffeurProfilScreen() {
       const data = await getDriverProfile();
       setProfile(data);
     } catch (error) {
-      console.error('Error loading profile:', error);
+      if (error instanceof SessionExpiredError) {
+        await removeDriverSessionId();
+        router.replace('/(chauffeur)/login');
+        return;
+      }
+      console.warn('Error loading profile:', error);
     } finally {
       setLoading(false);
     }
@@ -41,34 +116,18 @@ export default function ChauffeurProfilScreen() {
     router.replace('/(chauffeur)/login');
   };
 
-  const getTypeLabel = (type: string, prestataireName?: string | null) => {
-    switch (type) {
-      case 'salarie':
-        // Si le chauffeur est lié à un prestataire, afficher le nom du prestataire
-        return prestataireName ? `Salarié ${prestataireName}` : 'Salarié';
-      case 'patente':
-        return 'Patenté (Indépendant)';
-      default:
-        return type;
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    return type === 'salarie' ? '#3b82f6' : '#f59e0b';
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton} 
-          onPress={() => router.back()}
+          onPress={() => safeBack(router)}
           accessibilityLabel="Retour"
           accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        <Text variant="h1">Profil Chauffeur</Text>
+        <Text variant="h1">Profil Loueur</Text>
         <View style={{ width: 40 }} />
       </View>
       <ScrollView
@@ -85,25 +144,16 @@ export default function ChauffeurProfilScreen() {
                 <Ionicons name="person" size={40} color="#F5C400" />
               </View>
               <Text variant="h3">
-                {profile ? `${profile.firstName} ${profile.lastName}` : "Chauffeur TĀPE'A"}
+                {profile ? `${profile.firstName} ${profile.lastName}` : 'Loueur RAVE'}
               </Text>
               <Text variant="caption" style={{ color: profile?.isActive ? '#22c55e' : '#ef4444' }}>
                 {profile?.isActive ? 'Actif' : 'Inactif'}
               </Text>
-              
-              {/* Type de chauffeur */}
-              {profile && (
-                <View style={[styles.typeBadge, { backgroundColor: getTypeColor(profile.typeChauffeur) + '20', borderColor: getTypeColor(profile.typeChauffeur) }]}>
-                  <Ionicons 
-                    name={profile.typeChauffeur === 'salarie' ? 'people' : 'briefcase'} 
-                    size={16} 
-                    color={getTypeColor(profile.typeChauffeur)} 
-                  />
-                  <Text style={[styles.typeText, { color: getTypeColor(profile.typeChauffeur) }]}>
-                    {getTypeLabel(profile.typeChauffeur, profile.prestataireName)}
-                  </Text>
-                </View>
-              )}
+              {profile?.prestataireName ? (
+                <Text variant="caption" style={{ color: '#6b7280', marginTop: 6 }}>
+                  {profile.prestataireName}
+                </Text>
+              ) : null}
             </Card>
             
             {/* Statistiques */}
@@ -113,7 +163,7 @@ export default function ChauffeurProfilScreen() {
                 <View style={styles.statsRow}>
                   <View style={styles.statItem}>
                     <Text style={styles.statValue}>{profile.totalRides}</Text>
-                    <Text style={styles.statLabel}>Courses</Text>
+                    <Text style={styles.statLabel}>Locations</Text>
                   </View>
                   <View style={styles.statDivider} />
                   <View style={styles.statItem}>
@@ -125,6 +175,52 @@ export default function ChauffeurProfilScreen() {
                 </View>
               </Card>
             )}
+
+            {/* ═══ SIGNATURE PAR DÉFAUT ═══ */}
+            <Card style={[styles.statsCard, { borderWidth: 1, borderColor: savedSignature ? '#22C55E30' : '#F59E0B30' }]}>
+              <Text variant="label" style={styles.sectionTitle}>Signature pour les contrats</Text>
+              <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 14, lineHeight: 18 }}>
+                Cette signature sera automatiquement ajoutée sur tous les contrats de location que vous acceptez.
+              </Text>
+
+              {savedSignature ? (
+                <View>
+                  <View style={{ backgroundColor: '#FAFAFA', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                    <Image source={{ uri: savedSignature }} style={{ width: '100%', height: 80 }} resizeMode="contain" />
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, gap: 4 }}>
+                    <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                    <Text style={{ fontSize: 12, color: '#22C55E', fontWeight: '600' }}>Signature enregistrée</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                    <TouchableOpacity
+                      onPress={() => setShowSignaturePad(true)}
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F3F4F6', borderRadius: 10, paddingVertical: 12 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="pencil-outline" size={16} color="#374151" />
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151' }}>Modifier</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleDeleteSignature}
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FEE2E2', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setShowSignaturePad(true)}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#171717', borderRadius: 12, paddingVertical: 14 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={18} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>Ajouter ma signature</Text>
+                </TouchableOpacity>
+              )}
+            </Card>
 
             <View style={styles.menuContainer}>
               <View>
@@ -170,7 +266,7 @@ export default function ChauffeurProfilScreen() {
                 onPress={() => {
                   Alert.alert(
                     'Contactez nous',
-                    `Email : tapea.pf@gmail.com\n\nTéléphone : +689 87 75 98 97`,
+                    `Email : contact@rave-location.com\n\nTéléphone : +689 87 75 98 97`,
                     [
                       {
                         text: 'Appeler',
@@ -178,7 +274,7 @@ export default function ChauffeurProfilScreen() {
                       },
                       {
                         text: 'Envoyer un email',
-                        onPress: () => Linking.openURL('mailto:tapea.pf@gmail.com'),
+                        onPress: () => Linking.openURL('mailto:contact@rave-location.com'),
                       },
                       { text: 'Fermer', style: 'cancel' },
                     ]
@@ -202,7 +298,7 @@ export default function ChauffeurProfilScreen() {
               <TouchableOpacity 
                 style={styles.legalMenuItem}
                 onPress={() => {
-                  const url = 'https://tape-a.com/politique-de-confidentialite-tapea/';
+                  const url = 'https://rave-location.com/politique-de-confidentialite/';
                   Linking.openURL(url).catch(() => {
                     Alert.alert('Erreur', 'Impossible d\'ouvrir la page web');
                   });
@@ -247,6 +343,26 @@ export default function ChauffeurProfilScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Modal Signature Pad */}
+      <Modal visible={showSignaturePad} animationType="slide" statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF', paddingTop: Platform.OS === 'android' ? 45 : 55 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+            <Text variant="h2" style={{ fontSize: 18 }}>Votre signature</Text>
+            <TouchableOpacity onPress={() => setShowSignaturePad(false)} style={{ padding: 8, backgroundColor: '#F3F4F6', borderRadius: 20 }}>
+              <Ionicons name="close" size={22} color="#1a1a1a" />
+            </TouchableOpacity>
+          </View>
+          <WebView
+            ref={webviewRef}
+            source={{ html: signaturePadHTML }}
+            style={{ flex: 1 }}
+            onMessage={handleSignatureMessage}
+            scrollEnabled={false}
+            bounces={false}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -294,20 +410,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-  },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  typeText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   statsCard: {
     padding: 16,

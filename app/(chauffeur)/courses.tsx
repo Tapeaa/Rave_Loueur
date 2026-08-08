@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Modal, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
-import { apiFetch, getDriverSessionId } from '@/lib/api';
+import { apiFetch, getDriverSessionId, cancelRentalOrder } from '@/lib/api';
 import type { Order } from '@/lib/types';
+import { getRentalStepperState, isRentalOrderLike } from '@/lib/rental-lifecycle';
+import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: 'En attente', color: '#F59E0B' },
   accepted: { label: 'Acceptée', color: '#3B82F6' },
-  booked: { label: 'Réservée', color: '#8B5CF6' },  // ═══ RÉSERVATION À L'AVANCE ═══
-  driver_enroute: { label: 'Chauffeur en route', color: '#3B82F6' },
-  driver_arrived: { label: 'Chauffeur arrivé', color: '#8B5CF6' },
+  booked: { label: 'Réservée', color: '#8B5CF6' },
   in_progress: { label: 'En cours', color: '#10B981' },
   completed: { label: 'Terminée', color: '#22C55E' },
   cancelled: { label: 'Annulée', color: '#EF4444' },
@@ -110,16 +111,16 @@ export default function ChauffeurCoursesScreen() {
   };
 
   // ═══ RÉSERVATION À L'AVANCE: Filtrer les courses réservées ═══
-  const isScheduledOrder = (order: Order) => Boolean(order.scheduledTime) || order.status === 'booked';
+  const isScheduledOrder = (order: Order) => Boolean(order.scheduledTime) || order.status === 'booked' || order.status === 'accepted';
 
   const bookedOrders = (orders || [])
     .filter((order) => isScheduledOrder(order))
     .sort((a, b) => {
-      // Priorité: 1. booked (en cours), 2. payment_confirmed (payées), 3. autres
       const getPriority = (status: string) => {
+        if (status === 'accepted') return 0;
         if (status === 'booked') return 0;
         if (status === 'payment_confirmed' || status === 'completed') return 1;
-        return 2; // cancelled, expired, etc.
+        return 2;
       };
       
       const priorityA = getPriority(a.status);
@@ -154,27 +155,8 @@ export default function ChauffeurCoursesScreen() {
   // ═══ RÉSERVATION À L'AVANCE: Démarrer une réservation ═══
   const handleStartBooking = async (order: Order) => {
     if (!sessionId || startingBookingId) return;
-    
-    setStartingBookingId(order.id);
-    try {
-      await apiFetch(`/api/orders/${order.id}/start-booking`, {
-        method: 'POST',
-        headers: {
-          'X-Driver-Session': sessionId,
-        },
-      });
-      
-      router.push({
-        pathname: '/(chauffeur)/course-en-cours',
-        params: { orderId: order.id },
-      });
-    } catch (error) {
-      console.error('[Courses] Error starting booking:', error);
-      Alert.alert('Erreur', 'Impossible de démarrer la course. Veuillez réessayer.');
-    } finally {
-      setStartingBookingId(null);
-      setConfirmStartModal(null);
-    }
+    router.push({ pathname: '/(chauffeur)/course-details/[id]' as any, params: { id: order.id } });
+    setConfirmStartModal(null);
   };
 
   // ═══ RÉSERVATION À L'AVANCE: Annuler une réservation ═══
@@ -182,8 +164,8 @@ export default function ChauffeurCoursesScreen() {
   
   const handleCancelBooking = async (orderId: string) => {
     Alert.alert(
-      'Annuler la réservation',
-      'Êtes-vous sûr de vouloir annuler cette réservation ?',
+      'Annuler la location',
+      'Êtes-vous sûr de vouloir annuler cette location ?',
       [
         { text: 'Non', style: 'cancel' },
         {
@@ -193,23 +175,28 @@ export default function ChauffeurCoursesScreen() {
             if (!sessionId) return;
             setCancellingOrderId(orderId);
             try {
-              await apiFetch(`/api/orders/${orderId}/cancel`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-Driver-Session': sessionId,
-                },
-                body: JSON.stringify({ 
-                  reason: 'Driver cancellation', 
-                  role: 'driver',
-                  driverSessionId: sessionId  // Requis par l'API
-                }),
-              });
+              // Try rental-order cancel first, fallback to generic cancel
+              try {
+                await cancelRentalOrder(orderId, sessionId, 'Annulation par le loueur');
+              } catch {
+                await apiFetch(`/api/orders/${orderId}/cancel`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Driver-Session': sessionId,
+                  },
+                  body: JSON.stringify({ 
+                    reason: 'Annulation par le loueur', 
+                    role: 'driver',
+                    driverSessionId: sessionId
+                  }),
+                });
+              }
               await refetch();
-              Alert.alert('Réservation annulée', 'La réservation a été annulée avec succès.');
+              Alert.alert('Location annulée', 'La location a été annulée avec succès.');
             } catch (error) {
               console.error('[Courses] Error cancelling booking:', error);
-              Alert.alert('Erreur', 'Impossible d\'annuler la réservation. Veuillez réessayer.');
+              Alert.alert('Erreur', 'Impossible d\'annuler la location. Veuillez réessayer.');
             } finally {
               setCancellingOrderId(null);
             }
@@ -224,6 +211,8 @@ export default function ChauffeurCoursesScreen() {
     const status = statusLabels[order.status] || { label: order.status, color: '#6B7280' };
     const pickup = order.addresses.find((a) => a.type === 'pickup');
     const destination = order.addresses.find((a) => a.type === 'destination');
+    const ro = order.rideOption as any;
+    const isRental = ro?.type === 'rental' || ro?.isRentalOrder;
 
     return (
       <TouchableOpacity
@@ -242,25 +231,41 @@ export default function ChauffeurCoursesScreen() {
             </View>
           </View>
 
-          <View style={styles.addressContainer}>
-            <View style={styles.addressRow}>
-              <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
-              <Text variant="body" numberOfLines={1} style={styles.addressText}>
-                {pickup?.value || 'Adresse de départ'}
-              </Text>
+          {isRental ? (
+            <View style={styles.addressContainer}>
+              <View style={styles.addressRow}>
+                <Ionicons name="car-sport" size={16} color="#8B5CF6" />
+                <Text variant="body" numberOfLines={1} style={styles.addressText}>
+                  {ro?.title || 'Véhicule'}
+                </Text>
+              </View>
+              {ro?.days && (
+                <Text variant="caption" style={{ color: '#6B7280', marginLeft: 24 }}>
+                  {ro.days} jour{ro.days > 1 ? 's' : ''} — {ro?.startDate ? new Date(ro.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''} → {ro?.endDate ? new Date(ro.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+                </Text>
+              )}
             </View>
-            <View style={styles.addressLine} />
-            <View style={styles.addressRow}>
-              <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
-              <Text variant="body" numberOfLines={1} style={styles.addressText}>
-                {destination?.value || 'Adresse d\'arrivée'}
-              </Text>
+          ) : (
+            <View style={styles.addressContainer}>
+              <View style={styles.addressRow}>
+                <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
+                <Text variant="body" numberOfLines={1} style={styles.addressText}>
+                  {pickup?.value || 'Adresse de départ'}
+                </Text>
+              </View>
+              <View style={styles.addressLine} />
+              <View style={styles.addressRow}>
+                <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
+                <Text variant="body" numberOfLines={1} style={styles.addressText}>
+                  {destination?.value || 'Adresse d\'arrivée'}
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
 
           <View style={styles.orderFooter}>
             <View>
-              <Text variant="label">{order.rideOption.title}</Text>
+              <Text variant="label">{isRental ? 'Location' : order.rideOption.title}</Text>
               <Text variant="caption" style={styles.clientName}>
                 {order.clientName}
               </Text>
@@ -274,6 +279,13 @@ export default function ChauffeurCoursesScreen() {
               </Text>
             </View>
           </View>
+          {isRentalOrderLike(order) && (
+            <RentalLifecycleStepper
+              state={getRentalStepperState(order)}
+              variant="loueur"
+              compact
+            />
+          )}
         </Card>
       </TouchableOpacity>
     );
@@ -285,9 +297,12 @@ export default function ChauffeurCoursesScreen() {
   const renderBookedOrder = ({ item: order }: { item: Order }) => {
     const pickup = order.addresses.find((a) => a.type === 'pickup');
     const destination = order.addresses.find((a) => a.type === 'destination');
+    const ro = order.rideOption as any;
+    const isRental = ro?.type === 'rental' || ro?.isRentalOrder;
     const status = statusLabels[order.status] || { label: order.status, color: '#6B7280' };
     const isStarting = startingBookingId === order.id;
-    const isBooked = order.status === 'booked';
+    const canCancel = order.status === 'booked' || order.status === 'accepted' || order.status === 'pending';
+    const canStart = order.status === 'booked';
 
     return (
       <TouchableOpacity
@@ -295,23 +310,33 @@ export default function ChauffeurCoursesScreen() {
         activeOpacity={0.8}
       >
         <Card style={styles.bookedCard}>
-        {/* Header avec date de réservation */}
         <View style={styles.bookedHeader}>
           <View style={styles.bookedDateContainer}>
-            <Ionicons name="calendar" size={20} color="#8B5CF6" />
+            <Ionicons name={isRental ? "car-sport" : "calendar"} size={20} color="#8B5CF6" />
             <View style={styles.bookedDateText}>
-              <Text style={styles.bookedDateLabel}>
-                {order.scheduledTime ? formatScheduledDate(order.scheduledTime) : 'Date non définie'}
-              </Text>
-              <Text style={styles.bookedTimeLabel}>
-                à {order.scheduledTime ? formatScheduledTime(order.scheduledTime) : '--:--'}
-              </Text>
+              {isRental ? (
+                <>
+                  <Text style={styles.bookedDateLabel}>{ro?.title || 'Véhicule'}</Text>
+                  <Text style={styles.bookedTimeLabel}>
+                    {ro?.days || 0} jour{(ro?.days || 0) > 1 ? 's' : ''} — {ro?.startDate ? new Date(ro.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''} → {ro?.endDate ? new Date(ro.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.bookedDateLabel}>
+                    {order.scheduledTime ? formatScheduledDate(order.scheduledTime) : 'Date non définie'}
+                  </Text>
+                  <Text style={styles.bookedTimeLabel}>
+                    à {order.scheduledTime ? formatScheduledTime(order.scheduledTime) : '--:--'}
+                  </Text>
+                </>
+              )}
             </View>
           </View>
-          {isBooked ? (
+          {canStart ? (
             <View style={styles.bookedCountdown}>
               <Text style={styles.bookedCountdownText}>
-                {order.scheduledTime ? getTimeUntil(order.scheduledTime) : ''}
+                {order.scheduledTime ? getTimeUntil(order.scheduledTime) : (isRental ? 'En attente' : '')}
               </Text>
             </View>
           ) : (
@@ -323,10 +348,10 @@ export default function ChauffeurCoursesScreen() {
           )}
         </View>
 
-        {/* Client et adresses */}
         <View style={styles.bookedContent}>
           <Text style={styles.bookedClientName}>{order.clientName}</Text>
           
+          {!isRental && (
           <View style={styles.bookedAddresses}>
             <View style={styles.addressRow}>
               <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
@@ -342,20 +367,27 @@ export default function ChauffeurCoursesScreen() {
               </Text>
             </View>
           </View>
+          )}
+          {isRentalOrderLike(order) && (
+            <RentalLifecycleStepper
+              state={getRentalStepperState(order)}
+              variant="loueur"
+              compact
+            />
+          )}
         </View>
 
-        {/* Footer avec prix et actions */}
         <View style={styles.bookedFooter}>
           <View style={styles.bookedPriceTag}>
             <Text style={styles.bookedPriceText}>{formatPrice(order.totalPrice)}</Text>
           </View>
           
-          {isBooked && (
+          {canCancel && (
             <View style={styles.bookedActions}>
               <TouchableOpacity
                 style={[styles.cancelBookingButton, cancellingOrderId === order.id && styles.cancelBookingButtonDisabled]}
                 onPress={(e) => {
-                  e.stopPropagation(); // Empêcher la navigation vers les détails
+                  e.stopPropagation();
                   handleCancelBooking(order.id);
                 }}
                 disabled={cancellingOrderId === order.id}
@@ -363,19 +395,21 @@ export default function ChauffeurCoursesScreen() {
                 <Ionicons name="close-circle" size={16} color="#EF4444" />
               </TouchableOpacity>
               
-              <TouchableOpacity
-                style={[styles.startBookingButton, isStarting && styles.startBookingButtonDisabled]}
-                onPress={(e) => {
-                  e.stopPropagation(); // Empêcher la navigation vers les détails
-                  setConfirmStartModal(order);
-                }}
-                disabled={isStarting}
-              >
-                <Ionicons name="car" size={18} color="#FFFFFF" />
-                <Text style={styles.startBookingButtonText}>
-                  {isStarting ? 'Démarrage...' : 'Commencer'}
-                </Text>
-              </TouchableOpacity>
+              {canStart && (
+                <TouchableOpacity
+                  style={[styles.startBookingButton, isStarting && styles.startBookingButtonDisabled]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setConfirmStartModal(order);
+                  }}
+                  disabled={isStarting}
+                >
+                  <Ionicons name="car" size={18} color="#FFFFFF" />
+                  <Text style={styles.startBookingButtonText}>
+                    {isStarting ? 'Démarrage...' : 'Commencer'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -387,10 +421,10 @@ export default function ChauffeurCoursesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        <Text variant="h1" style={styles.headerTitle}>Mes courses</Text>
+        <Text variant="h1" style={styles.headerTitle}>Mes locations</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -445,7 +479,7 @@ export default function ChauffeurCoursesScreen() {
               Aucune réservation
             </Text>
             <Text variant="body" style={styles.emptyText}>
-              Vos courses réservées à l'avance apparaîtront ici
+              Vos locations réservées apparaîtront ici
             </Text>
           </View>
         )
@@ -465,10 +499,10 @@ export default function ChauffeurCoursesScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="car-outline" size={64} color="#e5e7eb" />
             <Text variant="h3" style={styles.emptyTitle}>
-              Aucune course
+              Aucune location
             </Text>
             <Text variant="body" style={styles.emptyText}>
-              Vos courses terminées et annulées apparaîtront ici
+              Vos locations terminées et annulées apparaîtront ici
             </Text>
           </View>
         )
@@ -484,9 +518,9 @@ export default function ChauffeurCoursesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.confirmModalContent}>
             <Ionicons name="help-circle" size={48} color="#F5C400" style={{ marginBottom: 16 }} />
-            <Text style={styles.confirmModalTitle}>Commencer cette course ?</Text>
+            <Text style={styles.confirmModalTitle}>Commencer cette location ?</Text>
             <Text style={styles.confirmModalSubtitle}>
-              Vous allez démarrer la course pour {confirmStartModal?.clientName}
+              Vous allez ouvrir les détails de la location pour {confirmStartModal?.clientName}
             </Text>
             
             {confirmStartModal?.scheduledTime && (
