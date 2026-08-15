@@ -28,6 +28,7 @@ import {
 import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
 import { joinRentalOrderRoom, onRentalLifecycleChanged } from '@/lib/socket';
 import type { Order } from '@/lib/types';
+import { isUsableMediaUri, shareHtmlAsPdf, shareImage } from '@/lib/share-media';
 
 const statusLabels: Record<string, { label: string; color: string; icon: string }> = {
   pending: { label: 'En attente', color: '#F59E0B', icon: 'time' },
@@ -199,49 +200,13 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
   };
 
   const handleShareContract = async () => {
-    try {
-      const html = contractHTML || buildContractHTML();
-      if (!html) return;
-      let FileSystem: any;
-      try { FileSystem = require('expo-file-system/legacy'); } catch { FileSystem = require('expo-file-system'); }
-      const ref = order?.id?.substring(0, 8).toUpperCase() || 'RAVE';
-      const fileUri = `${FileSystem.documentDirectory}contrat-${ref}.html`;
-      await FileSystem.writeAsStringAsync(fileUri, html, { encoding: FileSystem.EncodingType.UTF8 });
-      if (Platform.OS === 'ios') {
-        await Share.share({ url: fileUri, title: `Contrat RAVE ${ref}` });
-      } else {
-        const Sharing = require('expo-sharing');
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(fileUri, { mimeType: 'text/html', dialogTitle: `Contrat RAVE ${ref}` });
-        } else {
-          Alert.alert('Info', 'Le partage n\'est pas disponible sur cet appareil.');
-        }
-      }
-    } catch (err) {
-      console.error('[Share] Error:', err);
-    }
+    const html = contractHTML || buildContractHTML();
+    if (!html) return;
+    await shareHtmlAsPdf(html, 'Contrat RAVE');
   };
 
   const handleShareImage = async (uri: string, name: string) => {
-    try {
-      let FileSystem: any;
-      try { FileSystem = require('expo-file-system/legacy'); } catch { FileSystem = require('expo-file-system'); }
-      const base64Data = uri.replace(/^data:image\/\w+;base64,/, '');
-      const fileUri = `${FileSystem.documentDirectory}${name}.jpg`;
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-      if (Platform.OS === 'ios') {
-        await Share.share({ url: fileUri, title: name });
-      } else {
-        const Sharing = require('expo-sharing');
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(fileUri, { mimeType: 'image/jpeg', dialogTitle: name });
-        }
-      }
-    } catch (err) {
-      console.error('[Share] Error:', err);
-    }
+    await shareImage(uri, name);
   };
 
   if (loading) {
@@ -637,11 +602,11 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
             </Card>
 
             {/* Documents du client */}
-            {(rideOpt?.clientLicenseFront || rideOpt?.clientLicenseBack) && (
+            {(isUsableMediaUri(rideOpt?.clientLicenseFront) || isUsableMediaUri(rideOpt?.clientLicenseBack)) && (
               <Card style={styles.section}>
                 <Text style={styles.sectionTitle}>Permis de conduire du client</Text>
                 <View style={{ flexDirection: 'row', gap: 12 }}>
-                  {rideOpt.clientLicenseFront && (
+                  {isUsableMediaUri(rideOpt.clientLicenseFront) && (
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6, textAlign: 'center' }}>Recto</Text>
                       <TouchableOpacity onPress={() => handleShareImage(rideOpt.clientLicenseFront, 'permis-recto')} activeOpacity={0.8}>
@@ -656,7 +621,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                       </TouchableOpacity>
                     </View>
                   )}
-                  {rideOpt.clientLicenseBack && (
+                  {isUsableMediaUri(rideOpt.clientLicenseBack) && (
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6, textAlign: 'center' }}>Verso</Text>
                       <TouchableOpacity onPress={() => handleShareImage(rideOpt.clientLicenseBack, 'permis-verso')} activeOpacity={0.8}>
