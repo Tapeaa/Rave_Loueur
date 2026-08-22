@@ -794,12 +794,20 @@ export async function setRentalMeetingPoint(
 ): Promise<{ success: boolean; meetingPoint: string }> {
   const sessionId = await getDriverSessionId();
   if (!sessionId) throw new SessionExpiredError();
-  return apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/meeting-point`, {
-    sessionId,
-    meetingPoint,
-  }, {
-    headers: { 'X-Driver-Session': sessionId },
-  });
+  const res = await apiPost<{ success?: boolean; meetingPoint?: string; error?: string }>(
+    `/api/rental-orders/${encodeURIComponent(orderId)}/meeting-point`,
+    {
+      sessionId,
+      meetingPoint,
+    },
+    {
+      headers: { 'X-Driver-Session': sessionId },
+    }
+  );
+  if (!res || res.success === false || !res.meetingPoint) {
+    throw new Error(res?.error || 'Impossible d’enregistrer le lieu de RDV (serveur).');
+  }
+  return { success: true, meetingPoint: res.meetingPoint };
 }
 
 export type LoueurSubscriptionInfo = {

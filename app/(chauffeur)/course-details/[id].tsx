@@ -281,17 +281,22 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
     try {
       setMeetingBusy(true);
       const res = await setRentalMeetingPoint(order.id, value);
+      const confirmed =
+        (res && typeof res.meetingPoint === 'string' && res.meetingPoint.trim()) || value;
       setOrder((prev) => {
         if (!prev) return prev;
+        const prevRide = (prev.rideOption as any) || {};
         return {
           ...prev,
           rideOption: {
-            ...(prev.rideOption as any),
-            meetingPoint: res.meetingPoint,
+            ...prevRide,
+            meetingPoint: confirmed,
             meetingPointSetAt: new Date().toISOString(),
+            meetingPointSetBy: 'driver',
           },
         } as Order;
       });
+      setMeetingDraft(confirmed);
       Alert.alert('RDV envoyé', 'Le client voit désormais ce lieu de rendez-vous.');
     } catch (e: any) {
       Alert.alert('Erreur', e?.message || 'Impossible d’enregistrer le lieu de RDV.');
