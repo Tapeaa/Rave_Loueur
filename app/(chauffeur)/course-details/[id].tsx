@@ -33,7 +33,7 @@ import { isUsableMediaUri, shareHtmlAsPdf, shareImage } from '@/lib/share-media'
 const statusLabels: Record<string, { label: string; color: string; icon: string }> = {
   pending: { label: 'En attente', color: '#F59E0B', icon: 'time' },
   accepted: { label: 'Acceptée', color: '#3B82F6', icon: 'checkmark-circle' },
-  booked: { label: 'Réservée', color: '#8B5CF6', icon: 'calendar' },
+  booked: { label: 'Réservée', color: '#4ECC8B', icon: 'calendar' },
   in_progress: { label: 'En cours', color: '#10B981', icon: 'navigate' },
   completed: { label: 'Terminée', color: '#22C55E', icon: 'checkmark-done-circle' },
   cancelled: { label: 'Annulée', color: '#EF4444', icon: 'close-circle' },
@@ -220,7 +220,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#F5C400" />
+          <ActivityIndicator size="large" color="#4ECC8B" />
         </View>
       </SafeAreaView>
     );
@@ -573,9 +573,9 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                   )}
                 </View>
               ) : (
-                <View style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ backgroundColor: '#E8F8F0', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="time" size={20} color="#F59E0B" />
-                  <Text style={{ fontSize: 14, color: '#92400E', marginLeft: 8, fontWeight: '500' }}>
+                  <Text style={{ fontSize: 14, color: '#166534', marginLeft: 8, fontWeight: '500' }}>
                     En attente de signature du client
                   </Text>
                 </View>
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#D1F2E3',
     justifyContent: 'center',
     alignItems: 'center',
   },

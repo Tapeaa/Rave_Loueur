@@ -253,7 +253,7 @@ export default function DriverChatScreen() {
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#F5C400" />
+          <ActivityIndicator size="large" color="#4ECC8B" />
         </View>
       </SafeAreaView>
     );
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   myMessageBubble: {
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     borderBottomRightRadius: 4,
   },
   otherMessageBubble: {
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     justifyContent: 'center',
     alignItems: 'center',
   },

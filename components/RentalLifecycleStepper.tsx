@@ -7,7 +7,7 @@ import {
   RENTAL_STEP_LABELS_LOUEUR,
 } from '@/lib/rental-lifecycle';
 
-const ACCENT = '#8B5CF6';
+const ACCENT = '#4ECC8B';
 
 type Props = {
   state: RentalStepperState;

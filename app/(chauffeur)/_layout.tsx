@@ -204,7 +204,7 @@ const s = StyleSheet.create({
   },
   iconWrap: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#D1F2E3', justifyContent: 'center', alignItems: 'center',
     marginBottom: 12,
   },
   title: { fontSize: 20, fontWeight: '800', color: '#1a1a1a', marginBottom: 4 },

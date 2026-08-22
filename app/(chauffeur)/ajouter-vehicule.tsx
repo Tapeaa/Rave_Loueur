@@ -53,7 +53,7 @@ function getDefaultContractHtml(vehicleName: string, plate: string, pricePerDay:
   h1 { text-align: center; font-size: 20px; margin-bottom: 4px; }
   h2 { font-size: 15px; margin-top: 22px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
   .header-sub { text-align: center; color: #666; font-size: 12px; margin-bottom: 24px; }
-  .field { color: #F5C400; font-weight: bold; }
+  .field { color: #4ECC8B; font-weight: bold; }
   table { width: 100%; border-collapse: collapse; margin: 10px 0; }
   td { padding: 6px 8px; border: 1px solid #ddd; }
   td:first-child { font-weight: 600; width: 40%; background: #f9f9f9; }
@@ -359,7 +359,7 @@ export default function AjouterVehiculeScreen() {
     return (
       <SafeAreaView style={st.container} edges={['top']}>
         <Header title="Ajouter un véhicule" onBack={() => safeBack(router)} />
-        <View style={st.centered}><ActivityIndicator size="large" color="#F5C400" /></View>
+        <View style={st.centered}><ActivityIndicator size="large" color="#4ECC8B" /></View>
       </SafeAreaView>
     );
   }
@@ -377,7 +377,7 @@ export default function AjouterVehiculeScreen() {
           {/* Récap modèle */}
           <View style={st.recapCard}>
             <View style={st.recapIcon}>
-              <Ionicons name="car-sport" size={28} color="#F5C400" />
+              <Ionicons name="car-sport" size={28} color="#4ECC8B" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={st.recapName}>{selectedModel.name}</Text>
@@ -673,7 +673,7 @@ function SwitchRow({ icon, label, desc, value, onChange }: { icon: string; label
         <Text style={st.switchLabel}>{label}</Text>
         <Text style={st.switchDesc}>{desc}</Text>
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ false: '#E5E7EB', true: '#FDE68A' }} thumbColor={value ? '#F5C400' : '#9CA3AF'} />
+      <Switch value={value} onValueChange={onChange} trackColor={{ false: '#E5E7EB', true: '#A8E6C8' }} thumbColor={value ? '#4ECC8B' : '#9CA3AF'} />
     </View>
   );
 }
@@ -687,8 +687,8 @@ const st = StyleSheet.create({
   scroll: { flex: 1 },
   scrollPad: { paddingBottom: 40 },
 
-  limitBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, padding: 12, borderRadius: 12, backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A' },
-  limitText: { flex: 1, fontSize: 13, color: '#92400E', fontWeight: '600' },
+  limitBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, padding: 12, borderRadius: 12, backgroundColor: '#D1F2E3', borderWidth: 1, borderColor: '#A8E6C8' },
+  limitText: { flex: 1, fontSize: 13, color: '#166534', fontWeight: '600' },
 
   chips: { marginTop: 12, marginBottom: 4 },
   chipsBrand: { marginBottom: 10 },
@@ -696,9 +696,9 @@ const st = StyleSheet.create({
   resultCount: { marginHorizontal: 16, marginBottom: 8, fontSize: 12, color: '#6B7280', fontWeight: '600' },
   chip: { marginRight: 8, backgroundColor: '#F3F4F6', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#E5E7EB' },
   chipBrand: { paddingVertical: 7 },
-  chipOn: { backgroundColor: '#FFFBEB', borderColor: '#F5C400' },
+  chipOn: { backgroundColor: '#E8F8F0', borderColor: '#4ECC8B' },
   chipTxt: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
-  chipTxtOn: { color: '#92400E' },
+  chipTxtOn: { color: '#166534' },
 
   field: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', paddingHorizontal: 14, height: 48, gap: 10 },
   fieldInput: { flex: 1, fontSize: 15, color: '#1a1a1a', fontWeight: '500', paddingVertical: Platform.OS === 'ios' ? 0 : 8 },
@@ -707,25 +707,25 @@ const st = StyleSheet.create({
   empty: { fontSize: 14, color: '#9CA3AF', fontStyle: 'italic', textAlign: 'center', marginTop: 20 },
 
   card: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#F3F4F6', marginBottom: 8, backgroundColor: '#fff' },
-  cardOn: { borderColor: '#F5C400', backgroundColor: '#FFFBEB' },
+  cardOn: { borderColor: '#4ECC8B', backgroundColor: '#E8F8F0' },
   cardDot: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  cardDotOn: { borderColor: '#F5C400', backgroundColor: '#F5C400' },
+  cardDotOn: { borderColor: '#4ECC8B', backgroundColor: '#4ECC8B' },
   cardName: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
   cardMeta: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   cardCat: { fontSize: 10, color: '#9CA3AF', fontWeight: '700', textTransform: 'uppercase' },
-  usedBadge: { fontSize: 10, color: '#92400E', fontWeight: '700', backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  usedBadge: { fontSize: 10, color: '#166534', fontWeight: '700', backgroundColor: '#D1F2E3', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
 
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingHorizontal: 16, paddingTop: 12, ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.08, shadowRadius: 8 }, android: { elevation: 10 } }) },
   bottomRecap: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   bottomName: { fontSize: 15, fontWeight: '800', color: '#1a1a1a' },
   bottomMeta: { fontSize: 12, color: '#6B7280' },
-  mainBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F5C400', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 14 },
+  mainBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#4ECC8B', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 14 },
   mainBtnFull: { paddingHorizontal: 0, width: '100%' },
   mainBtnOff: { opacity: 0.6 },
   mainBtnTxt: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
 
-  recapCard: { flexDirection: 'row', alignItems: 'center', margin: 16, padding: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: '#F5C400', gap: 14 },
-  recapIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#FFFBEB', alignItems: 'center', justifyContent: 'center' },
+  recapCard: { flexDirection: 'row', alignItems: 'center', margin: 16, padding: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: '#4ECC8B', gap: 14 },
+  recapIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#E8F8F0', alignItems: 'center', justifyContent: 'center' },
   recapName: { fontSize: 17, fontWeight: '800', color: '#1a1a1a' },
   recapMeta: { fontSize: 12, color: '#6B7280', marginTop: 2 },
 
@@ -740,7 +740,7 @@ const st = StyleSheet.create({
   divider: { height: 1, backgroundColor: '#F3F4F6' },
 
   contractCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, padding: 14, marginBottom: 10, backgroundColor: '#FAFAFA' },
-  contractCardOn: { borderColor: '#F5C400', backgroundColor: '#FFFBEB' },
+  contractCardOn: { borderColor: '#4ECC8B', backgroundColor: '#E8F8F0' },
   contractTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
   contractDesc: { fontSize: 12, color: '#6B7280', marginTop: 2 },
 
@@ -749,7 +749,7 @@ const st = StyleSheet.create({
   previewToggleText: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
   contractTextBox: { marginTop: 12, backgroundColor: '#fff', borderRadius: 8, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' },
   contractPlainText: { fontSize: 12, color: '#374151', lineHeight: 18, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-  downloadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, backgroundColor: '#F5C400', paddingVertical: 10, borderRadius: 10 },
+  downloadBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, backgroundColor: '#4ECC8B', paddingVertical: 10, borderRadius: 10 },
   downloadBtnTxt: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
 
   customContractBox: { backgroundColor: '#F9FAFB', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' },

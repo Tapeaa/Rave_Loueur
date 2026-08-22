@@ -183,7 +183,7 @@ export default function DriverMessagesScreen() {
       pending: { label: 'En attente', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.2)' },
       accepted: { label: 'Acceptée', color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.2)' },
       driver_enroute: { label: 'En route', color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.2)' },
-      driver_arrived: { label: 'Arrivé', color: '#8B5CF6', bgColor: 'rgba(139, 92, 246, 0.2)' },
+      driver_arrived: { label: 'Arrivé', color: '#4ECC8B', bgColor: 'rgba(78, 204, 139, 0.2)' },
       in_progress: { label: 'En cours', color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.2)' },
       completed: { label: 'Terminée', color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.2)' },
       cancelled: { label: 'Annulée', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.2)' },
@@ -345,7 +345,7 @@ export default function DriverMessagesScreen() {
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#F5C400" />
+          <ActivityIndicator size="large" color="#4ECC8B" />
         </View>
       </SafeAreaView>
     );
@@ -421,8 +421,8 @@ export default function DriverMessagesScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#F5C400']}
-              tintColor="#F5C400"
+              colors={['#4ECC8B']}
+              tintColor="#4ECC8B"
             />
           }
         />
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,

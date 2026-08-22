@@ -61,7 +61,7 @@ export default function ChauffeurRedirect() {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#F5C400" />
+        <ActivityIndicator size="large" color="#4ECC8B" />
       </View>
     );
   }

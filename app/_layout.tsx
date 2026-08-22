@@ -161,7 +161,7 @@ function LoadingScreen({
           {progress < 100 ? `Chargement... ${loadedCount}/${totalCount}` : 'Prêt !'}
         </Text>
         {progress < 100 && (
-          <ActivityIndicator size="small" color="#F5C400" style={styles.spinner} />
+          <ActivityIndicator size="small" color="#4ECC8B" style={styles.spinner} />
         )}
       </View>
     </View>
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     borderRadius: 3,
   },
   progressText: {

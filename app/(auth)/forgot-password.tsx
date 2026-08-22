@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   linkText: {
-    color: '#F5C400',
+    color: '#4ECC8B',
     fontWeight: '600',
   },
 });

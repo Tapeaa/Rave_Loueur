@@ -130,12 +130,12 @@ export default function ChauffeurGainsScreen() {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F5C400']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4ECC8B']} />
         }
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#F5C400" />
+            <ActivityIndicator size="large" color="#4ECC8B" />
             <Text style={styles.loadingText}>Chargement des gains...</Text>
           </View>
         ) : (
@@ -187,7 +187,7 @@ export default function ChauffeurGainsScreen() {
 
             <Card style={styles.statsCard}>
               <View style={styles.statsHeader}>
-                <Ionicons name="stats-chart" size={20} color="#F5C400" />
+                <Ionicons name="stats-chart" size={20} color="#4ECC8B" />
                 <Text style={styles.statsTitle}>Statistiques location</Text>
               </View>
 
@@ -262,14 +262,14 @@ const styles = StyleSheet.create({
   neonWrapper: {
     marginBottom: 16,
     borderRadius: 20,
-    shadowColor: '#F5C400',
+    shadowColor: '#4ECC8B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
   },
   totalCard: {
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     alignItems: 'center',
     padding: 28,
     borderRadius: 20,

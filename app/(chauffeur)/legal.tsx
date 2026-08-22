@@ -18,9 +18,9 @@ const Checkbox = ({ checked, onValueChange }: { checked: boolean; onValueChange:
       width: 24,
       height: 24,
       borderWidth: 2,
-      borderColor: checked ? '#F5C400' : '#D1D5DB',
+      borderColor: checked ? '#4ECC8B' : '#D1D5DB',
       borderRadius: 4,
-      backgroundColor: checked ? '#F5C400' : 'transparent',
+      backgroundColor: checked ? '#4ECC8B' : 'transparent',
       justifyContent: 'center',
       alignItems: 'center',
     }}
@@ -188,7 +188,7 @@ export default function LegalScreen() {
 
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <Ionicons name="shield-checkmark" size={48} color="#F5C400" />
+            <Ionicons name="shield-checkmark" size={48} color="#4ECC8B" />
           </View>
           <Text variant="h1" style={styles.title}>Conditions légales</Text>
           <Text variant="body" style={styles.subtitle}>
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F5C40020',
+    backgroundColor: '#4ECC8B20',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   link: {
-    color: '#F5C400',
+    color: '#4ECC8B',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

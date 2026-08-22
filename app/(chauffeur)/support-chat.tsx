@@ -167,7 +167,7 @@ export default function ChauffeurSupportChatScreen() {
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#F5C400" />
+            <ActivityIndicator size="large" color="#4ECC8B" />
           </View>
         ) : (
           <FlatList
@@ -180,8 +180,8 @@ export default function ChauffeurSupportChatScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#F5C400']}
-                tintColor="#F5C400"
+                colors={['#4ECC8B']}
+                tintColor="#4ECC8B"
               />
             }
             ListEmptyComponent={
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     borderColor: '#3A3A3A',
   },
   bubbleDriver: {
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     borderTopRightRadius: 6,
   },
   messageTextAdmin: {
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     alignItems: 'center',
     justifyContent: 'center',
   },

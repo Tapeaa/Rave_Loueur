@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   inputFocused: {
-    borderColor: '#F5C400',
+    borderColor: '#4ECC8B',
     backgroundColor: '#FFFFFF',
   },
   inputError: {

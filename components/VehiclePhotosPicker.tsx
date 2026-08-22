@@ -150,7 +150,7 @@ export function VehiclePhotosPicker({ photos, onChange, max = MAX_PHOTOS }: Prop
             activeOpacity={0.8}
           >
             {uploading ? (
-              <ActivityIndicator color="#F5C400" />
+              <ActivityIndicator color="#4ECC8B" />
             ) : (
               <>
                 <Ionicons name="camera-outline" size={26} color="#9CA3AF" />

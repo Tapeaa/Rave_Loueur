@@ -204,17 +204,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   devCodeContainer: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#D1F2E3',
     padding: 16,
     borderRadius: 12,
     marginTop: 16,
     alignItems: 'center',
   },
   devCodeLabel: {
-    color: '#92400E',
+    color: '#166534',
   },
   devCode: {
-    color: '#92400E',
+    color: '#166534',
     marginTop: 4,
     letterSpacing: 4,
   },
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   codeInputFilled: {
-    borderColor: '#F5C400',
+    borderColor: '#4ECC8B',
   },
   codeInputError: {
     borderColor: '#ef4444',
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   resendText: {
-    color: '#F5C400',
+    color: '#4ECC8B',
   },
   resendTextDisabled: {
     color: '#6b7280',

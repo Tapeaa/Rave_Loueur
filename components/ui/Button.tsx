@@ -56,7 +56,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'default' ? '#1a1a1a' : '#F5C400'}
+          color={variant === 'default' ? '#1a1a1a' : '#4ECC8B'}
         />
       ) : (
         <Text style={textStyles}>{title}</Text>
@@ -73,12 +73,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   default: {
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#F5C400',
+    borderColor: '#4ECC8B',
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -113,10 +113,10 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   outlineText: {
-    color: '#F5C400',
+    color: '#4ECC8B',
   },
   ghostText: {
-    color: '#F5C400',
+    color: '#4ECC8B',
   },
   destructiveText: {
     color: '#FFFFFF',

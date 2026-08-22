@@ -498,7 +498,7 @@ export default function ChauffeurHomeScreen() {
           style={{ flex: 1 }}
           contentContainerStyle={s.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#F5C400']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4ECC8B']} />}
         >
           {/* Welcome + Status Card */}
           <View style={s.statusCard}>
@@ -533,7 +533,7 @@ export default function ChauffeurHomeScreen() {
           {/* Stats Row */}
           <View style={s.statsRow}>
             <View style={s.statCard}>
-              <View style={[s.statIcon, { backgroundColor: '#FEF3C7' }]}>
+              <View style={[s.statIcon, { backgroundColor: '#D1F2E3' }]}>
                 <Ionicons name="time-outline" size={20} color="#F59E0B" />
               </View>
               <Text style={s.statNumber}>{pendingOrders.length}</Text>
@@ -548,7 +548,7 @@ export default function ChauffeurHomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/gains')}>
               <View style={[s.statIcon, { backgroundColor: '#EDE9FE' }]}>
-                <Ionicons name="wallet-outline" size={20} color="#8B5CF6" />
+                <Ionicons name="wallet-outline" size={20} color="#4ECC8B" />
               </View>
               <Text style={s.statNumber}>-</Text>
               <Text style={s.statLabel}>Gains</Text>
@@ -590,7 +590,7 @@ export default function ChauffeurHomeScreen() {
                     >
                       <View style={s.orderCardHeader}>
                         <View style={s.orderTypeBadge}>
-                          <Ionicons name="car-sport" size={14} color="#F5C400" />
+                          <Ionicons name="car-sport" size={14} color="#4ECC8B" />
                           <Text style={s.orderTypeText}>{order.rideOption?.title || 'Location'}</Text>
                         </View>
                         <Text style={s.orderPrice}>{formatPrice(order.totalPrice || 0)}</Text>
@@ -608,7 +608,7 @@ export default function ChauffeurHomeScreen() {
 
                       {order.scheduledTime && (
                         <View style={s.orderDateRow}>
-                          <Ionicons name="calendar" size={14} color="#8B5CF6" />
+                          <Ionicons name="calendar" size={14} color="#4ECC8B" />
                           <Text style={s.orderDateText}>
                             {new Date(order.scheduledTime).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Pacific/Tahiti' })}
                           </Text>
@@ -627,7 +627,7 @@ export default function ChauffeurHomeScreen() {
                           style={s.detailsBtn}
                           onPress={(e) => { e.stopPropagation(); navigateToOrderDetail(order); }}
                         >
-                          <Ionicons name="eye-outline" size={16} color="#F5C400" />
+                          <Ionicons name="eye-outline" size={16} color="#4ECC8B" />
                           <Text style={s.detailsBtnText}>Détails</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -673,7 +673,7 @@ export default function ChauffeurHomeScreen() {
             <Text style={s.sectionTitle}>Accès rapide</Text>
             <View style={s.actionsGrid}>
               <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(chauffeur)/courses')}>
-                <View style={[s.actionIcon, { backgroundColor: '#FEF3C7' }]}>
+                <View style={[s.actionIcon, { backgroundColor: '#D1F2E3' }]}>
                   <Ionicons name="receipt-outline" size={22} color="#F59E0B" />
                 </View>
                 <Text style={s.actionLabel}>Mes locations</Text>
@@ -686,7 +686,7 @@ export default function ChauffeurHomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(chauffeur)/gains')}>
                 <View style={[s.actionIcon, { backgroundColor: '#EDE9FE' }]}>
-                  <Ionicons name="wallet-outline" size={22} color="#8B5CF6" />
+                  <Ionicons name="wallet-outline" size={22} color="#4ECC8B" />
                 </View>
                 <Text style={s.actionLabel}>Gains</Text>
               </TouchableOpacity>
@@ -833,8 +833,8 @@ const s = StyleSheet.create({
   liveText: { fontSize: 10, fontWeight: '800', color: '#EF4444', letterSpacing: 1 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
   sectionCount: {
-    fontSize: 14, fontWeight: '700', color: '#F5C400',
-    backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+    fontSize: 14, fontWeight: '700', color: '#4ECC8B',
+    backgroundColor: '#D1F2E3', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
   },
 
   ordersBand: { paddingHorizontal: 16, gap: 12, paddingBottom: 4 },
@@ -850,14 +850,14 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#1a1a1a', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
   },
-  orderTypeText: { fontSize: 12, fontWeight: '700', color: '#F5C400' },
+  orderTypeText: { fontSize: 12, fontWeight: '700', color: '#4ECC8B' },
   orderPrice: { fontSize: 17, fontWeight: '800', color: '#1a1a1a' },
   orderClientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   orderClientName: { fontSize: 14, fontWeight: '600', color: '#374151', flex: 1 },
   orderLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   orderLocationText: { fontSize: 13, color: '#6B7280', flex: 1 },
   orderDateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  orderDateText: { fontSize: 13, color: '#8B5CF6', fontWeight: '600' },
+  orderDateText: { fontSize: 13, color: '#4ECC8B', fontWeight: '600' },
   orderActions: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 12 },
   declineBtn: {
     width: 38, height: 38, borderRadius: 12,
@@ -866,9 +866,9 @@ const s = StyleSheet.create({
   detailsBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 12, height: 38, borderRadius: 12,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#D1F2E3',
   },
-  detailsBtnText: { fontSize: 12, fontWeight: '700', color: '#92400E' },
+  detailsBtnText: { fontSize: 12, fontWeight: '700', color: '#166534' },
   acceptBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     height: 38, borderRadius: 12, backgroundColor: '#22C55E',
@@ -951,7 +951,7 @@ const s = StyleSheet.create({
     backgroundColor: '#1a1a1a', borderRadius: 10, padding: 12, marginTop: 4,
   },
   modalPriceLabel: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  modalPriceValue: { fontSize: 18, fontWeight: '800', color: '#F5C400' },
+  modalPriceValue: { fontSize: 18, fontWeight: '800', color: '#4ECC8B' },
   modalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
   modalBtnSecondary: {
     flex: 1, alignItems: 'center', justifyContent: 'center',

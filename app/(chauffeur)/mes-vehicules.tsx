@@ -96,7 +96,7 @@ export default function MesVehiculesScreen() {
             {cover ? (
               <Image source={{ uri: cover }} style={styles.cardThumb} />
             ) : (
-              <Ionicons name="car-sport" size={28} color="#F5C400" />
+              <Ionicons name="car-sport" size={28} color="#4ECC8B" />
             )}
             {photoCount > 1 && (
               <View style={styles.photoCountBadge}>
@@ -206,7 +206,7 @@ export default function MesVehiculesScreen() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#F5C400" />
+          <ActivityIndicator size="large" color="#4ECC8B" />
         </View>
       ) : vehicles.length === 0 ? (
         <View style={styles.centered}>
@@ -224,7 +224,7 @@ export default function MesVehiculesScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadVehicles(); }} tintColor="#F5C400" />
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadVehicles(); }} tintColor="#4ECC8B" />
           }
         >
           {vehicles.map(renderVehicleCard)}
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   },
   cardIconBox: {
     width: 56, height: 56, borderRadius: 14,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#E8F8F0',
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -349,9 +349,9 @@ const styles = StyleSheet.create({
     bottom: 30, right: 20,
     width: 56, height: 56,
     borderRadius: 28,
-    backgroundColor: '#F5C400',
+    backgroundColor: '#4ECC8B',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#F5C400',
+    shadowColor: '#4ECC8B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

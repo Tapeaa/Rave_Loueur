@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   linkText: {
-    color: '#F5C400',
+    color: '#4ECC8B',
     fontWeight: '600',
   },
   driverAccess: {

@@ -43,7 +43,7 @@ function getDefaultContractHtml(vehicleName: string, plate: string, pricePerDay:
   h1 { text-align: center; font-size: 20px; margin-bottom: 4px; }
   h2 { font-size: 15px; margin-top: 22px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
   .header-sub { text-align: center; color: #666; font-size: 12px; margin-bottom: 24px; }
-  .field { color: #F5C400; font-weight: bold; }
+  .field { color: #4ECC8B; font-weight: bold; }
   table { width: 100%; border-collapse: collapse; margin: 10px 0; }
   td { padding: 6px 8px; border: 1px solid #ddd; }
   td:first-child { font-weight: 600; width: 40%; background: #f9f9f9; }
@@ -214,7 +214,7 @@ export default function ModifierVehiculeScreen() {
     return (
       <SafeAreaView style={st.container} edges={['top']}>
         <Header title="Modifier le véhicule" onBack={() => safeBack(router)} />
-        <View style={st.centered}><ActivityIndicator size="large" color="#F5C400" /></View>
+        <View style={st.centered}><ActivityIndicator size="large" color="#4ECC8B" /></View>
       </SafeAreaView>
     );
   }
@@ -233,7 +233,7 @@ export default function ModifierVehiculeScreen() {
           {/* Récap modèle (non modifiable) */}
           <View style={st.recapCard}>
             <View style={st.recapIcon}>
-              <Ionicons name="car-sport" size={28} color="#F5C400" />
+              <Ionicons name="car-sport" size={28} color="#4ECC8B" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={st.recapName}>{vehicle.modelName || 'Véhicule'}</Text>
@@ -483,7 +483,7 @@ function SwitchRow({ icon, label, desc, value, onChange }: { icon: string; label
         <Text style={st.switchLabel}>{label}</Text>
         <Text style={st.switchDesc}>{desc}</Text>
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ false: '#E5E7EB', true: '#FDE68A' }} thumbColor={value ? '#F5C400' : '#9CA3AF'} />
+      <Switch value={value} onValueChange={onChange} trackColor={{ false: '#E5E7EB', true: '#A8E6C8' }} thumbColor={value ? '#4ECC8B' : '#9CA3AF'} />
     </View>
   );
 }
@@ -506,11 +506,11 @@ const st = StyleSheet.create({
 
   recapCard: {
     flexDirection: 'row', alignItems: 'center', margin: 16, padding: 16,
-    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: '#F5C400', gap: 14,
+    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: '#4ECC8B', gap: 14,
   },
   recapIcon: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#FFFBEB', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#E8F8F0', alignItems: 'center', justifyContent: 'center',
   },
   recapName: { fontSize: 17, fontWeight: '800', color: '#1a1a1a' },
   recapMeta: { fontSize: 12, color: '#6B7280', marginTop: 2 },
@@ -544,7 +544,7 @@ const st = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12,
     padding: 14, marginBottom: 10, backgroundColor: '#FAFAFA',
   },
-  contractCardOn: { borderColor: '#F5C400', backgroundColor: '#FFFBEB' },
+  contractCardOn: { borderColor: '#4ECC8B', backgroundColor: '#E8F8F0' },
   contractTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
   contractDesc: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   cardDot: {
@@ -552,7 +552,7 @@ const st = StyleSheet.create({
     borderWidth: 2, borderColor: '#D1D5DB',
     alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
   },
-  cardDotOn: { borderColor: '#F5C400', backgroundColor: '#F5C400' },
+  cardDotOn: { borderColor: '#4ECC8B', backgroundColor: '#4ECC8B' },
 
   contractPreviewBox: {
     backgroundColor: '#F9FAFB', borderRadius: 12, padding: 14,
@@ -570,7 +570,7 @@ const st = StyleSheet.create({
   },
   downloadBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, marginTop: 12, backgroundColor: '#F5C400', paddingVertical: 10, borderRadius: 10,
+    gap: 8, marginTop: 12, backgroundColor: '#4ECC8B', paddingVertical: 10, borderRadius: 10,
   },
   downloadBtnTxt: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
 
@@ -598,7 +598,7 @@ const st = StyleSheet.create({
   },
   mainBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: '#F5C400', paddingVertical: 14,
+    gap: 8, backgroundColor: '#4ECC8B', paddingVertical: 14,
     paddingHorizontal: 24, borderRadius: 14, width: '100%',
   },
   mainBtnOff: { opacity: 0.6 },

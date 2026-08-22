@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   codeInputFilled: {
-    borderColor: '#F5C400',
+    borderColor: '#4ECC8B',
   },
   errorText: {
     color: '#ef4444',

@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   inputFocused: {
-    borderColor: '#F5C400',
+    borderColor: '#4ECC8B',
     backgroundColor: '#FFFFFF',
   },
   inputError: {

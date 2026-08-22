@@ -15,7 +15,7 @@ import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: 'En attente', color: '#F59E0B' },
   accepted: { label: 'Acceptée', color: '#3B82F6' },
-  booked: { label: 'Réservée', color: '#8B5CF6' },
+  booked: { label: 'Réservée', color: '#4ECC8B' },
   in_progress: { label: 'En cours', color: '#10B981' },
   completed: { label: 'Terminée', color: '#22C55E' },
   cancelled: { label: 'Annulée', color: '#EF4444' },
@@ -234,7 +234,7 @@ export default function ChauffeurCoursesScreen() {
           {isRental ? (
             <View style={styles.addressContainer}>
               <View style={styles.addressRow}>
-                <Ionicons name="car-sport" size={16} color="#8B5CF6" />
+                <Ionicons name="car-sport" size={16} color="#4ECC8B" />
                 <Text variant="body" numberOfLines={1} style={styles.addressText}>
                   {ro?.title || 'Véhicule'}
                 </Text>
@@ -312,7 +312,7 @@ export default function ChauffeurCoursesScreen() {
         <Card style={styles.bookedCard}>
         <View style={styles.bookedHeader}>
           <View style={styles.bookedDateContainer}>
-            <Ionicons name={isRental ? "car-sport" : "calendar"} size={20} color="#8B5CF6" />
+            <Ionicons name={isRental ? "car-sport" : "calendar"} size={20} color="#4ECC8B" />
             <View style={styles.bookedDateText}>
               {isRental ? (
                 <>
@@ -437,7 +437,7 @@ export default function ChauffeurCoursesScreen() {
           <Ionicons 
             name="calendar" 
             size={18} 
-            color={selectedTab === 'booked' ? '#8B5CF6' : '#6B7280'} 
+            color={selectedTab === 'booked' ? '#4ECC8B' : '#6B7280'} 
           />
           <Text style={[styles.tabText, selectedTab === 'booked' && styles.tabTextActive]}>
             Réservées ({bookedOrders.length})
@@ -451,7 +451,7 @@ export default function ChauffeurCoursesScreen() {
           <Ionicons 
             name="time" 
             size={18} 
-            color={selectedTab === 'history' ? '#8B5CF6' : '#6B7280'} 
+            color={selectedTab === 'history' ? '#4ECC8B' : '#6B7280'} 
           />
           <Text style={[styles.tabText, selectedTab === 'history' && styles.tabTextActive]}>
             Historique ({sortedOrders.length})
@@ -469,7 +469,7 @@ export default function ChauffeurCoursesScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#8B5CF6']} />
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4ECC8B']} />
             }
           />
         ) : (
@@ -492,7 +492,7 @@ export default function ChauffeurCoursesScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#F5C400']} />
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4ECC8B']} />
             }
           />
         ) : (
@@ -517,7 +517,7 @@ export default function ChauffeurCoursesScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.confirmModalContent}>
-            <Ionicons name="help-circle" size={48} color="#F5C400" style={{ marginBottom: 16 }} />
+            <Ionicons name="help-circle" size={48} color="#4ECC8B" style={{ marginBottom: 16 }} />
             <Text style={styles.confirmModalTitle}>Commencer cette location ?</Text>
             <Text style={styles.confirmModalSubtitle}>
               Vous allez ouvrir les détails de la location pour {confirmStartModal?.clientName}
@@ -694,13 +694,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   tabTextActive: {
-    color: '#8B5CF6',
+    color: '#4ECC8B',
   },
   bookedCard: {
     padding: 0,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#8B5CF6',
+    borderColor: '#4ECC8B',
   },
   bookedHeader: {
     flexDirection: 'row',
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   bookedTimeLabel: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: '#4ECC8B',
   },
   bookedCountdown: {
     backgroundColor: '#22C55E',
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   },
   confirmModalInfoText: {
     fontSize: 14,
-    color: '#8B5CF6',
+    color: '#4ECC8B',
     textAlign: 'center',
   },
   confirmModalButtons: {

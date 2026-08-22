@@ -114,20 +114,20 @@ export default function CommandeLocationScreen() {
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#1a1a1a;background:#f8f9fa;padding:16px}
 .page{background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,.08);padding:28px 24px;max-width:600px;margin:0 auto}
-.header{text-align:center;border-bottom:2px solid #F5C400;padding-bottom:18px;margin-bottom:20px}
-.logo{font-size:28px;font-weight:900;color:#F5C400;letter-spacing:2px}
+.header{text-align:center;border-bottom:2px solid #4ECC8B;padding-bottom:18px;margin-bottom:20px}
+.logo{font-size:28px;font-weight:900;color:#4ECC8B;letter-spacing:2px}
 .logo-sub{font-size:11px;color:#9CA3AF;letter-spacing:1px;margin-top:2px}
 .doc-title{font-size:17px;font-weight:700;color:#1a1a1a;margin-top:12px}
 .ref{font-size:11px;color:#6B7280;margin-top:4px}
 .section{margin-top:18px}
-.section-title{font-size:13px;font-weight:700;color:#F5C400;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #F3F4F6;padding-bottom:6px;margin-bottom:10px}
+.section-title{font-size:13px;font-weight:700;color:#4ECC8B;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #F3F4F6;padding-bottom:6px;margin-bottom:10px}
 .party{background:#FAFAFA;border-radius:8px;padding:12px;margin-bottom:8px}
 .party-label{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .party-name{font-size:14px;font-weight:600;color:#1a1a1a}
 .party-info{font-size:12px;color:#6B7280;margin-top:2px}
-.vehicle-box{background:linear-gradient(135deg,#FFFBEB,#FEF3C7);border-radius:10px;padding:14px;text-align:center;margin-bottom:8px}
+.vehicle-box{background:linear-gradient(135deg,#E8F8F0,#D1F2E3);border-radius:10px;padding:14px;text-align:center;margin-bottom:8px}
 .vehicle-name{font-size:16px;font-weight:800;color:#1a1a1a}
-.vehicle-cat{font-size:12px;color:#92400E;margin-top:2px}
+.vehicle-cat{font-size:12px;color:#166534;margin-top:2px}
 .vehicle-km{font-size:11px;color:#6B7280;margin-top:4px}
 .info-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .info-card{flex:1;min-width:45%;background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:10px}
@@ -136,7 +136,7 @@ body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#1a1a1a;backgrou
 table{width:100%;border-collapse:collapse;margin:8px 0}
 table td{padding:6px 0;font-size:12px;border-bottom:1px solid #F3F4F6}
 table .r{text-align:right;font-weight:600}
-.total-row{background:#F5C400;border-radius:8px;padding:12px;display:flex;justify-content:space-between;margin:10px 0}
+.total-row{background:#4ECC8B;border-radius:8px;padding:12px;display:flex;justify-content:space-between;margin:10px 0}
 .total-label{font-size:14px;font-weight:700;color:#1a1a1a}
 .total-val{font-size:16px;font-weight:800;color:#1a1a1a}
 .article{font-size:12px;color:#374151;line-height:1.6;margin-bottom:6px}
@@ -351,7 +351,7 @@ li{font-size:12px;color:#374151;margin-bottom:3px;line-height:1.5}
           <Text style={styles.sectionTitle}>Véhicule demandé</Text>
           <View style={styles.vehicleCard}>
             <View style={styles.vehicleIconWrap}>
-              <Ionicons name="car-sport" size={32} color="#F5C400" />
+              <Ionicons name="car-sport" size={32} color="#4ECC8B" />
             </View>
             <View style={styles.vehicleInfo}>
               <Text style={styles.vehicleName}>{vehicleTitle}</Text>
@@ -410,12 +410,12 @@ li{font-size:12px;color:#374151;margin-bottom:3px;line-height:1.5}
               </View>
             </View>
             <View style={styles.durationBadge}>
-              <Ionicons name="time" size={16} color="#8B5CF6" />
+              <Ionicons name="time" size={16} color="#4ECC8B" />
               <Text style={styles.durationText}>{days} jour{days > 1 ? 's' : ''}</Text>
             </View>
           </View>
           <View style={styles.locationRow}>
-            <Ionicons name="location" size={18} color="#F5C400" />
+            <Ionicons name="location" size={18} color="#4ECC8B" />
             <Text style={styles.locationText}>{pickupLocation}</Text>
           </View>
         </View>
@@ -461,7 +461,7 @@ li{font-size:12px;color:#374151;margin-bottom:3px;line-height:1.5}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contrat de location</Text>
           <TouchableOpacity style={styles.contractBtn} onPress={() => setShowContract(true)} activeOpacity={0.8}>
-            <Ionicons name="document-text" size={22} color="#F5C400" />
+            <Ionicons name="document-text" size={22} color="#4ECC8B" />
             <View style={{ flex: 1 }}>
               <Text style={styles.contractBtnTitle}>Consulter le contrat</Text>
               <Text style={styles.contractBtnSub}>Réf. {contractRef}</Text>
@@ -506,7 +506,7 @@ li{font-size:12px;color:#374151;margin-bottom:3px;line-height:1.5}
             </TouchableOpacity>
             <Text style={styles.contractHeaderTitle}>Contrat de location</Text>
             <TouchableOpacity onPress={handleDownloadPDF} style={styles.contractDownloadBtn}>
-              <Ionicons name="download" size={22} color="#F5C400" />
+              <Ionicons name="download" size={22} color="#4ECC8B" />
             </TouchableOpacity>
           </View>
           <WebView
@@ -545,11 +545,11 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: '#D1F2E3', paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: 16,
   },
   statusDot: { width: 7, height: 7, borderRadius: 4, marginRight: 6 },
-  statusText: { fontSize: 12, fontWeight: '600', color: '#92400E' },
+  statusText: { fontSize: 12, fontWeight: '600', color: '#166534' },
   dateText: { fontSize: 11, color: '#9CA3AF' },
   section: { paddingHorizontal: 16, marginTop: 16 },
   sectionTitle: {
@@ -558,17 +558,17 @@ const styles = StyleSheet.create({
   },
   vehicleCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: '#FEF3C7',
+    backgroundColor: '#E8F8F0', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: '#D1F2E3',
   },
   vehicleIconWrap: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#D1F2E3', justifyContent: 'center', alignItems: 'center',
     marginRight: 12,
   },
   vehicleInfo: { flex: 1 },
   vehicleName: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
-  vehicleCat: { fontSize: 12, color: '#92400E', marginTop: 2 },
+  vehicleCat: { fontSize: 12, color: '#166534', marginTop: 2 },
   vehicleKm: { fontSize: 11, color: '#6B7280', marginTop: 3 },
   infoCard: {
     backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12,
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   },
   totalRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#F5C400', borderRadius: 10, padding: 12,
+    backgroundColor: '#4ECC8B', borderRadius: 10, padding: 12,
     marginTop: 6,
   },
   totalLabel: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
@@ -635,8 +635,8 @@ const styles = StyleSheet.create({
   paymentNote: { fontSize: 11, color: '#9CA3AF', marginTop: 6, textAlign: 'center' },
   contractBtn: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: '#FEF3C7', gap: 10,
+    backgroundColor: '#E8F8F0', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: '#D1F2E3', gap: 10,
   },
   contractBtnTitle: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
   contractBtnSub: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   contractHeaderTitle: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
   contractDownloadBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#E8F8F0',
     justifyContent: 'center', alignItems: 'center',
   },
   successContainer: {
@@ -710,5 +710,5 @@ const styles = StyleSheet.create({
   },
   successButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   successSecondaryBtn: { marginTop: 14, paddingVertical: 8 },
-  successSecondaryText: { fontSize: 14, fontWeight: '600', color: '#F5C400' },
+  successSecondaryText: { fontSize: 14, fontWeight: '600', color: '#4ECC8B' },
 });

@@ -43,11 +43,11 @@ module.exports = {
       package: "com.rave.loueur",
       adaptiveIcon: {
         foregroundImage: "./assets/images/logo.png",
-        backgroundColor: "#F5C400",
+        backgroundColor: "#4ECC8B",
       },
       notification: {
         icon: "./assets/images/logo.png",
-        color: "#F5C400",
+        color: "#4ECC8B",
       },
       config: {
         googleMaps: {
