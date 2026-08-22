@@ -137,7 +137,7 @@ export default function LegalScreen() {
   };
 
   const openPrivacyPolicy = () => {
-    const url = 'https://tape-a.com/politique-de-confidentialite-tapea/';
+    const url = 'https://rave-location.com/politique-de-confidentialite/';
     Linking.openURL(url).catch(() => {
       Alert.alert('Erreur', 'Impossible d\'ouvrir la page web');
     });

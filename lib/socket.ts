@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import Constants from 'expo-constants';
-import type { Order, LocationUpdate } from './types';
+import type { Order } from './types';
+import { rentalOrderToDriverOrder, type RentalOrderApi } from './rentalOrders';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl || '';
 
@@ -9,7 +10,7 @@ function getSocketIOUrl(): string {
   const baseUrl = API_URL.replace(/\/api\/?$/, ''); // Remove /api suffix
   // If baseUrl is empty or just a protocol, use default
   if (!baseUrl || baseUrl === 'http://' || baseUrl === 'https://') {
-    return 'https://back-end-tapea.onrender.com';
+    return 'https://backend-rave.onrender.com';
   }
   return baseUrl;
 }
@@ -283,30 +284,99 @@ export async function updateDriverStatusAsync(sessionId: string, isOnline: boole
   }
 }
 
-export function acceptOrder(orderId: string, sessionId: string): void {
+/** Nouvelle demande de location RAVE (tous les loueurs en ligne pour l’instant) */
+export function onNewRentalOrder(callback: (order: Order) => void): () => void {
   const s = getSocket();
+  const handler = (payload: RentalOrderApi) => {
+    try {
+      callback(rentalOrderToDriverOrder(payload));
+    } catch (e) {
+      console.warn('[Socket] rental-order:new parse error', e);
+    }
+  };
+  s.on('rental-order:new', handler);
+  return () => s.off('rental-order:new', handler);
+}
+
+export function onRentalOrdersPending(callback: (orders: Order[]) => void): () => void {
+  const s = getSocket();
+  const handler = (list: RentalOrderApi[]) => {
+    try {
+      callback((Array.isArray(list) ? list : []).map(rentalOrderToDriverOrder));
+    } catch (e) {
+      console.warn('[Socket] rental-orders:pending parse error', e);
+    }
+  };
+  s.on('rental-orders:pending', handler);
+  return () => s.off('rental-orders:pending', handler);
+}
+
+export function onRentalOrderTaken(callback: (data: { orderId: string }) => void): () => void {
+  const s = getSocket();
+  s.on('rental-order:taken', callback);
+  return () => s.off('rental-order:taken', callback);
+}
+
+export function onRentalOrderExpired(callback: (data: { orderId: string }) => void): () => void {
+  const s = getSocket();
+  s.on('rental-order:expired', callback);
+  return () => s.off('rental-order:expired', callback);
+}
+
+export function onRentalOrderCancelled(callback: (data: { orderId: string }) => void): () => void {
+  const s = getSocket();
+  s.on('rental-order:cancelled', callback);
+  return () => s.off('rental-order:cancelled', callback);
+}
+
+export interface CancelRequestData {
+  orderId: string;
+  reason: string;
+  clientName: string;
+  clientPhone: string;
+  vehicleTitle: string;
+  totalPrice: number;
+  pickupLocation: string;
+  scheduledTime: string | null;
+}
+
+export function onRentalOrderCancelRequest(callback: (data: CancelRequestData) => void): () => void {
+  const s = getSocket();
+  const handler = (data: any) => {
+    console.log('[Socket] Cancel request received:', data.orderId || data);
+    callback(data);
+  };
+  s.on('rental-order:cancel-request', handler);
+  return () => s.off('rental-order:cancel-request', handler);
+}
+
+export function onRentalLifecycleChanged(
+  callback: (data: { orderId: string; phase: string; updatedBy: string; order?: any }) => void
+): () => void {
+  const s = getSocket();
+  const handler = (data: any) => {
+    console.log('[Socket] Rental lifecycle changed:', data.orderId, data.phase);
+    callback(data);
+  };
+  s.on('rental-order:lifecycle-changed', handler);
+  return () => { s.off('rental-order:lifecycle-changed', handler); };
+}
+
+export function joinRentalOrderRoom(orderId: string): void {
+  const s = getSocket();
+  const join = () => {
+    if (s.connected) {
+      s.emit('rental-order:join', { orderId });
+      console.log(`[Socket] Joined rental order room: ${orderId}`);
+    }
+  };
+  addReconnectCallback(`rental-order-${orderId}`, join);
   if (s.connected) {
-    s.emit('order:accept', { orderId, sessionId });
+    join();
+  } else {
+    s.once('connect', join);
+    s.connect();
   }
-}
-
-export function declineOrder(orderId: string, sessionId: string): void {
-  const s = getSocket();
-  if (s.connected) {
-    s.emit('order:decline', { orderId, sessionId });
-  }
-}
-
-export function onNewOrder(callback: (order: Order) => void): () => void {
-  const s = getSocket();
-  s.on('order:new', callback);
-  return () => s.off('order:new', callback);
-}
-
-export function onPendingOrders(callback: (orders: Order[]) => void): () => void {
-  const s = getSocket();
-  s.on('orders:pending', callback);
-  return () => s.off('orders:pending', callback);
 }
 
 export function onOrderTaken(callback: (data: { orderId: string }) => void): () => void {
@@ -395,26 +465,9 @@ export function onDriverAssigned(
   return () => s.off('order:driver:assigned', callback);
 }
 
-export function updateRideStatus(
-  orderId: string,
-  sessionId: string,
-  status: 'enroute' | 'arrived' | 'inprogress' | 'completed',
-  waitingTimeMinutes?: number,
-  driverArrivedAt?: string
-): void {
-  const s = getSocket();
-  if (s.connected) {
-    const payload: Record<string, unknown> = { orderId, sessionId, status };
-    if (waitingTimeMinutes !== undefined) payload.waitingTimeMinutes = waitingTimeMinutes;
-    if (driverArrivedAt) payload.driverArrivedAt = driverArrivedAt;
-    console.log('[SOCKET] Emitting ride:status:update:', { orderId, status, driverArrivedAt: !!driverArrivedAt, connected: s.connected });
-    s.emit('ride:status:update', payload);
-  } else {
-    console.warn('[SOCKET] Cannot emit ride:status:update - socket not connected');
-  }
-}
 
-export function joinRideRoom(
+/** Rejoindre la room chat d'une commande (messagerie). */
+export function joinOrderChatRoom(
   orderId: string,
   role: 'driver' | 'client' = 'driver',
   credentials?: { sessionId?: string; clientToken?: string }
@@ -425,12 +478,11 @@ export function joinRideRoom(
   const joinRoom = () => {
     if (s.connected) {
       s.emit('ride:join', payload);
-      console.log(`[Socket] Joined ride room: ${orderId} as ${role}`);
+      console.log(`[Socket] Joined order chat room: ${orderId} as ${role}`);
     }
   };
 
-  // Enregistrer le callback avec une clé unique pour éviter les doublons
-  addReconnectCallback(`ride-room-${orderId}-${role}`, joinRoom);
+  addReconnectCallback(`order-chat-${orderId}-${role}`, joinRoom);
 
   if (s.connected) {
     joinRoom();
@@ -440,226 +492,5 @@ export function joinRideRoom(
   }
 }
 
-export function onRideStatusChanged(
-  callback: (data: {
-    orderId: string;
-    status: 'enroute' | 'arrived' | 'inprogress' | 'completed' | 'cancelled';
-    orderStatus: string;
-    driverName: string;
-    statusTimestamp?: number;
-    totalPrice?: number;
-    driverEarnings?: number;
-    waitingTimeMinutes?: number;
-    driverArrivedAt?: string;
-  }) => void
-): () => void {
-  const s = getSocket();
-  s.on('ride:status:changed', callback);
-  return () => s.off('ride:status:changed', callback);
-}
-
-export function confirmPayment(
-  orderId: string,
-  confirmed: boolean,
-  role: 'driver' | 'client',
-  credentials?: { sessionId?: string; clientToken?: string },
-  paymentMethod?: 'card' | 'cash'
-): void {
-  const s = getSocket();
-  if (s.connected) {
-    s.emit('payment:confirm', { orderId, confirmed, role, paymentMethod, ...credentials });
-  }
-}
-
-export function onPaymentStatus(
-  callback: (data: {
-    orderId: string;
-    status: string;
-    confirmed: boolean;
-    driverConfirmed?: boolean;
-    clientConfirmed?: boolean;
-    amount?: number;
-    paymentMethod?: string;
-    cardBrand?: string | null;
-    cardLast4?: string | null;
-    errorMessage?: string;
-  }) => void
-): () => void {
-  const s = getSocket();
-  s.on('payment:status', callback);
-  return () => s.off('payment:status', callback);
-}
-
-export function retryPayment(orderId: string, clientToken: string): void {
-  const s = getSocket();
-  if (s.connected) {
-    s.emit('payment:retry', { orderId, clientToken });
-  }
-}
-
-export function switchToCashPayment(orderId: string, clientToken: string): void {
-  const s = getSocket();
-  if (s.connected) {
-    s.emit('payment:switch-cash', { orderId, clientToken });
-    console.log(`[Socket] payment:switch-cash emitted for order ${orderId}`);
-  }
-}
-
-export function onPaymentRetryReady(
-  callback: (data: {
-    orderId: string;
-    message: string;
-  }) => void
-): () => void {
-  const s = getSocket();
-  s.on('payment:retry:ready', callback);
-  return () => s.off('payment:retry:ready', callback);
-}
-
-export function onPaymentSwitchedToCash(
-  callback: (data: {
-    orderId: string;
-    amount: number;
-    message: string;
-  }) => void
-): () => void {
-  const s = getSocket();
-  s.on('payment:switched-to-cash', callback);
-  return () => s.off('payment:switched-to-cash', callback);
-}
-
-export function cancelRide(
-  orderId: string,
-  role: 'driver' | 'client',
-  reason?: string,
-  credentials?: { sessionId?: string; clientToken?: string }
-): void {
-  const s = getSocket();
-  if (s.connected) {
-    s.emit('ride:cancel', { orderId, role, reason, ...credentials });
-  }
-}
-
-export function onRideCancelled(
-  callback: (data: {
-    orderId: string;
-    cancelledBy: 'driver' | 'client';
-    reason: string;
-  }) => void
-): () => void {
-  const s = getSocket();
-  
-  // Wrapper pour ajouter des logs
-  const wrappedCallback = (data: {
-    orderId: string;
-    cancelledBy: 'driver' | 'client';
-    reason: string;
-  }) => {
-    console.log('[Socket] ride:cancelled event received:', data);
-    callback(data);
-  };
-  
-  s.on('ride:cancelled', wrappedCallback);
-  console.log('[Socket] onRideCancelled listener registered');
-  
-  return () => {
-    s.off('ride:cancelled', wrappedCallback);
-    console.log('[Socket] onRideCancelled listener unregistered');
-  };
-}
-
-export function emitDriverLocation(
-  orderId: string,
-  sessionId: string,
-  lat: number,
-  lng: number,
-  heading?: number,
-  speed?: number
-): void {
-  const s = getSocket();
-  if (s.connected) {
-    console.log('[SOCKET] Emitting driver location:', { orderId, lat, lng, heading, connected: s.connected });
-    s.emit('location:driver:update', {
-      orderId,
-      sessionId,
-      lat,
-      lng,
-      heading,
-      speed,
-      timestamp: Date.now(),
-    });
-  } else {
-    console.warn('[SOCKET] Cannot emit driver location - socket not connected');
-  }
-}
-
-export function emitClientLocation(
-  orderId: string,
-  clientToken: string,
-  lat: number,
-  lng: number
-): void {
-  const s = getSocket();
-  if (s.connected) {
-    s.emit('location:client:update', {
-      orderId,
-      clientToken,
-      lat,
-      lng,
-      timestamp: Date.now(),
-    });
-  }
-}
-
-export function onDriverLocationUpdate(callback: (data: LocationUpdate) => void): () => void {
-  const s = getSocket();
-  s.on('location:driver', callback);
-  return () => s.off('location:driver', callback);
-}
-
-export function onClientLocationUpdate(callback: (data: LocationUpdate) => void): () => void {
-  const s = getSocket();
-  s.on('location:client', callback);
-  return () => s.off('location:client', callback);
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// RÉSERVATION À L'AVANCE: Listener pour le rappel de démarrage de réservation
-// ═══════════════════════════════════════════════════════════════════════════
-export function onBookingStartReminder(
-  callback: (data: {
-    orderId: string;
-    order: Order;
-    scheduledTime: string;
-    minutesUntilStart: number;
-    timestamp: number;
-  }) => void
-): () => void {
-  const s = getSocket();
-  const handler = (data: any) => {
-    console.log('[Socket] Booking start reminder received:', data.orderId);
-    callback(data);
-  };
-  s.on('booking:start:reminder', handler);
-  return () => s.off('booking:start:reminder', handler);
-}
-
-export function calculateHeading(
-  prevLat: number,
-  prevLng: number,
-  currLat: number,
-  currLng: number
-): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const toDeg = (rad: number) => (rad * 180) / Math.PI;
-
-  const dLng = toRad(currLng - prevLng);
-  const lat1 = toRad(prevLat);
-  const lat2 = toRad(currLat);
-
-  const y = Math.sin(dLng) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-
-  let bearing = toDeg(Math.atan2(y, x));
-  return (bearing + 360) % 360;
-}
+/** @deprecated Utiliser joinOrderChatRoom */
+export const joinRideRoom = joinOrderChatRoom;

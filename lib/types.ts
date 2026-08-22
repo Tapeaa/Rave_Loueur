@@ -82,6 +82,13 @@ export interface RouteInfo {
   duration: string;
 }
 
+/** Phases métier location RAVE (rideOption.rentalLifecyclePhase côté API) */
+export type RentalLifecyclePhase =
+  | 'awaiting_validation'
+  | 'vehicle_ready'
+  | 'with_client'
+  | 'returned';
+
 export type OrderStatus =
   | 'pending'
   | 'accepted'
@@ -98,6 +105,8 @@ export type OrderStatus =
   | 'payment_failed';
 
 export interface Order {
+  /** taxi (TAPEA) vs location RAVE — défini côté app pour filtrage / UX */
+  orderSource?: 'taxi' | 'rental';
   id: string;
   clientId: string | null;
   clientName: string;
@@ -120,6 +129,10 @@ export interface Order {
     pricePerKm: number;
     basePrice: number;
     description?: string;
+    type?: string;
+    isRentalOrder?: boolean;
+    rentalLifecyclePhase?: RentalLifecyclePhase;
+    rentalData?: Record<string, unknown>;
   };
   routeInfo?: RouteInfo;
   passengers: number;
@@ -142,6 +155,35 @@ export interface Order {
   estimatedDuration?: number;  // en minutes
   estimatedDistance?: number;  // en mètres
   driverName?: string;
+  /** Champs optionnels (API / rétrocompat) */
+  pickupAddress?: string;
+  destinationAddress?: string;
+  isScheduled?: boolean;
+  clientNotes?: string | null;
+  distance?: number;
+  duration?: number;
+  /** Données brutes de location (préservées pour la page détail) */
+  rentalRawData?: {
+    clientEmail?: string;
+    clientAge?: number;
+    pricePerDay?: number;
+    endDate?: string;
+    deposit?: string;
+    km?: string;
+    vehicleCategory?: string;
+    ownerName?: string;
+    supplementsTotal?: number;
+    subtotal?: number;
+    supplements?: { id?: string; name?: string; pricePerDay?: number; total?: number }[];
+    rentalDispatch?: {
+      mode?: 'targeted' | 'broadcast';
+      vehicleModelId?: string;
+      targetPrestataireId?: string;
+      targetLoueurVehicleId?: string;
+      contractType?: 'app_default' | 'custom';
+      rentalDeclinedBy?: string[];
+    };
+  };
 }
 
 export interface PaymentMethod {

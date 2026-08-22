@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
-import { removeDriverSessionId, getDriverProfile, type DriverProfile } from '@/lib/api';
+import { removeDriverSessionId, getDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
 
 const { width } = Dimensions.get('window');
 
@@ -18,7 +18,8 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 'profil', title: 'Profil', icon: 'person-outline', route: '/(chauffeur)/profil' },
-  { id: 'courses', title: 'Courses', icon: 'list-outline', route: '/(chauffeur)/courses' },
+  { id: 'vehicules', title: 'Mes Véhicules', icon: 'car-sport-outline', route: '/(chauffeur)/mes-vehicules' },
+  { id: 'courses', title: 'Locations', icon: 'list-outline', route: '/(chauffeur)/courses' },
   { id: 'gains', title: 'Gains', icon: 'wallet-outline', route: '/(chauffeur)/gains' },
   { id: 'messages', title: 'Messages', icon: 'chatbubbles-outline', route: '/(chauffeur)/messages' },
 ];
@@ -45,7 +46,12 @@ export default function MenuBurger() {
         const profile = await getDriverProfile();
         setDriverProfile(profile);
       } catch (error) {
-        console.error('[MenuBurger] Error loading profile:', error);
+        if (error instanceof SessionExpiredError) {
+          await removeDriverSessionId();
+          router.replace('/(chauffeur)/login');
+          return;
+        }
+        console.warn('[MenuBurger] Error loading profile:', error);
       }
     };
     loadProfile();
@@ -165,10 +171,10 @@ export default function MenuBurger() {
                     </View>
                     <View style={styles.nameContainer}>
                       <Text style={styles.userName} numberOfLines={1}>
-                        {driverProfile?.firstName || 'Chauffeur'}
+                        {driverProfile?.firstName || 'Loueur'}
                       </Text>
                       <Text style={styles.lastName} numberOfLines={1}>
-                        {driverProfile?.lastName || 'TAPEA'}
+                        {driverProfile?.lastName || 'RAVE'}
                       </Text>
                     </View>
                   </View>
@@ -211,7 +217,7 @@ export default function MenuBurger() {
                   activeOpacity={0.7}
                   accessibilityLabel="Se déconnecter"
                   accessibilityRole="button"
-                  accessibilityHint="Déconnecte le chauffeur et retourne à l'écran de connexion"
+                  accessibilityHint="Déconnecte le loueur et retourne à l'écran de connexion"
                 >
                   <Ionicons name="log-out-outline" size={20} color="#EF4444" />
                   <Text variant="body" style={styles.logoutText}>

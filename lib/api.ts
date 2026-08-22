@@ -414,65 +414,8 @@ export async function apiDelete<T = unknown>(
 // FONCTIONS API SPÉCIFIQUES POUR LES COMMANDES
 // ============================================
 
-import type { Order, AddressField, Supplement, RouteInfo } from './types';
-
-export interface CreateOrderData {
-  clientName: string;
-  clientPhone: string;
-  addresses: AddressField[];
-  rideOption: {
-    id: string;
-    title: string;
-    price: number;
-    pricePerKm: number;
-  };
-  routeInfo?: RouteInfo;
-  passengers: number;
-  supplements: Supplement[];
-  paymentMethod: 'cash' | 'card';
-  selectedCardId?: string;
-  totalPrice: number;
-  driverEarnings: number;
-  scheduledTime?: string | null;
-  isAdvanceBooking: boolean;
-}
-
-export interface CreateOrderResponse {
-  order: Order;
-  clientToken: string;
-}
-
-/**
- * Crée une nouvelle commande
- */
-export async function createOrder(orderData: CreateOrderData): Promise<CreateOrderResponse> {
-  return apiPost<CreateOrderResponse>('/api/orders', orderData);
-}
-
-/**
- * Récupère la commande active du client
- */
-export interface ActiveOrderResponse {
-  hasActiveOrder: boolean;
-  order?: Order;
-  clientToken?: string;
-}
-
-export async function getActiveOrder(): Promise<ActiveOrderResponse> {
-  return apiFetch<ActiveOrderResponse>('/api/orders/active/client');
-}
-
-/**
- * Récupère la commande active du chauffeur
- */
-export interface ActiveDriverOrderResponse {
-  hasActiveOrder: boolean;
-  order?: Order;
-}
-
-export async function getActiveDriverOrder(sessionId: string): Promise<ActiveDriverOrderResponse> {
-  return apiFetch<ActiveDriverOrderResponse>(`/api/orders/active/driver?sessionId=${encodeURIComponent(sessionId)}`);
-}
+import type { Order } from './types';
+import { rentalOrderToDriverOrder, type RentalOrderApi } from './rentalOrders';
 
 /**
  * Récupère les détails d'une commande par son ID
@@ -490,29 +433,6 @@ export interface OrderDetailsResponse extends Order {
 
 export async function getOrder(orderId: string): Promise<OrderDetailsResponse> {
   return apiFetch<OrderDetailsResponse>(`/api/orders/${orderId}`);
-}
-
-/**
- * Récupère la position GPS du chauffeur (polling backup si Socket.IO échoue)
- */
-export interface DriverLocationResponse {
-  lat: number;
-  lng: number;
-  heading?: number;
-  speed?: number;
-  timestamp: number;
-}
-
-export async function getDriverLocation(orderId: string): Promise<DriverLocationResponse | null> {
-  try {
-    return await apiFetch<DriverLocationResponse>(`/api/orders/${orderId}/driver-location`);
-  } catch (error) {
-    // Si le chauffeur n'a pas encore envoyé sa position, retourner null
-    if (error instanceof ApiError && error.status === 404) {
-      return null;
-    }
-    throw error;
-  }
 }
 
 /**
@@ -591,38 +511,6 @@ export async function clearCachedOrder(): Promise<void> {
   }
 }
 
-// ============ FRAIS DE SERVICE CONFIG ============
-
-export async function getFraisServiceConfig(): Promise<{
-  fraisServicePrestataire: number;
-  commissionPrestataire: number;
-  commissionSalarieTapea: number;
-}> {
-  try {
-    const response = await apiFetch<{
-      success: boolean;
-      config: {
-        fraisServicePrestataire: number;
-        commissionPrestataire: number;
-        commissionSalarieTapea: number;
-      };
-    }>('/api/frais-service-config', { skipAuth: true });
-    
-    return response.config || {
-      fraisServicePrestataire: 15,
-      commissionPrestataire: 0,
-      commissionSalarieTapea: 0,
-    };
-  } catch (error) {
-    console.warn('Failed to get frais service config, using defaults:', error);
-    return {
-      fraisServicePrestataire: 15,
-      commissionPrestataire: 0,
-      commissionSalarieTapea: 0,
-    };
-  }
-}
-
 /**
  * Annule une commande via HTTP (fallback si Socket.IO échoue)
  */
@@ -663,123 +551,7 @@ export async function cancelOrderHttp(
 }
 
 // ============================================
-// FONCTIONS API POUR LES COMMISSIONS
-// ============================================
-
-export interface Commission {
-  id: string;
-  typeChauffeur: string;
-  nomAffichage: string;
-  pourcentageChauffeur: number;
-  pourcentageCommission: number;
-  description: string | null;
-  actif: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CommissionsResponse {
-  success: boolean;
-  commissions: Commission[];
-}
-
-// Cache en mémoire pour les commissions
-let commissionsCache: Commission[] | null = null;
-let commissionsCacheTimestamp: number = 0;
-const COMMISSIONS_CACHE_DURATION = 60 * 1000; // 1 minute
-
-/**
- * Récupère les commissions depuis l'API
- */
-export async function getCommissions(): Promise<Commission[]> {
-  // Vérifier le cache
-  const now = Date.now();
-  if (commissionsCache && (now - commissionsCacheTimestamp) < COMMISSIONS_CACHE_DURATION) {
-    return commissionsCache;
-  }
-  
-  try {
-    const response = await apiFetch<CommissionsResponse>('/api/commissions', { skipAuth: true });
-    
-    if (response.success && response.commissions) {
-      commissionsCache = response.commissions;
-      commissionsCacheTimestamp = now;
-      return response.commissions;
-    }
-    
-    // Retourner les commissions par défaut si la requête échoue
-    return getDefaultCommissions();
-  } catch (error) {
-    console.warn('[API] Failed to fetch commissions, using defaults:', error);
-    return getDefaultCommissions();
-  }
-}
-
-/**
- * Récupère la commission pour un type de chauffeur spécifique
- */
-export async function getCommissionForType(typeChauffeur: 'salarie' | 'patente'): Promise<Commission | null> {
-  const commissions = await getCommissions();
-  return commissions.find(c => c.typeChauffeur === typeChauffeur) || null;
-}
-
-/**
- * Calcule les gains du chauffeur après commission
- */
-export function calculateDriverEarnings(totalPrice: number, commission: Commission): {
-  driverEarnings: number;
-  tapeaCommission: number;
-} {
-  const driverEarnings = Math.round(totalPrice * (commission.pourcentageChauffeur / 100));
-  const tapeaCommission = totalPrice - driverEarnings;
-  
-  return {
-    driverEarnings,
-    tapeaCommission,
-  };
-}
-
-/**
- * Commissions par défaut (fallback si API indisponible)
- * Note: Ces valeurs doivent correspondre à celles configurées dans le dashboard
- */
-function getDefaultCommissions(): Commission[] {
-  return [
-    {
-      id: 'default-salarie',
-      typeChauffeur: 'salarie',
-      nomAffichage: 'Chauffeur Salarié',
-      pourcentageChauffeur: 34,
-      pourcentageCommission: 66,
-      description: 'Commission pour les chauffeurs salariés TAPEA',
-      actif: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'default-patente',
-      typeChauffeur: 'patente',
-      nomAffichage: 'Chauffeur Patenté (Indépendant)',
-      pourcentageChauffeur: 92,
-      pourcentageCommission: 8,
-      description: 'Commission pour les chauffeurs indépendants/patentés',
-      actif: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ];
-}
-
-/**
- * Force le rafraîchissement du cache des commissions
- */
-export function invalidateCommissionsCache(): void {
-  commissionsCache = null;
-  commissionsCacheTimestamp = 0;
-}
-
-// ============================================
-// FONCTIONS API POUR LE PROFIL CHAUFFEUR
+// FONCTIONS API POUR LE PROFIL LOUEUR
 // ============================================
 
 export interface DriverProfile {
@@ -870,6 +642,8 @@ export interface DriverStats {
   totalKm: number;
   averageRating: number | null;
   allTimeRides: number;
+  totalLocations?: number;
+  completedRentals?: number;
 }
 
 export interface DriverEarningsResponse {
@@ -901,4 +675,360 @@ export async function getDriverEarnings(): Promise<DriverEarningsResponse | null
     console.warn('[API] Failed to fetch driver earnings:', error);
     return null;
   }
+}
+
+// ============================================
+// DEMANDES DE LOCATION RAVE (app client)
+// Backend : GET/POST /api/rental-orders/... avec X-Driver-Session
+// ============================================
+
+function normalizePendingRentalPayload(data: unknown): RentalOrderApi[] {
+  if (!data) return [];
+  if (Array.isArray(data)) return data as RentalOrderApi[];
+  if (typeof data === 'object' && data !== null && 'orders' in data) {
+    const o = (data as { orders?: RentalOrderApi[] }).orders;
+    return Array.isArray(o) ? o : [];
+  }
+  return [];
+}
+
+/**
+ * Demandes en attente pour tous les loueurs connectés (filtre par véhicule = évolution backend).
+ */
+export async function getPendingRentalOrders(sessionId: string): Promise<Order[]> {
+  const raw = await apiFetch<unknown>('/api/rental-orders/pending', {
+    headers: {
+      'X-Driver-Session': sessionId,
+    },
+  });
+  if (__DEV__) {
+    console.log('[Loueur][DEBUG] /api/rental-orders/pending RAW:', JSON.stringify(raw).substring(0, 500));
+  }
+  const list = normalizePendingRentalPayload(raw);
+  if (__DEV__) {
+    console.log(`[Loueur][DEBUG] Normalized list: ${list.length} items`, list.map(r => ({ id: r.id, status: r.status, type: r.type })));
+  }
+  const now = Date.now();
+  const maxAge = 45 * 24 * 60 * 60 * 1000;
+  return list
+    .filter((r) => {
+      if (!r?.id) return false;
+      const st = (r.status || 'pending').toLowerCase();
+      if (st !== 'pending') {
+        if (__DEV__) console.log(`[Loueur][DEBUG] Filtered out ${r.id}: status=${st}`);
+        return false;
+      }
+      if (r.createdAt && now - new Date(r.createdAt).getTime() > maxAge) {
+        if (__DEV__) console.log(`[Loueur][DEBUG] Filtered out ${r.id}: too old`);
+        return false;
+      }
+      return true;
+    })
+    .map(rentalOrderToDriverOrder);
+}
+
+export async function acceptRentalOrder(orderId: string, sessionId: string, loueurSignature?: string | null): Promise<void> {
+  await apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/accept`, {
+    sessionId,
+    ...(loueurSignature ? { loueurSignature } : {}),
+  }, {
+    headers: {
+      'X-Driver-Session': sessionId,
+    },
+  });
+}
+
+export async function declineRentalOrder(orderId: string, sessionId: string): Promise<void> {
+  await apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/decline`, {
+    sessionId,
+  }, {
+    headers: {
+      'X-Driver-Session': sessionId,
+    },
+  });
+}
+
+export async function cancelRentalOrder(orderId: string, sessionId: string, reason?: string): Promise<void> {
+  await apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/cancel`, {
+    sessionId,
+    role: 'driver',
+    reason: reason || 'Annulation par le loueur',
+  }, {
+    headers: {
+      'X-Driver-Session': sessionId,
+    },
+  });
+}
+
+/** Avance la phase location (remise au client, retour). Backend : POST .../lifecycle */
+export async function postRentalOrderLifecycle(
+  orderId: string,
+  sessionId: string,
+  body: { phase: 'with_client' | 'returned' }
+): Promise<unknown> {
+  return apiPost<unknown>(
+    `/api/rental-orders/${encodeURIComponent(orderId)}/lifecycle`,
+    { ...body, sessionId },
+    { headers: { 'X-Driver-Session': sessionId } }
+  );
+}
+
+export async function approveCancelRequest(orderId: string, sessionId: string, reason?: string): Promise<void> {
+  await apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/cancel-approve`, {
+    sessionId,
+    reason: reason || 'Annulation validée par le loueur',
+  }, {
+    headers: { 'X-Driver-Session': sessionId },
+  });
+}
+
+export async function rejectCancelRequest(orderId: string, sessionId: string, reason?: string): Promise<void> {
+  await apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/cancel-reject`, {
+    sessionId,
+    reason: reason || 'Le loueur a refusé l\'annulation',
+  }, {
+    headers: { 'X-Driver-Session': sessionId },
+  });
+}
+
+// ============================================
+// GESTION DES VÉHICULES DU LOUEUR
+// ============================================
+
+export interface VehicleModel {
+  id: string;
+  name: string;
+  category: string;
+  imageUrl: string | null;
+  description: string | null;
+  seats: number;
+  transmission: string;
+  fuel: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface LoueurVehicle {
+  id: string;
+  vehicleModelId: string;
+  plate: string | null;
+  pricePerDay: number;
+  pricePerDayLongTerm: number | null;
+  availableForRental: boolean;
+  availableForDelivery: boolean;
+  availableForLongTerm: boolean;
+  customImageUrl: string | null;
+  customImageUrls?: string[] | null;
+  rentalContractMode?: 'app_default' | 'custom';
+  customContractText?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  modelName: string | null;
+  modelCategory: string | null;
+  modelImageUrl: string | null;
+  modelSeats: number | null;
+  modelTransmission: string | null;
+  modelFuel: string | null;
+}
+
+export interface CreateVehicleData {
+  vehicleModelId: string;
+  vehicleModelName?: string;
+  vehicleModelCategory?: string;
+  plate?: string;
+  pricePerDay: number;
+  pricePerDayLongTerm?: number;
+  availableForRental?: boolean;
+  availableForDelivery?: boolean;
+  availableForLongTerm?: boolean;
+  customImageUrl?: string;
+  customImageUrls?: string[];
+  rentalContractMode?: 'app_default' | 'custom';
+  customContractText?: string;
+}
+
+function isVehicleModelLike(v: unknown): v is VehicleModel {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  return typeof o.id === 'string' && typeof o.name === 'string';
+}
+
+function normalizeVehicleModelsPayload(raw: unknown): VehicleModel[] {
+  if (Array.isArray(raw)) {
+    return raw.filter(isVehicleModelLike) as VehicleModel[];
+  }
+
+  if (!raw || typeof raw !== 'object') return [];
+
+  const root = raw as Record<string, unknown>;
+
+  const directCandidates = [
+    root.models,
+    root.vehicleModels,
+    root.data,
+    root.items,
+    root.results,
+    root.payload,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (Array.isArray(candidate)) {
+      const filtered = candidate.filter(isVehicleModelLike) as VehicleModel[];
+      if (filtered.length > 0) return filtered;
+    }
+  }
+
+  // Fallback robuste: chercher un tableau de modèles dans les objets imbriqués.
+  const stack: unknown[] = Object.values(root);
+  let guard = 0;
+  while (stack.length > 0 && guard < 200) {
+    guard += 1;
+    const current = stack.pop();
+    if (!current) continue;
+
+    if (Array.isArray(current)) {
+      const filtered = current.filter(isVehicleModelLike) as VehicleModel[];
+      if (filtered.length > 0) return filtered;
+      for (const item of current) {
+        if (item && typeof item === 'object') stack.push(item);
+      }
+      continue;
+    }
+
+    if (typeof current === 'object') {
+      stack.push(...Object.values(current as Record<string, unknown>));
+    }
+  }
+
+  return [];
+}
+
+export async function getVehicleModels(): Promise<VehicleModel[]> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError('Session requise', 401);
+  const raw = await apiFetch<unknown>('/api/driver/vehicle-models', {
+    headers: { 'X-Driver-Session': sessionId },
+  });
+  return normalizeVehicleModelsPayload(raw);
+}
+
+function normalizeLoueurVehiclesPayload(raw: unknown): LoueurVehicle[] {
+  if (Array.isArray(raw)) return raw as LoueurVehicle[];
+  if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>;
+    if (Array.isArray(o.vehicles)) return o.vehicles as LoueurVehicle[];
+    if (Array.isArray(o.data)) return o.data as LoueurVehicle[];
+    if (Array.isArray(o.items)) return o.items as LoueurVehicle[];
+  }
+  return [];
+}
+
+export async function getMyVehicles(): Promise<LoueurVehicle[]> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError('Session requise', 401);
+  const raw = await apiFetch<unknown>('/api/driver/vehicles', {
+    headers: { 'X-Driver-Session': sessionId },
+  });
+  return normalizeLoueurVehiclesPayload(raw);
+}
+
+export async function addVehicle(data: CreateVehicleData): Promise<LoueurVehicle> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError('Session requise', 401);
+  return apiPost<LoueurVehicle>('/api/driver/vehicles', data as Record<string, unknown>, {
+    headers: { 'X-Driver-Session': sessionId },
+  });
+}
+
+/** Upload une photo véhicule vers Cloudinary via le backend (route /api/upload déjà en prod) */
+export async function uploadVehiclePhoto(localUri: string): Promise<string> {
+  if (!API_URL) throw new ApiError('Serveur non configuré', 0, true);
+
+  const sessionId = await getDriverSessionId();
+  const formData = new FormData();
+  const rawName = localUri.split('/').pop() || `vehicle-${Date.now()}.jpg`;
+  const filename = rawName.includes('.') ? rawName.replace(/\s/g, '_') : `${rawName}.jpg`;
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const mime =
+    ext === 'png' ? 'image/png' :
+    ext === 'webp' ? 'image/webp' :
+    ext === 'heic' || ext === 'heif' ? 'image/heic' :
+    'image/jpeg';
+
+  // Champ folder lu par POST /api/upload
+  formData.append('folder', 'rave/vehicles');
+  formData.append('image', {
+    uri: localUri,
+    name: filename.endsWith('.heic') || filename.endsWith('.heif')
+      ? filename.replace(/\.hei[cf]$/i, '.jpg')
+      : filename,
+    type: mime === 'image/heic' ? 'image/jpeg' : mime,
+  } as any);
+
+  // API_URL se termine déjà par /api → même pattern que l'app client
+  const url = `${API_URL}/upload`;
+
+  if (__DEV__) {
+    console.log('[PHOTO UPLOAD] Uploading vehicle photo to:', url);
+  }
+
+  const headers: Record<string, string> = {};
+  if (sessionId) headers['X-Driver-Session'] = sessionId;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  let data: any = null;
+  const rawText = await response.text();
+  if (contentType.includes('application/json')) {
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (__DEV__) {
+    console.log('[PHOTO UPLOAD] Status:', response.status, 'Body:', rawText.slice(0, 200));
+  }
+
+  if (!response.ok || !data?.url) {
+    throw new ApiError(
+      data?.error || data?.message || "Impossible d'envoyer la photo",
+      response.status
+    );
+  }
+
+  return data.url as string;
+}
+
+export function normalizeLoueurImageUrls(vehicle: Pick<LoueurVehicle, 'customImageUrl' | 'customImageUrls'>): string[] {
+  const urls = Array.isArray(vehicle.customImageUrls)
+    ? vehicle.customImageUrls.filter((u): u is string => typeof u === 'string' && !!u.trim())
+    : [];
+  if (urls.length === 0 && vehicle.customImageUrl) return [vehicle.customImageUrl];
+  return Array.from(new Set(urls));
+}
+
+export async function updateVehicle(vehicleId: string, data: Partial<CreateVehicleData & { isActive: boolean }>): Promise<LoueurVehicle> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError('Session requise', 401);
+  return apiFetch<LoueurVehicle>(`/api/driver/vehicles/${encodeURIComponent(vehicleId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+    headers: { 'X-Driver-Session': sessionId },
+  });
+}
+
+export async function deleteVehicle(vehicleId: string): Promise<void> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError('Session requise', 401);
+  await apiFetch(`/api/driver/vehicles/${encodeURIComponent(vehicleId)}`, {
+    method: 'DELETE',
+    headers: { 'X-Driver-Session': sessionId },
+  });
 }

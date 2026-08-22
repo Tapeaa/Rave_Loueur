@@ -3,10 +3,13 @@ module.exports = {
   expo: {
     name: "RAVE Loueur",
     slug: "rave-loueur",
+    // Doit correspondre au compte Expo du projectId EAS (extra.eas.projectId)
+    owner: "tapea",
     scheme: "rave-loueur",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/TAXI (12).png",
+    // Icône non-taxi (remplace TAXI (12).png)
+    icon: "./assets/images/logo.png",
     userInterfaceStyle: "light",
     ios: {
       bundleIdentifier: "com.rave.loueur",
@@ -39,11 +42,11 @@ module.exports = {
     android: {
       package: "com.rave.loueur",
       adaptiveIcon: {
-        foregroundImage: "./assets/images/TAXI (12).png",
+        foregroundImage: "./assets/images/logo.png",
         backgroundColor: "#F5C400",
       },
       notification: {
-        icon: "./assets/images/TAXI (12).png",
+        icon: "./assets/images/logo.png",
         color: "#F5C400",
       },
       config: {
@@ -53,7 +56,7 @@ module.exports = {
       },
     },
     updates: {
-      url: "https://u.expo.dev/d9251047-67be-4746-8828-7a29ca20a65c",
+      url: "https://u.expo.dev/bf2301d9-7cd4-4a90-9134-7c62c14f34a8",
     },
     runtimeVersion: {
       policy: "appVersion",
@@ -67,7 +70,7 @@ module.exports = {
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "",
       oneSignalAppId: "62d9a9ec-c62b-4aae-9cb3-e0d0c46ccfe8",
       eas: {
-        projectId: "d9251047-67be-4746-8828-7a29ca20a65c",
+        projectId: "bf2301d9-7cd4-4a90-9134-7c62c14f34a8",
       },
     },
     plugins: [
@@ -79,6 +82,13 @@ module.exports = {
           imageWidth: 200,
           resizeMode: "contain",
           backgroundColor: "#1a1a1a",
+        },
+      ],
+      [
+        "expo-image-picker",
+        {
+          photosPermission: "RAVE Loueur accède à votre galerie pour ajouter des photos de vos véhicules.",
+          cameraPermission: "RAVE Loueur utilise la caméra pour photographier vos véhicules.",
         },
       ],
       [

@@ -20,7 +20,7 @@ export default function WelcomeScreen() {
           </View>
 
           <Text style={styles.subtitle}>
-            Votre application de transport
+            Votre application de location de véhicules
           </Text>
         </View>
 

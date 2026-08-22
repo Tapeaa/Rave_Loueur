@@ -31,7 +31,7 @@ const StripeProviderWrapper: React.FC<{ children: React.ReactNode }> = ({ childr
     return (
       <StripeProvider
         publishableKey={stripePublishableKey}
-        merchantIdentifier="merchant.com.tapea"
+        merchantIdentifier="merchant.com.rave"
       >
         {children}
       </StripeProvider>

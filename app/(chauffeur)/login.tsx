@@ -140,7 +140,7 @@ export default function ChauffeurLoginScreen() {
         if (errorMessage.includes('401') || errorMessage.includes('Code incorrect') || errorMessage.includes('Code invalide')) {
           setError('Code incorrect. Veuillez vérifier votre code d\'accès.');
         } else if (errorMessage.includes('403') || errorMessage.includes('désactivé')) {
-          setError('Votre compte chauffeur est désactivé. Contactez le support.');
+          setError('Votre compte loueur est désactivé. Contactez le support.');
         } else if (errorMessage.includes('502') || errorMessage.includes('backend est inaccessible')) {
           setError('Le serveur backend est inaccessible. Vérifiez que le serveur est démarré et que l\'URL API est correcte.');
         } else if (errorMessage.includes('503') || errorMessage.includes('indisponible')) {
@@ -173,7 +173,7 @@ export default function ChauffeurLoginScreen() {
         </View>
 
         <View style={styles.header}>
-          <Text variant="h1">Accès Chauffeur</Text>
+          <Text variant="h1">Accès Loueur</Text>
           <Text variant="body" style={styles.subtitle}>
             {"Entrez votre code d'accès à 6 chiffres"}
           </Text>
@@ -214,7 +214,7 @@ export default function ChauffeurLoginScreen() {
           style={styles.loginButton}
           accessibilityLabel="Se connecter avec votre code à 6 chiffres"
           accessibilityRole="button"
-          accessibilityHint="Connecte le chauffeur à son compte après avoir entré le code d'accès"
+          accessibilityHint="Connecte le loueur à son compte après avoir entré le code d'accès"
         />
       </View>
     </SafeAreaView>
