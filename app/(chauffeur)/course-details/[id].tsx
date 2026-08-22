@@ -433,16 +433,14 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                   </Text>
                 </View>
               </View>
-              {rentalData.serviceType && (
+              {rentalData.serviceType && rentalData.serviceType !== 'livraison' && (
                 <View style={[styles.passengerInfo, { borderTopColor: '#F3F4F6' }]}>
                   <Ionicons 
-                    name={rentalData.serviceType === 'livraison' ? 'navigate' : rentalData.serviceType === 'longterme' ? 'time' : 'key'} 
+                    name={rentalData.serviceType === 'longterme' ? 'time' : 'key'} 
                     size={20} color="#6B7280" 
                   />
                   <Text style={styles.passengerText}>
-                    {rentalData.serviceType === 'livraison' ? 'Avec livraison' : 
-                     rentalData.serviceType === 'longterme' ? 'Location longue durée' : 
-                     'Location standard'}
+                    {rentalData.serviceType === 'longterme' ? 'Location longue durée' : 'Location'}
                   </Text>
                 </View>
               )}
@@ -489,19 +487,6 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                 </Text>
               </View>
             </Card>
-
-            {/* Adresse de livraison si applicable */}
-            {rentalData.pickupAddress && (
-              <Card style={styles.section}>
-                <Text style={styles.sectionTitle}>Adresse de livraison</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                  <Ionicons name="location" size={20} color="#22C55E" style={{ marginTop: 2 }} />
-                  <Text style={[styles.addressValue, { marginLeft: 10, flex: 1 }]}>
-                    {rentalData.pickupAddress}
-                  </Text>
-                </View>
-              </Card>
-            )}
 
             {['accepted', 'booked', 'in_progress'].includes(order.status) && (
               <Card style={styles.section}>
