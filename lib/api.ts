@@ -1146,3 +1146,78 @@ export async function deleteVehicle(vehicleId: string): Promise<void> {
     headers: { 'X-Driver-Session': sessionId },
   });
 }
+export type AvailabilityBlock = {
+  id: string;
+  loueurVehicleId: string;
+  startDate: string;
+  endDate: string;
+  reason: string | null;
+  createdBy: string;
+  createdAt: string;
+};
+
+/** Dernier jour inclusif (stockage [start, end) exclusif). */
+export function blockInclusiveEndYmd(endIso: string): string {
+  const d = new Date(endIso);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+export function formatBlockRangeLabel(startIso: string, endIso: string): string {
+  const start = startIso.slice(0, 10);
+  const end = blockInclusiveEndYmd(endIso);
+  if (start === end) {
+    return new Date(start + "T12:00:00").toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+  const fmt = (ymd: string) =>
+    new Date(ymd + "T12:00:00").toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  return `${fmt(start)} ? ${fmt(end)}`;
+}
+
+export async function getVehicleAvailabilityBlocks(
+  vehicleId: string
+): Promise<AvailabilityBlock[]> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError("Session requise", 401);
+  const res = await apiFetch<{ blocks: AvailabilityBlock[] }>(
+    `/api/driver/vehicles/${encodeURIComponent(vehicleId)}/availability-blocks`,
+    { headers: { "X-Driver-Session": sessionId } }
+  );
+  return Array.isArray(res?.blocks) ? res.blocks : [];
+}
+
+export async function createVehicleAvailabilityBlock(
+  vehicleId: string,
+  data: { startDate: string; endDate: string; reason?: string }
+): Promise<AvailabilityBlock> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError("Session requise", 401);
+  return apiPost<AvailabilityBlock>(
+    `/api/driver/vehicles/${encodeURIComponent(vehicleId)}/availability-blocks`,
+    data as Record<string, unknown>,
+    { headers: { "X-Driver-Session": sessionId } }
+  );
+}
+
+export async function deleteVehicleAvailabilityBlock(
+  vehicleId: string,
+  blockId: string
+): Promise<void> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError("Session requise", 401);
+  await apiFetch(
+    `/api/driver/vehicles/${encodeURIComponent(vehicleId)}/availability-blocks/${encodeURIComponent(blockId)}`,
+    {
+      method: "DELETE",
+      headers: { "X-Driver-Session": sessionId },
+    }
+  );
+}

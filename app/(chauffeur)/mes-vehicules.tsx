@@ -177,6 +177,14 @@ export default function MesVehiculesScreen() {
               <Text style={styles.editBtnText}>Modifier</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={[styles.editBtn, { borderColor: '#FDBA74' }]}
+              onPress={() => router.push({ pathname: '/(chauffeur)/modifier-vehicule', params: { id: vehicle.id } })}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={18} color="#EA580C" />
+              <Text style={[styles.editBtnText, { color: '#EA580C' }]}>Dates</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.deleteBtn}
               onPress={() => handleDelete(vehicle)}
               activeOpacity={0.7}

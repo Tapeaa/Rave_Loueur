@@ -27,6 +27,7 @@ import {
 } from '@/lib/api';
 import { VehiclePhotosPicker } from '@/components/VehiclePhotosPicker';
 import { PricingTiersReadonly } from '@/components/PricingTiersReadonly';
+import { VehicleAvailabilityBlocksEditor } from '@/components/VehicleAvailabilityBlocksEditor';
 
 const CATEGORY_LABELS: Record<string, string> = {
   citadine: 'Citadine',
@@ -249,6 +250,11 @@ export default function ModifierVehiculeScreen() {
               value={isActive}
               onChange={setIsActive}
             />
+          </View>
+
+          {/* Indisponibilités (résas hors app) */}
+          <View style={st.section}>
+            <VehicleAvailabilityBlocksEditor vehicleId={vehicle.id} />
           </View>
 
           {/* Photos */}
