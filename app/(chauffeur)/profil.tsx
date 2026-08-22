@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Alert, ScrollView, Image, Modal, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Alert, ScrollView, Image, Modal, Platform, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,12 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
-import { removeDriverSessionId, getDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
+import { removeDriverSessionId, getDriverProfile, updateDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
 import { removeExternalId, addDriverTag } from '@/lib/onesignal';
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import { disconnectSocket } from '@/lib/socket';
 import { useState, useEffect, useRef } from 'react';
+import { BRAND } from '@/constants/brand';
 
 const SIGNATURE_FILE = `${FileSystem.documentDirectory}loueur_signature.txt`;
 
@@ -47,6 +48,9 @@ export default function ChauffeurProfilScreen() {
   const [showVehicleInfo, setShowVehicleInfo] = useState(false);
   const [savedSignature, setSavedSignature] = useState<string | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '' });
   const webviewRef = useRef<WebView>(null);
 
   useEffect(() => {
@@ -95,6 +99,13 @@ export default function ChauffeurProfilScreen() {
       setLoading(true);
       const data = await getDriverProfile();
       setProfile(data);
+      if (data) {
+        setEditForm({
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          phone: data.phone || '',
+        });
+      }
     } catch (error) {
       if (error instanceof SessionExpiredError) {
         await removeDriverSessionId();
@@ -104,6 +115,60 @@ export default function ChauffeurProfilScreen() {
       console.warn('Error loading profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const startEditing = () => {
+    if (!profile) return;
+    setEditForm({
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      phone: profile.phone || '',
+    });
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+    if (profile) {
+      setEditForm({
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        phone: profile.phone || '',
+      });
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!profile) return;
+    const firstName = editForm.firstName.trim();
+    const lastName = editForm.lastName.trim();
+    const phone = editForm.phone.trim();
+    if (!firstName || !lastName) {
+      Alert.alert('Champs requis', 'Prénom et nom sont obligatoires.');
+      return;
+    }
+    if (!phone) {
+      Alert.alert('Champs requis', 'Le téléphone est obligatoire.');
+      return;
+    }
+    try {
+      setSaving(true);
+      const updated = await updateDriverProfile(profile.id, { firstName, lastName, phone });
+      if (updated) {
+        setProfile({ ...profile, ...updated, firstName, lastName, phone });
+        setEditing(false);
+        Alert.alert('Profil mis à jour', 'Les changements sont aussi visibles sur le dashboard.');
+      }
+    } catch (error: any) {
+      if (error instanceof SessionExpiredError) {
+        await removeDriverSessionId();
+        router.replace('/(chauffeur)/login');
+        return;
+      }
+      Alert.alert('Erreur', error?.message || 'Impossible de sauvegarder le profil.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -136,24 +201,86 @@ export default function ChauffeurProfilScreen() {
         showsVerticalScrollIndicator={false}
       >
         {loading ? (
-          <ActivityIndicator size="large" color="#F5C400" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color="#4ECC8B" style={{ marginTop: 40 }} />
         ) : (
           <>
             <Card style={styles.profileCard}>
               <View style={styles.avatar}>
-                <Ionicons name="person" size={40} color="#F5C400" />
+                <Ionicons name="person" size={40} color={BRAND.green} />
               </View>
-              <Text variant="h3">
-                {profile ? `${profile.firstName} ${profile.lastName}` : 'Loueur RAVE'}
-              </Text>
-              <Text variant="caption" style={{ color: profile?.isActive ? '#22c55e' : '#ef4444' }}>
-                {profile?.isActive ? 'Actif' : 'Inactif'}
-              </Text>
-              {profile?.prestataireName ? (
-                <Text variant="caption" style={{ color: '#6b7280', marginTop: 6 }}>
-                  {profile.prestataireName}
-                </Text>
-              ) : null}
+              {editing ? (
+                <View style={{ width: '100%', gap: 10, marginTop: 8 }}>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editForm.firstName}
+                    onChangeText={(v) => setEditForm((f) => ({ ...f, firstName: v }))}
+                    placeholder="Prénom"
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="words"
+                  />
+                  <TextInput
+                    style={styles.editInput}
+                    value={editForm.lastName}
+                    onChangeText={(v) => setEditForm((f) => ({ ...f, lastName: v }))}
+                    placeholder="Nom"
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="words"
+                  />
+                  <TextInput
+                    style={styles.editInput}
+                    value={editForm.phone}
+                    onChangeText={(v) => setEditForm((f) => ({ ...f, phone: v }))}
+                    placeholder="Téléphone"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="phone-pad"
+                  />
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                    <TouchableOpacity
+                      style={[styles.editBtn, styles.editBtnGhost]}
+                      onPress={cancelEditing}
+                      disabled={saving}
+                    >
+                      <Text style={styles.editBtnGhostText}>Annuler</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.editBtn, styles.editBtnPrimary]}
+                      onPress={saveProfile}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.editBtnPrimaryText}>Enregistrer</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <Text variant="h3">
+                    {profile ? `${profile.firstName} ${profile.lastName}` : 'Loueur RAVE'}
+                  </Text>
+                  <Text variant="caption" style={{ color: profile?.isActive ? '#22c55e' : '#ef4444' }}>
+                    {profile?.isActive ? 'Actif' : 'Inactif'}
+                  </Text>
+                  {profile?.phone ? (
+                    <Text variant="caption" style={{ color: '#6b7280', marginTop: 4 }}>
+                      {profile.phone}
+                    </Text>
+                  ) : null}
+                  {profile?.prestataireName ? (
+                    <Text variant="caption" style={{ color: '#6b7280', marginTop: 6 }}>
+                      {profile.prestataireName}
+                    </Text>
+                  ) : null}
+                  {profile ? (
+                    <TouchableOpacity style={styles.modifyLink} onPress={startEditing} activeOpacity={0.7}>
+                      <Ionicons name="create-outline" size={16} color={BRAND.green} />
+                      <Text style={styles.modifyLinkText}>Modifier mon profil</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </>
+              )}
             </Card>
             
             {/* Statistiques */}
@@ -402,11 +529,57 @@ const styles = StyleSheet.create({
     padding: 24,
     marginBottom: 24,
   },
+  editInput: {
+    width: '100%',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#1a1a1a',
+    backgroundColor: '#FAFAFA',
+  },
+  editBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editBtnGhost: {
+    backgroundColor: '#F3F4F6',
+  },
+  editBtnGhostText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  editBtnPrimary: {
+    backgroundColor: BRAND.green,
+  },
+  editBtnPrimaryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  modifyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 6,
+  },
+  modifyLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: BRAND.green,
+  },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#D1F2E3',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,

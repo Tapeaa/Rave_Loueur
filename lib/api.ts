@@ -626,6 +626,43 @@ export async function getDriverProfile(): Promise<DriverProfile | null> {
   }
 }
 
+export type UpdateDriverProfilePayload = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  vehicleModel?: string | null;
+  vehicleColor?: string | null;
+  vehiclePlate?: string | null;
+};
+
+/** Met à jour le profil loueur (sync aussi le dashboard raison sociale). */
+export async function updateDriverProfile(
+  driverId: string,
+  payload: UpdateDriverProfilePayload
+): Promise<DriverProfile | null> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) {
+    throw new SessionExpiredError();
+  }
+
+  const response = await apiFetch<{ success: boolean; driver: DriverProfile; error?: string }>(
+    `/api/driver/profile/${driverId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'X-Driver-Session': sessionId,
+        Authorization: `Bearer ${sessionId}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (response.success && response.driver) {
+    return response.driver;
+  }
+  throw new Error(response.error || 'Impossible de mettre à jour le profil');
+}
+
 // ============================================
 // FONCTIONS API POUR LES GAINS DU CHAUFFEUR
 // ============================================
