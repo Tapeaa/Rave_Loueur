@@ -35,7 +35,7 @@ export function PricingTiersReadonly({ tiers, maxRentalDays, pricePerDay }: Prop
         ))
       )}
       <Text style={styles.hint}>
-        Pour modifier les paliers, veuillez vous connecter au dashboard web.
+        Pour modifier les paliers, l’assurance et les options (GPS, etc.), connectez-vous au dashboard web loueur.
       </Text>
     </View>
   );

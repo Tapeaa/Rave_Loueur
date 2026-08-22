@@ -18,6 +18,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 'profil', title: 'Profil', icon: 'person-outline', route: '/(chauffeur)/profil' },
+  { id: 'abonnement', title: 'Abonnement', icon: 'ribbon-outline', route: '/(chauffeur)/abonnement' },
   { id: 'vehicules', title: 'Mes Véhicules', icon: 'car-sport-outline', route: '/(chauffeur)/mes-vehicules' },
   { id: 'courses', title: 'Locations', icon: 'list-outline', route: '/(chauffeur)/courses' },
   { id: 'gains', title: 'Gains', icon: 'wallet-outline', route: '/(chauffeur)/gains' },

@@ -20,9 +20,9 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   completed: { label: 'Terminée', color: '#22C55E' },
   cancelled: { label: 'Annulée', color: '#EF4444' },
   expired: { label: 'Expirée', color: '#6B7280' },
-  payment_pending: { label: 'Paiement en attente', color: '#F59E0B' },
-  payment_confirmed: { label: 'Payée', color: '#22C55E' },
-  payment_failed: { label: 'Paiement échoué', color: '#EF4444' },
+  payment_pending: { label: 'En attente', color: '#F59E0B' },
+  payment_confirmed: { label: 'Confirmée', color: '#22C55E' },
+  payment_failed: { label: 'Échec', color: '#EF4444' },
 };
 
 export default function ChauffeurCoursesScreen() {

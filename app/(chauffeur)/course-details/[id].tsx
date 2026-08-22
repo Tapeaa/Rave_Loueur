@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
   Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
@@ -19,7 +20,7 @@ import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import * as FileSystem from 'expo-file-system/legacy';
-import { apiFetch, getDriverSessionId, postRentalOrderLifecycle } from '@/lib/api';
+import { apiFetch, getDriverSessionId, postRentalOrderLifecycle, setRentalMeetingPoint } from '@/lib/api';
 import {
   getRentalLifecyclePhase,
   getRentalStepperState,
@@ -38,9 +39,9 @@ const statusLabels: Record<string, { label: string; color: string; icon: string 
   completed: { label: 'Terminée', color: '#22C55E', icon: 'checkmark-done-circle' },
   cancelled: { label: 'Annulée', color: '#EF4444', icon: 'close-circle' },
   expired: { label: 'Expirée', color: '#6B7280', icon: 'timer' },
-  payment_pending: { label: 'Paiement en attente', color: '#F59E0B', icon: 'card' },
-  payment_confirmed: { label: 'Payée', color: '#22C55E', icon: 'checkmark-circle' },
-  payment_failed: { label: 'Paiement échoué', color: '#EF4444', icon: 'card' },
+  payment_pending: { label: 'En attente', color: '#F59E0B', icon: 'time' },
+  payment_confirmed: { label: 'Confirmée', color: '#22C55E', icon: 'checkmark-circle' },
+  payment_failed: { label: 'Échec', color: '#EF4444', icon: 'close-circle' },
 };
 
 export default function CourseDetailsScreen() {
@@ -53,6 +54,8 @@ export default function CourseDetailsScreen() {
   const [contractHTML, setContractHTML] = useState('');
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [loueurSignature, setLoueurSignature] = useState<string | null>(null);
+  const [meetingDraft, setMeetingDraft] = useState('');
+  const [meetingBusy, setMeetingBusy] = useState(false);
 
   useEffect(() => {
     const sigFile = `${FileSystem.documentDirectory}loueur_signature.txt`;
@@ -84,6 +87,8 @@ export default function CourseDetailsScreen() {
           },
         });
         setOrder(orderData);
+        const mp = (orderData.rideOption as any)?.meetingPoint;
+        if (typeof mp === 'string') setMeetingDraft(mp);
       } catch (err) {
         console.error('[CourseDetails] Error loading order:', err);
         setError('Impossible de charger les détails de la location');
@@ -266,6 +271,34 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
   const hasClientSignature = !!rideOpt?.clientSignatureSvg;
   const rentalPhase = getRentalLifecyclePhase(order);
   const rentalStepperState = getRentalStepperState(order);
+
+  const saveMeetingPoint = async () => {
+    const value = meetingDraft.trim();
+    if (!value) {
+      Alert.alert('Lieu requis', 'Indiquez le lieu de rendez-vous pour le client.');
+      return;
+    }
+    try {
+      setMeetingBusy(true);
+      const res = await setRentalMeetingPoint(order.id, value);
+      setOrder((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          rideOption: {
+            ...(prev.rideOption as any),
+            meetingPoint: res.meetingPoint,
+            meetingPointSetAt: new Date().toISOString(),
+          },
+        } as Order;
+      });
+      Alert.alert('RDV envoyé', 'Le client voit désormais ce lieu de rendez-vous.');
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.message || 'Impossible d’enregistrer le lieu de RDV.');
+    } finally {
+      setMeetingBusy(false);
+    }
+  };
 
   const advanceRentalLifecycle = async (nextPhase: 'with_client' | 'returned') => {
     const sessionId = await getDriverSessionId();
@@ -462,6 +495,52 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                     {rentalData.pickupAddress}
                   </Text>
                 </View>
+              </Card>
+            )}
+
+            {['accepted', 'booked', 'in_progress'].includes(order.status) && (
+              <Card style={styles.section}>
+                <Text style={styles.sectionTitle}>Lieu de rendez-vous</Text>
+                <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 10 }}>
+                  Visible par le client après acceptation. Vous pouvez envoyer un nouveau lieu à tout moment.
+                </Text>
+                <TextInput
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#E5E7EB',
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    fontSize: 15,
+                    color: '#111',
+                    marginBottom: 10,
+                  }}
+                  placeholder="Ex. Parking Fare Ute, Papeete"
+                  placeholderTextColor="#9CA3AF"
+                  value={meetingDraft}
+                  onChangeText={setMeetingDraft}
+                />
+                <TouchableOpacity
+                  onPress={saveMeetingPoint}
+                  disabled={meetingBusy}
+                  style={{
+                    backgroundColor: '#171717',
+                    borderRadius: 10,
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                    opacity: meetingBusy ? 0.6 : 1,
+                  }}
+                >
+                  {meetingBusy ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>
+                      {(rideOpt?.meetingPoint || '').trim()
+                        ? 'Mettre à jour le RDV'
+                        : 'Envoyer le RDV au client'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </Card>
             )}
 

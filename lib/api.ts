@@ -574,6 +574,12 @@ export interface DriverProfile {
   privacyPolicyRead?: boolean;
   privacyPolicyReadAt?: string | null;
   privacyPolicyVersion?: string | null;
+  defaultMeetingPoint?: string | null;
+  subscriptionPlan?: string | null;
+  subscriptionStatus?: string;
+  subscriptionStartsAt?: string | null;
+  subscriptionEndsAt?: string | null;
+  subscriptionAmount?: number | null;
   createdAt: string;
 }
 
@@ -633,6 +639,7 @@ export type UpdateDriverProfilePayload = {
   vehicleModel?: string | null;
   vehicleColor?: string | null;
   vehiclePlate?: string | null;
+  defaultMeetingPoint?: string | null;
 };
 
 /** Met à jour le profil loueur (sync aussi le dashboard raison sociale). */
@@ -764,15 +771,74 @@ export async function getPendingRentalOrders(sessionId: string): Promise<Order[]
     .map(rentalOrderToDriverOrder);
 }
 
-export async function acceptRentalOrder(orderId: string, sessionId: string, loueurSignature?: string | null): Promise<void> {
+export async function acceptRentalOrder(
+  orderId: string,
+  sessionId: string,
+  loueurSignature?: string | null,
+  meetingPoint?: string | null
+): Promise<void> {
   await apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/accept`, {
     sessionId,
     ...(loueurSignature ? { loueurSignature } : {}),
+    ...(meetingPoint ? { meetingPoint } : {}),
   }, {
     headers: {
       'X-Driver-Session': sessionId,
     },
   });
+}
+
+export async function setRentalMeetingPoint(
+  orderId: string,
+  meetingPoint: string
+): Promise<{ success: boolean; meetingPoint: string }> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new SessionExpiredError();
+  return apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/meeting-point`, {
+    sessionId,
+    meetingPoint,
+  }, {
+    headers: { 'X-Driver-Session': sessionId },
+  });
+}
+
+export type LoueurSubscriptionInfo = {
+  plan: string | null;
+  status: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  amount: number | null;
+  daysRemaining: number | null;
+  plans?: Record<string, { id: string; label: string; amountXpf: number; days: number }>;
+};
+
+export async function getDriverSubscription(): Promise<LoueurSubscriptionInfo> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new SessionExpiredError();
+  const res = await apiFetch<{ success: boolean; subscription: LoueurSubscriptionInfo }>(
+    `/api/driver/subscription`,
+    { headers: { 'X-Driver-Session': sessionId } }
+  );
+  if (!res.success || !res.subscription) {
+    throw new Error('Impossible de charger l’abonnement');
+  }
+  return res.subscription;
+}
+
+export async function subscribeLoueurPlan(
+  plan: 'monthly' | 'semiannual'
+): Promise<{ message?: string } & LoueurSubscriptionInfo> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new SessionExpiredError();
+  const res = await apiPost<{ success: boolean; subscription: LoueurSubscriptionInfo & { message?: string } }>(
+    `/api/driver/subscription/subscribe`,
+    { plan },
+    { headers: { 'X-Driver-Session': sessionId } }
+  );
+  if (!res.success || !res.subscription) {
+    throw new Error('Échec de l’activation');
+  }
+  return res.subscription;
 }
 
 export async function declineRentalOrder(orderId: string, sessionId: string): Promise<void> {

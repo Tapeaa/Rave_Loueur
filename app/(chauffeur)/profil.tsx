@@ -50,7 +50,7 @@ export default function ChauffeurProfilScreen() {
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '' });
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', defaultMeetingPoint: '' });
   const webviewRef = useRef<WebView>(null);
 
   useEffect(() => {
@@ -104,6 +104,7 @@ export default function ChauffeurProfilScreen() {
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           phone: data.phone || '',
+          defaultMeetingPoint: data.defaultMeetingPoint || '',
         });
       }
     } catch (error) {
@@ -124,6 +125,7 @@ export default function ChauffeurProfilScreen() {
       firstName: profile.firstName || '',
       lastName: profile.lastName || '',
       phone: profile.phone || '',
+      defaultMeetingPoint: profile.defaultMeetingPoint || '',
     });
     setEditing(true);
   };
@@ -135,6 +137,7 @@ export default function ChauffeurProfilScreen() {
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
         phone: profile.phone || '',
+        defaultMeetingPoint: profile.defaultMeetingPoint || '',
       });
     }
   };
@@ -144,6 +147,7 @@ export default function ChauffeurProfilScreen() {
     const firstName = editForm.firstName.trim();
     const lastName = editForm.lastName.trim();
     const phone = editForm.phone.trim();
+    const defaultMeetingPoint = editForm.defaultMeetingPoint.trim() || null;
     if (!firstName || !lastName) {
       Alert.alert('Champs requis', 'Prénom et nom sont obligatoires.');
       return;
@@ -154,9 +158,21 @@ export default function ChauffeurProfilScreen() {
     }
     try {
       setSaving(true);
-      const updated = await updateDriverProfile(profile.id, { firstName, lastName, phone });
+      const updated = await updateDriverProfile(profile.id, {
+        firstName,
+        lastName,
+        phone,
+        defaultMeetingPoint,
+      });
       if (updated) {
-        setProfile({ ...profile, ...updated, firstName, lastName, phone });
+        setProfile({
+          ...profile,
+          ...updated,
+          firstName,
+          lastName,
+          phone,
+          defaultMeetingPoint,
+        });
         setEditing(false);
         Alert.alert('Profil mis à jour', 'Les changements sont aussi visibles sur le dashboard.');
       }
@@ -234,6 +250,14 @@ export default function ChauffeurProfilScreen() {
                     placeholderTextColor="#9CA3AF"
                     keyboardType="phone-pad"
                   />
+                  <TextInput
+                    style={[styles.editInput, { minHeight: 72, textAlignVertical: 'top' }]}
+                    value={editForm.defaultMeetingPoint}
+                    onChangeText={(v) => setEditForm((f) => ({ ...f, defaultMeetingPoint: v }))}
+                    placeholder="Lieu de RDV par défaut (ex. Parking Fare Ute)"
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                  />
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
                     <TouchableOpacity
                       style={[styles.editBtn, styles.editBtnGhost]}
@@ -273,6 +297,15 @@ export default function ChauffeurProfilScreen() {
                       {profile.prestataireName}
                     </Text>
                   ) : null}
+                  {profile?.defaultMeetingPoint ? (
+                    <Text variant="caption" style={{ color: '#6b7280', marginTop: 8, textAlign: 'center' }}>
+                      RDV par défaut : {profile.defaultMeetingPoint}
+                    </Text>
+                  ) : (
+                    <Text variant="caption" style={{ color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
+                      Aucun lieu de RDV par défaut
+                    </Text>
+                  )}
                   {profile ? (
                     <TouchableOpacity style={styles.modifyLink} onPress={startEditing} activeOpacity={0.7}>
                       <Ionicons name="create-outline" size={16} color={BRAND.green} />
@@ -388,6 +421,18 @@ export default function ChauffeurProfilScreen() {
                   </View>
                 )}
               </View>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => router.push('/(chauffeur)/abonnement')}
+                accessibilityLabel="Abonnement RAVE"
+                accessibilityRole="button"
+              >
+                <View style={styles.menuIcon}>
+                  <Ionicons name="ribbon-outline" size={22} color="#1a1a1a" />
+                </View>
+                <Text variant="body">Abonnement</Text>
+                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.menuItem}
                 onPress={() => {

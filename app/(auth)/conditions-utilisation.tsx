@@ -60,10 +60,10 @@ export default function ConditionsUtilisationScreen() {
             RAVE est une plateforme de mise en relation entre Locataires et Loueurs. Elle permet notamment :
           </Text>
           <Text variant="body" style={styles.listItem}>• la demande de locations immédiates ou à l'avance (si disponible),</Text>
-          <Text variant="body" style={styles.listItem}>• le suivi en temps réel de la Location,</Text>
-          <Text variant="body" style={styles.listItem}>• le paiement sécurisé (notamment via Stripe).</Text>
+          <Text variant="body" style={styles.listItem}>• le suivi de la Location,</Text>
+          <Text variant="body" style={styles.listItem}>• l’abonnement plateforme des Loueurs (hors app client),</Text>
           <Text variant="body" style={styles.text}>
-            Sauf mention contraire, RAVE n'est pas un loueur de véhicules au sens strict : la prestation de location est réalisée par le Loueur, sous sa responsabilité et selon la réglementation applicable.
+            Sauf mention contraire, RAVE n'est pas un loueur de véhicules au sens strict : la prestation de location est réalisée par le Loueur, sous sa responsabilité et selon la réglementation applicable. Le Locataire règle la location directement auprès du Loueur.
           </Text>
         </View>
 
@@ -138,10 +138,9 @@ export default function ConditionsUtilisationScreen() {
 
           <Text variant="body" style={styles.subTitle}>7.3 Paiement</Text>
           <Text variant="body" style={styles.text}>
-            Le paiement est généralement déclenché à la fin de la Location.{'\n\n'}
-            Les paiements par carte sont traités via Stripe (prestataire de paiement).{'\n\n'}
-            En cas d'échec de paiement, RAVE peut suspendre temporairement l'accès au service jusqu'à régularisation.{'\n\n'}
-            RAVE se réserve la possibilité d'ajouter d'autres moyens de paiement (ex. espèces) si cela est activé dans l'app et autorisé localement.
+            Le Locataire règle la location directement auprès du Loueur (hors application), selon le mode convenu entre les parties.{'\n\n'}
+            Les Loueurs s’acquittent d’un abonnement plateforme RAVE (mensuel ou semestriel) pour accéder aux outils de mise en relation.{'\n\n'}
+            En cas de non-paiement de l’abonnement, RAVE peut suspendre temporairement l’accès au service jusqu’à régularisation.
           </Text>
         </View>
 
