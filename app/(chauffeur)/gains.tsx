@@ -9,18 +9,10 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getDriverProfile,
   getDriverEarnings,
-  apiFetch,
-  getDriverSessionId,
   removeDriverSessionId,
   SessionExpiredError,
   type DriverEarnings,
 } from '@/lib/api';
-import type { Order } from '@/lib/types';
-
-function isRentalOrder(order: Order): boolean {
-  const ro = order.rideOption as any;
-  return ro?.type === 'rental' || !!ro?.isRentalOrder;
-}
 
 export default function ChauffeurGainsScreen() {
   const router = useRouter();
@@ -54,36 +46,6 @@ export default function ChauffeurGainsScreen() {
             0
         );
         setRentalTotalXpf(earningsData.earnings.total || 0);
-      }
-
-      // Agrégats location : commandes terminées / payées
-      const sessionId = await getDriverSessionId();
-      if (sessionId) {
-        try {
-          const orders = await apiFetch<Order[]>(`/api/driver/orders/${sessionId}`);
-          const completedRentals = (orders || []).filter((o) => {
-            if (!isRentalOrder(o)) return false;
-            return (
-              o.status === 'completed' ||
-              o.status === 'payment_confirmed' ||
-              o.status === 'payment_pending'
-            );
-          });
-          const count = completedRentals.length;
-          const sum = completedRentals.reduce(
-            (acc, o) => acc + (o.totalPrice || o.driverEarnings || 0),
-            0
-          );
-          if (count > 0 || sum > 0) {
-            setRentalCount(count);
-            setRentalTotalXpf(sum);
-            if (!earningsData && sum > 0) {
-              setEarnings((prev) => ({ ...prev, total: sum }));
-            }
-          }
-        } catch {
-          // garder les agrégats issus de getDriverEarnings
-        }
       }
     } catch (error) {
       if (error instanceof SessionExpiredError) {
