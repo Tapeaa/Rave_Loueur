@@ -198,7 +198,6 @@ export default function AjouterVehiculeScreen() {
   const [plate, setPlate] = useState('');
   const [pricePerDay, setPricePerDay] = useState('');
   const [availableForRental, setAvailableForRental] = useState(true);
-  const [availableForDelivery, setAvailableForDelivery] = useState(false);
   const [rentalContractMode, setRentalContractMode] = useState<'app_default' | 'custom'>('app_default');
   const [customContractText, setCustomContractText] = useState('');
   const [showContractPreview, setShowContractPreview] = useState(false);
@@ -318,8 +317,8 @@ export default function AjouterVehiculeScreen() {
       Alert.alert('Erreur', 'Veuillez entrer un prix par jour valide');
       return;
     }
-    if (!availableForRental && !availableForDelivery) {
-      Alert.alert('Erreur', 'Activez au moins un type de service');
+    if (!availableForRental) {
+      Alert.alert('Erreur', 'Activez la location pour publier ce véhicule');
       return;
     }
     if (rentalContractMode === 'custom' && customContractText.trim().length < 20) {
@@ -338,8 +337,8 @@ export default function AjouterVehiculeScreen() {
         maxRentalDays: 90,
         pricingTiers: [{ fromDay: 1, toDay: 90, pricePerDay: basePrice }],
         availableForRental,
-        availableForDelivery,
-        availableForLongTerm: availableForRental,
+        availableForDelivery: false,
+        availableForLongTerm: false,
         customImageUrl: photoUrls[0],
         customImageUrls: photoUrls,
         rentalContractMode,
@@ -431,8 +430,6 @@ export default function AjouterVehiculeScreen() {
           <View style={st.section}>
             <Text style={st.sectionTitle}>Services proposés</Text>
             <SwitchRow icon="car-outline" label="Location" desc="Le client récupère le véhicule" value={availableForRental} onChange={setAvailableForRental} />
-            <View style={st.divider} />
-            <SwitchRow icon="navigate-outline" label="Livraison" desc="Vous livrez au client" value={availableForDelivery} onChange={setAvailableForDelivery} />
           </View>
 
           {/* Contrat */}

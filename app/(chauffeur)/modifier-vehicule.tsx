@@ -106,7 +106,6 @@ export default function ModifierVehiculeScreen() {
   const [plate, setPlate] = useState('');
   const [pricePerDay, setPricePerDay] = useState('');
   const [availableForRental, setAvailableForRental] = useState(true);
-  const [availableForDelivery, setAvailableForDelivery] = useState(false);
   const [rentalContractMode, setRentalContractMode] = useState<'app_default' | 'custom'>('app_default');
   const [isActive, setIsActive] = useState(true);
   const [customContractText, setCustomContractText] = useState('');
@@ -131,7 +130,6 @@ export default function ModifierVehiculeScreen() {
       setPlate(found.plate || '');
       setPricePerDay(found.pricePerDay?.toString() || '');
       setAvailableForRental(found.availableForRental);
-      setAvailableForDelivery(found.availableForDelivery);
       setRentalContractMode(found.rentalContractMode || 'app_default');
       setCustomContractText(found.customContractText || '');
       setIsActive(found.isActive);
@@ -177,8 +175,8 @@ export default function ModifierVehiculeScreen() {
       Alert.alert('Erreur', 'Veuillez entrer un prix par jour valide');
       return;
     }
-    if (!availableForRental && !availableForDelivery) {
-      Alert.alert('Erreur', 'Activez au moins un type de service');
+    if (!availableForRental) {
+      Alert.alert('Erreur', 'Activez la location pour publier ce véhicule');
       return;
     }
 
@@ -188,8 +186,8 @@ export default function ModifierVehiculeScreen() {
         plate: plate.trim() || undefined,
         pricePerDay: Number(pricePerDay),
         availableForRental,
-        availableForDelivery,
-        availableForLongTerm: availableForRental,
+        availableForDelivery: false,
+        availableForLongTerm: false,
         customImageUrl: photoUrls[0],
         customImageUrls: photoUrls,
         rentalContractMode,
@@ -302,8 +300,6 @@ export default function ModifierVehiculeScreen() {
           <View style={st.section}>
             <Text style={st.sectionTitle}>Services proposés</Text>
             <SwitchRow icon="car-outline" label="Location" desc="Le client récupère le véhicule" value={availableForRental} onChange={setAvailableForRental} />
-            <View style={st.divider} />
-            <SwitchRow icon="navigate-outline" label="Livraison" desc="Vous livrez au client" value={availableForDelivery} onChange={setAvailableForDelivery} />
           </View>
 
           {/* Contrat */}

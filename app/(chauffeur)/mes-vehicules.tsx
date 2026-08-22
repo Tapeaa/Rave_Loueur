@@ -165,11 +165,6 @@ export default function MesVehiculesScreen() {
                 <Text style={styles.serviceBadgeText}>Location</Text>
               </View>
             )}
-            {vehicle.availableForDelivery && (
-              <View style={styles.serviceBadge}>
-                <Text style={styles.serviceBadgeText}>Livraison</Text>
-              </View>
-            )}
           </View>
 
           <View style={styles.cardActions}>
