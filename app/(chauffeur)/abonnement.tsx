@@ -21,6 +21,13 @@ import {
   type LoueurSubscriptionInfo,
 } from '@/lib/api';
 
+type PlanKey = 'monthly' | 'semiannual';
+
+const FALLBACK_PLANS = {
+  monthly: { id: 'monthly' as const, label: 'Mensuel', amountXpf: 5000, days: 30 },
+  semiannual: { id: 'semiannual' as const, label: '6 mois', amountXpf: 30000, days: 180 },
+};
+
 export default function AbonnementScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -48,10 +55,16 @@ export default function AbonnementScreen() {
     load();
   }, [load]);
 
-  const onSubscribe = (plan: 'monthly' | 'semiannual', label: string, amount: number) => {
+  const plans = {
+    monthly: info?.plans?.monthly || FALLBACK_PLANS.monthly,
+    semiannual: info?.plans?.semiannual || FALLBACK_PLANS.semiannual,
+  };
+
+  const onSubscribe = (plan: PlanKey) => {
+    const def = plans[plan];
     Alert.alert(
-      `Abonnement ${label}`,
-      `Confirmer le paiement de ${amount.toLocaleString('fr-FR')} XPF ?\n\nLa période sera activée immédiatement. Réglez ce montant auprès de RAVE.`,
+      `Abonnement ${def.label}`,
+      `Confirmer le paiement de ${def.amountXpf.toLocaleString('fr-FR')} XPF ?\n\nLa période sera activée immédiatement. Réglez ce montant auprès de RAVE.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -85,6 +98,18 @@ export default function AbonnementScreen() {
   const statusColor =
     status === 'active' ? '#22C55E' : status === 'expired' ? '#EF4444' : '#6B7280';
 
+  const planLabel =
+    info?.plan === 'semiannual'
+      ? plans.semiannual.label
+      : info?.plan === 'monthly'
+        ? plans.monthly.label
+        : info?.plan || null;
+
+  const monthlyEq =
+    plans.semiannual.days > 0
+      ? Math.round(plans.semiannual.amountXpf / (plans.semiannual.days / 30))
+      : plans.semiannual.amountXpf;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -115,10 +140,10 @@ export default function AbonnementScreen() {
                     : ''}
                 </Text>
               ) : null}
-              {info?.plan ? (
+              {planLabel ? (
                 <Text style={styles.statusMeta}>
-                  Formule : {info.plan === 'semiannual' ? '6 mois' : 'Mensuel'}
-                  {info.amount != null
+                  Formule : {planLabel}
+                  {info?.amount != null
                     ? ` · ${info.amount.toLocaleString('fr-FR')} XPF`
                     : ''}
                 </Text>
@@ -136,37 +161,45 @@ export default function AbonnementScreen() {
             style={styles.planCard}
             activeOpacity={0.85}
             disabled={!!subscribing}
-            onPress={() => onSubscribe('monthly', 'mensuel', 5000)}
+            onPress={() => onSubscribe('monthly')}
           >
             <View style={styles.planTop}>
-              <Text style={styles.planName}>Mensuel</Text>
+              <Text style={styles.planName}>{plans.monthly.label}</Text>
               {subscribing === 'monthly' ? (
                 <ActivityIndicator color="#171717" />
               ) : (
-                <Text style={styles.planPrice}>5 000 XPF</Text>
+                <Text style={styles.planPrice}>
+                  {plans.monthly.amountXpf.toLocaleString('fr-FR')} XPF
+                </Text>
               )}
             </View>
-            <Text style={styles.planDesc}>30 jours d’accès · renouvelable</Text>
+            <Text style={styles.planDesc}>
+              {plans.monthly.days} jours d’accès · renouvelable
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.planCard, styles.planCardHighlight]}
             activeOpacity={0.85}
             disabled={!!subscribing}
-            onPress={() => onSubscribe('semiannual', '6 mois', 30000)}
+            onPress={() => onSubscribe('semiannual')}
           >
             <View style={styles.badge}>
               <Text style={styles.badgeText}>Économie</Text>
             </View>
             <View style={styles.planTop}>
-              <Text style={styles.planName}>6 mois</Text>
+              <Text style={styles.planName}>{plans.semiannual.label}</Text>
               {subscribing === 'semiannual' ? (
                 <ActivityIndicator color="#171717" />
               ) : (
-                <Text style={styles.planPrice}>30 000 XPF</Text>
+                <Text style={styles.planPrice}>
+                  {plans.semiannual.amountXpf.toLocaleString('fr-FR')} XPF
+                </Text>
               )}
             </View>
-            <Text style={styles.planDesc}>180 jours · 5 000 XPF / mois équivalent</Text>
+            <Text style={styles.planDesc}>
+              {plans.semiannual.days} jours · {monthlyEq.toLocaleString('fr-FR')} XPF / mois équivalent
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       )}
