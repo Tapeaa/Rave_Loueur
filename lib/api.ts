@@ -850,7 +850,9 @@ export interface LoueurVehicle {
   vehicleModelId: string;
   plate: string | null;
   pricePerDay: number;
-  pricePerDayLongTerm: number | null;
+  pricePerDayLongTerm?: number | null;
+  pricingTiers?: { fromDay: number; toDay: number; pricePerDay: number }[] | null;
+  maxRentalDays?: number | null;
   availableForRental: boolean;
   availableForDelivery: boolean;
   availableForLongTerm: boolean;
@@ -874,7 +876,6 @@ export interface CreateVehicleData {
   vehicleModelCategory?: string;
   plate?: string;
   pricePerDay: number;
-  pricePerDayLongTerm?: number;
   availableForRental?: boolean;
   availableForDelivery?: boolean;
   availableForLongTerm?: boolean;
@@ -882,6 +883,8 @@ export interface CreateVehicleData {
   customImageUrls?: string[];
   rentalContractMode?: 'app_default' | 'custom';
   customContractText?: string;
+  pricingTiers?: { fromDay: number; toDay: number; pricePerDay: number }[];
+  maxRentalDays?: number;
 }
 
 function isVehicleModelLike(v: unknown): v is VehicleModel {

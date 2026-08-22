@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { getMyVehicles, deleteVehicle, normalizeLoueurImageUrls, type LoueurVehicle } from '@/lib/api';
+import { PricingTiersReadonly } from '@/components/PricingTiersReadonly';
 
 const CATEGORY_LABELS: Record<string, string> = {
   citadine: 'Citadine',
@@ -143,16 +144,20 @@ export default function MesVehiculesScreen() {
 
           <View style={styles.cardPriceRow}>
             <View>
-              <Text style={styles.priceLabel}>Prix / jour</Text>
-              <Text style={styles.priceValue}>{vehicle.pricePerDay?.toLocaleString() || '—'} XPF</Text>
+              <Text style={styles.priceLabel}>À partir de</Text>
+              <Text style={styles.priceValue}>{vehicle.pricePerDay?.toLocaleString() || '—'} XPF/j</Text>
             </View>
-            {vehicle.pricePerDayLongTerm ? (
-              <View>
-                <Text style={styles.priceLabel}>Longue durée</Text>
-                <Text style={styles.priceValue}>{vehicle.pricePerDayLongTerm.toLocaleString()} XPF</Text>
-              </View>
-            ) : null}
+            <View>
+              <Text style={styles.priceLabel}>Max.</Text>
+              <Text style={styles.priceValue}>{vehicle.maxRentalDays || 90} j</Text>
+            </View>
           </View>
+
+          <PricingTiersReadonly
+            tiers={vehicle.pricingTiers}
+            maxRentalDays={vehicle.maxRentalDays}
+            pricePerDay={vehicle.pricePerDay}
+          />
 
           <View style={styles.servicesRow}>
             {vehicle.availableForRental && (
@@ -163,11 +168,6 @@ export default function MesVehiculesScreen() {
             {vehicle.availableForDelivery && (
               <View style={styles.serviceBadge}>
                 <Text style={styles.serviceBadgeText}>Livraison</Text>
-              </View>
-            )}
-            {vehicle.availableForLongTerm && (
-              <View style={styles.serviceBadge}>
-                <Text style={styles.serviceBadgeText}>Longue durée</Text>
               </View>
             )}
           </View>

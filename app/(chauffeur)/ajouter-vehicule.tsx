@@ -34,6 +34,7 @@ import {
   extractBrand,
 } from '@/lib/vehicle-models-tahiti';
 import { VehiclePhotosPicker } from '@/components/VehiclePhotosPicker';
+import { PricingTiersReadonly } from '@/components/PricingTiersReadonly';
 
 const CATEGORY_LABELS: Record<string, string> = {
   all: 'Toutes',
@@ -196,10 +197,8 @@ export default function AjouterVehiculeScreen() {
 
   const [plate, setPlate] = useState('');
   const [pricePerDay, setPricePerDay] = useState('');
-  const [pricePerDayLongTerm, setPricePerDayLongTerm] = useState('');
   const [availableForRental, setAvailableForRental] = useState(true);
   const [availableForDelivery, setAvailableForDelivery] = useState(false);
-  const [availableForLongTerm, setAvailableForLongTerm] = useState(false);
   const [rentalContractMode, setRentalContractMode] = useState<'app_default' | 'custom'>('app_default');
   const [customContractText, setCustomContractText] = useState('');
   const [showContractPreview, setShowContractPreview] = useState(false);
@@ -319,7 +318,7 @@ export default function AjouterVehiculeScreen() {
       Alert.alert('Erreur', 'Veuillez entrer un prix par jour valide');
       return;
     }
-    if (!availableForRental && !availableForDelivery && !availableForLongTerm) {
+    if (!availableForRental && !availableForDelivery) {
       Alert.alert('Erreur', 'Activez au moins un type de service');
       return;
     }
@@ -329,16 +328,18 @@ export default function AjouterVehiculeScreen() {
     }
     setSubmitting(true);
     try {
+      const basePrice = Number(pricePerDay);
       const data: CreateVehicleData = {
         vehicleModelId: selectedModelId,
         vehicleModelName: selectedModel.name,
         vehicleModelCategory: selectedModel.category,
         plate: plate.trim() || undefined,
-        pricePerDay: Number(pricePerDay),
-        pricePerDayLongTerm: pricePerDayLongTerm ? Number(pricePerDayLongTerm) : undefined,
+        pricePerDay: basePrice,
+        maxRentalDays: 90,
+        pricingTiers: [{ fromDay: 1, toDay: 90, pricePerDay: basePrice }],
         availableForRental,
         availableForDelivery,
-        availableForLongTerm,
+        availableForLongTerm: availableForRental,
         customImageUrl: photoUrls[0],
         customImageUrls: photoUrls,
         rentalContractMode,
@@ -402,19 +403,22 @@ export default function AjouterVehiculeScreen() {
           {/* Prix */}
           <View style={st.section}>
             <Text style={st.sectionTitle}>Tarification</Text>
-            <Text style={st.label}>Prix par jour (XPF) *</Text>
+            <Text style={st.label}>Prix de base / jour (XPF) *</Text>
             <View style={st.field}>
               <Ionicons name="cash-outline" size={18} color="#9CA3AF" />
               <TextInput style={st.fieldInput} value={pricePerDay} onChangeText={setPricePerDay} placeholder="Ex: 5500" placeholderTextColor="#D1D5DB" keyboardType="numeric" />
               <Text style={st.suffix}>XPF</Text>
             </View>
-            <Text style={[st.label, { marginTop: 14 }]}>Prix longue durée / jour</Text>
-            <View style={st.field}>
-              <Ionicons name="trending-down-outline" size={18} color="#9CA3AF" />
-              <TextInput style={st.fieldInput} value={pricePerDayLongTerm} onChangeText={setPricePerDayLongTerm} placeholder="Optionnel" placeholderTextColor="#D1D5DB" keyboardType="numeric" />
-              <Text style={st.suffix}>XPF</Text>
-            </View>
-            <Text style={st.hint}>Prix réduit appliqué à partir de 7 jours de location</Text>
+            <Text style={st.hint}>Créé comme palier unique (1–90 j). Max. 90 jours.</Text>
+            <PricingTiersReadonly
+              tiers={
+                pricePerDay && Number(pricePerDay) > 0
+                  ? [{ fromDay: 1, toDay: 90, pricePerDay: Number(pricePerDay) }]
+                  : []
+              }
+              maxRentalDays={90}
+              pricePerDay={Number(pricePerDay) || 0}
+            />
           </View>
 
           {/* Photos */}
@@ -429,8 +433,6 @@ export default function AjouterVehiculeScreen() {
             <SwitchRow icon="car-outline" label="Location" desc="Le client récupère le véhicule" value={availableForRental} onChange={setAvailableForRental} />
             <View style={st.divider} />
             <SwitchRow icon="navigate-outline" label="Livraison" desc="Vous livrez au client" value={availableForDelivery} onChange={setAvailableForDelivery} />
-            <View style={st.divider} />
-            <SwitchRow icon="calendar-outline" label="Longue durée" desc="7 jours ou plus" value={availableForLongTerm} onChange={setAvailableForLongTerm} />
           </View>
 
           {/* Contrat */}

@@ -26,6 +26,7 @@ import {
   type LoueurVehicle,
 } from '@/lib/api';
 import { VehiclePhotosPicker } from '@/components/VehiclePhotosPicker';
+import { PricingTiersReadonly } from '@/components/PricingTiersReadonly';
 
 const CATEGORY_LABELS: Record<string, string> = {
   citadine: 'Citadine',
@@ -104,10 +105,8 @@ export default function ModifierVehiculeScreen() {
 
   const [plate, setPlate] = useState('');
   const [pricePerDay, setPricePerDay] = useState('');
-  const [pricePerDayLongTerm, setPricePerDayLongTerm] = useState('');
   const [availableForRental, setAvailableForRental] = useState(true);
   const [availableForDelivery, setAvailableForDelivery] = useState(false);
-  const [availableForLongTerm, setAvailableForLongTerm] = useState(false);
   const [rentalContractMode, setRentalContractMode] = useState<'app_default' | 'custom'>('app_default');
   const [isActive, setIsActive] = useState(true);
   const [customContractText, setCustomContractText] = useState('');
@@ -131,10 +130,8 @@ export default function ModifierVehiculeScreen() {
       setVehicle(found);
       setPlate(found.plate || '');
       setPricePerDay(found.pricePerDay?.toString() || '');
-      setPricePerDayLongTerm(found.pricePerDayLongTerm?.toString() || '');
       setAvailableForRental(found.availableForRental);
       setAvailableForDelivery(found.availableForDelivery);
-      setAvailableForLongTerm(found.availableForLongTerm);
       setRentalContractMode(found.rentalContractMode || 'app_default');
       setCustomContractText(found.customContractText || '');
       setIsActive(found.isActive);
@@ -180,7 +177,7 @@ export default function ModifierVehiculeScreen() {
       Alert.alert('Erreur', 'Veuillez entrer un prix par jour valide');
       return;
     }
-    if (!availableForRental && !availableForDelivery && !availableForLongTerm) {
+    if (!availableForRental && !availableForDelivery) {
       Alert.alert('Erreur', 'Activez au moins un type de service');
       return;
     }
@@ -190,10 +187,9 @@ export default function ModifierVehiculeScreen() {
       await updateVehicle(vehicle.id, {
         plate: plate.trim() || undefined,
         pricePerDay: Number(pricePerDay),
-        pricePerDayLongTerm: pricePerDayLongTerm ? Number(pricePerDayLongTerm) : undefined,
         availableForRental,
         availableForDelivery,
-        availableForLongTerm,
+        availableForLongTerm: availableForRental,
         customImageUrl: photoUrls[0],
         customImageUrls: photoUrls,
         rentalContractMode,
@@ -282,7 +278,7 @@ export default function ModifierVehiculeScreen() {
           {/* Tarification */}
           <View style={st.section}>
             <Text style={st.sectionTitle}>Tarification</Text>
-            <Text style={st.label}>Prix par jour (XPF) *</Text>
+            <Text style={st.label}>Prix de base / jour (XPF) *</Text>
             <View style={st.field}>
               <Ionicons name="cash-outline" size={18} color="#9CA3AF" />
               <TextInput
@@ -295,20 +291,11 @@ export default function ModifierVehiculeScreen() {
               />
               <Text style={st.suffix}>XPF</Text>
             </View>
-            <Text style={[st.label, { marginTop: 14 }]}>Prix longue durée / jour</Text>
-            <View style={st.field}>
-              <Ionicons name="trending-down-outline" size={18} color="#9CA3AF" />
-              <TextInput
-                style={st.fieldInput}
-                value={pricePerDayLongTerm}
-                onChangeText={setPricePerDayLongTerm}
-                placeholder="Optionnel"
-                placeholderTextColor="#D1D5DB"
-                keyboardType="numeric"
-              />
-              <Text style={st.suffix}>XPF</Text>
-            </View>
-            <Text style={st.hint}>Prix réduit appliqué à partir de 7 jours de location</Text>
+            <PricingTiersReadonly
+              tiers={vehicle?.pricingTiers}
+              maxRentalDays={vehicle?.maxRentalDays}
+              pricePerDay={Number(pricePerDay) || vehicle?.pricePerDay}
+            />
           </View>
 
           {/* Services */}
@@ -317,8 +304,6 @@ export default function ModifierVehiculeScreen() {
             <SwitchRow icon="car-outline" label="Location" desc="Le client récupère le véhicule" value={availableForRental} onChange={setAvailableForRental} />
             <View style={st.divider} />
             <SwitchRow icon="navigate-outline" label="Livraison" desc="Vous livrez au client" value={availableForDelivery} onChange={setAvailableForDelivery} />
-            <View style={st.divider} />
-            <SwitchRow icon="calendar-outline" label="Longue durée" desc="7 jours ou plus" value={availableForLongTerm} onChange={setAvailableForLongTerm} />
           </View>
 
           {/* Contrat */}
