@@ -186,10 +186,10 @@ export function CustomContractEditor({
       </Text>
 
       <View style={styles.toolbar}>
-        <ToolBtn label="Titre" accent onPress={openTitleModal} leading="H" />
-        <ToolBtn label="Gras" onPress={makeBold} leading="B" />
-        <ToolBtn label="Liste" onPress={addBullet} icon="list-outline" />
-        <ToolBtn label="Modèle" onPress={insertTemplate} icon="document-text-outline" />
+        <ToolBtn label="+ Titre" onPress={openTitleModal} leading="H" />
+        <ToolBtn label="+ Gras" onPress={makeBold} leading="B" />
+        <ToolBtn label="+ Liste" onPress={addBullet} icon="list-outline" />
+        <ToolBtn label="+ Modèle" onPress={insertTemplate} icon="document-text-outline" />
       </View>
 
       <TextInput
@@ -265,27 +265,20 @@ function ToolBtn({
   leading,
   label,
   onPress,
-  accent,
 }: {
   icon?: keyof typeof Ionicons.glyphMap;
   leading?: string;
   label: string;
   onPress: () => void;
-  accent?: boolean;
 }) {
-  const color = accent ? '#fff' : '#1a1a1a';
   return (
-    <TouchableOpacity
-      style={[styles.toolBtn, accent && styles.toolBtnAccent]}
-      onPress={onPress}
-      activeOpacity={0.75}
-    >
+    <TouchableOpacity style={styles.toolBtn} onPress={onPress} activeOpacity={0.75}>
       {leading ? (
-        <Text style={[styles.toolLeading, { color }]}>{leading}</Text>
+        <Text style={styles.toolLeading}>{leading}</Text>
       ) : icon ? (
-        <Ionicons name={icon} size={16} color={color} />
+        <Ionicons name={icon} size={16} color="#1a1a1a" />
       ) : null}
-      <Text style={[styles.toolBtnTxt, accent && styles.toolBtnTxtAccent]}>{label}</Text>
+      <Text style={styles.toolBtnTxt}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -305,10 +298,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  toolBtnAccent: { backgroundColor: '#4ECC8B', borderColor: '#4ECC8B' },
   toolBtnTxt: { fontSize: 13, fontWeight: '600', color: '#1a1a1a' },
-  toolBtnTxtAccent: { color: '#fff' },
-  toolLeading: { fontSize: 14, fontWeight: '800', width: 14, textAlign: 'center' },
+  toolLeading: { fontSize: 14, fontWeight: '800', width: 14, textAlign: 'center', color: '#1a1a1a' },
   input: {
     minHeight: 180,
     maxHeight: 280,
