@@ -156,6 +156,10 @@ export type RentalContractParams = {
   ref: string;
   contractDate: string;
   loueurName: string;
+  /** N° Tahiti ou K-BIS du loueur (affiché tel quel) */
+  loueurNumeroTahiti?: string | null;
+  /** Infos loueur complémentaires sous le nom */
+  loueurInfo?: string;
   clientName: string;
   clientInfo?: string;
   vehicleName: string;
@@ -200,6 +204,15 @@ export function buildDefaultRentalContractHtml(p: RentalContractParams): string 
     p.paymentNote ||
     "Paiement directement auprès du loueur. Aucun paiement en ligne.";
 
+  const tahiti = String(p.loueurNumeroTahiti || "").trim();
+  const loueurPartyInfo = [
+    tahiti ? `N° Tahiti / K-BIS : ${tahiti}` : "",
+    p.loueurInfo || (!tahiti ? "Location de véhicules — Plateforme RAVE" : ""),
+  ]
+    .filter(Boolean)
+    .map((line) => `<div class="party-info">${esc(line)}</div>`)
+    .join("");
+
   const sig =
     p.signatureHtml ||
     `<div class="signature-box">
@@ -222,7 +235,7 @@ export function buildDefaultRentalContractHtml(p: RentalContractParams): string 
   <div class="party">
     <div class="party-label">Le loueur (professionnel)</div>
     <div class="party-name">${esc(p.loueurName)}</div>
-    <div class="party-info">Location de véhicules — Plateforme RAVE</div>
+    ${loueurPartyInfo}
   </div>
   <div class="party">
     <div class="party-label">Le locataire (client)</div>
@@ -314,6 +327,7 @@ export function buildDefaultRentalContractHtml(p: RentalContractParams): string 
 /** Contrat personnalisé (corps formaté + en-tête RAVE + résumé réservation) */
 export function buildCustomRentalContractHtml(p: RentalContractParams): string {
   const bodyHtml = formatCustomContractBody(p.customBody || "");
+  const tahiti = String(p.loueurNumeroTahiti || "").trim();
   const sig =
     p.signatureHtml ||
     `<div class="signature-box">
@@ -331,6 +345,11 @@ export function buildCustomRentalContractHtml(p: RentalContractParams): string {
 </div>
 <div class="summary">
   <div class="summary-row"><span class="summary-label">Loueur</span><span class="summary-value">${esc(p.loueurName)}</span></div>
+  ${
+    tahiti
+      ? `<div class="summary-row"><span class="summary-label">N° Tahiti / K-BIS</span><span class="summary-value">${esc(tahiti)}</span></div>`
+      : ""
+  }
   <div class="summary-row"><span class="summary-label">Client</span><span class="summary-value">${esc(p.clientName)}</span></div>
   <div class="summary-row"><span class="summary-label">Véhicule</span><span class="summary-value">${esc(p.vehicleName)}</span></div>
   <div class="summary-row"><span class="summary-label">Période</span><span class="summary-value">${esc(p.startLabel)}<br/>→ ${esc(p.endLabel)}</span></div>
