@@ -334,17 +334,6 @@ ${bodyHtml}
   return wrapPage(inner);
 }
 
-/** Aide rédaction dashboard / app loueur */
-export const CUSTOM_CONTRACT_HINT = `Utilisez ## pour un titre coloré (comme le contrat RAVE).
-
-Exemple :
-## Article 1 — Parties
-Le Loueur : **Votre nom**
-Le Locataire : …
-
-## Article 2 — Conditions
-- Restituer le véhicule propre
-- Permis valide obligatoire
-
-## Article 3 — Caution
-Montant et modalités…`;
+/** Aide rédaction (legacy) — l’UI utilise désormais une barre d’outils */
+export const CUSTOM_CONTRACT_HINT = `Écrivez normalement, puis utilisez les boutons Titre, Gras et Liste.
+L’aperçu montre ce que verra le client à la signature.`;

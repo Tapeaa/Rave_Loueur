@@ -38,9 +38,9 @@ import { PricingTiersReadonly } from '@/components/PricingTiersReadonly';
 import {
   buildCustomRentalContractHtml,
   buildDefaultRentalContractHtml,
-  CUSTOM_CONTRACT_HINT,
 } from '@/lib/rental-contract-html';
 import { WebView } from 'react-native-webview';
+import { CustomContractEditor } from '@/components/CustomContractEditor';
 
 const CATEGORY_LABELS: Record<string, string> = {
   all: 'Toutes',
@@ -391,71 +391,65 @@ export default function AjouterVehiculeScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={st.contractTitle}>Contrat personnalisé</Text>
-                <Text style={st.contractDesc}>## titres verts · **gras** · - listes</Text>
+                <Text style={st.contractDesc}>Vos conditions, avec titres et gras via les boutons</Text>
               </View>
             </TouchableOpacity>
 
             {rentalContractMode === 'custom' && (
               <View style={st.customContractBox}>
-                <Text style={st.customContractHint}>{CUSTOM_CONTRACT_HINT}</Text>
-                <TextInput
-                  style={st.customContractInput}
+                <CustomContractEditor
                   value={customContractText}
-                  onChangeText={setCustomContractText}
-                  placeholder={`## Article 1 — Parties\nLe Loueur : **Votre nom**\n\n## Article 2 — Conditions\n- Restituer le véhicule propre`}
-                  placeholderTextColor="#D1D5DB"
-                  multiline
-                  textAlignVertical="top"
-                  scrollEnabled
-                />
-                <Text style={st.charCount}>
-                  {customContractText.length} caractères
-                </Text>
-                <TouchableOpacity
-                  style={st.downloadBtn}
-                  onPress={async () => {
-                    if (!customContractText.trim()) {
-                      Alert.alert('Contrat vide', 'Rédigez votre contrat avant de le télécharger.');
-                      return;
-                    }
-                    setSharingCustomContract(true);
-                    try {
-                      const html = buildCustomRentalContractHtml({
-                        ref: 'APERCU',
-                        contractDate: new Date().toLocaleDateString('fr-FR'),
-                        loueurName: 'Votre nom',
-                        clientName: '[Client]',
-                        vehicleName: selectedModel.name,
-                        startLabel: '[Début]',
-                        endLabel: '[Fin]',
-                        days: 1,
-                        pricePerDayLabel: `${pricePerDay || '—'} XPF`,
-                        totalLabel: `${pricePerDay || '—'} XPF`,
-                        customBody: customContractText,
-                        isCustom: true,
-                      });
-                      const { uri } = await Print.printToFileAsync({ html, base64: false });
-                      const canShare = await Sharing.isAvailableAsync();
-                      if (canShare) {
-                        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Contrat personnalisé' });
-                      } else {
-                        await Share.share({ title: 'Contrat personnalisé', message: customContractText });
+                  onChange={setCustomContractText}
+                  vehicleName={selectedModel.name}
+                  priceLabel={`${pricePerDay || '—'} XPF`}
+                  footer={
+                    <TouchableOpacity
+                      style={st.downloadBtn}
+                      onPress={async () => {
+                        if (!customContractText.trim()) {
+                          Alert.alert('Contrat vide', 'Rédigez votre contrat avant de le télécharger.');
+                          return;
+                        }
+                        setSharingCustomContract(true);
+                        try {
+                          const html = buildCustomRentalContractHtml({
+                            ref: 'APERCU',
+                            contractDate: new Date().toLocaleDateString('fr-FR'),
+                            loueurName: 'Votre nom',
+                            clientName: '[Client]',
+                            vehicleName: selectedModel.name,
+                            startLabel: '[Début]',
+                            endLabel: '[Fin]',
+                            days: 1,
+                            pricePerDayLabel: `${pricePerDay || '—'} XPF`,
+                            totalLabel: `${pricePerDay || '—'} XPF`,
+                            customBody: customContractText,
+                            isCustom: true,
+                          });
+                          const { uri } = await Print.printToFileAsync({ html, base64: false });
+                          const canShare = await Sharing.isAvailableAsync();
+                          if (canShare) {
+                            await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Contrat personnalisé' });
+                          } else {
+                            await Share.share({ title: 'Contrat personnalisé', message: customContractText });
+                          }
+                        } catch (e: any) {
+                          if (e?.message !== 'User cancelled') Alert.alert('Erreur', 'Impossible de partager.');
+                        } finally {
+                          setSharingCustomContract(false);
+                        }
+                      }}
+                      disabled={sharingCustomContract}
+                      activeOpacity={0.75}
+                    >
+                      {sharingCustomContract
+                        ? <ActivityIndicator size="small" color="#1a1a1a" />
+                        : <Ionicons name="download-outline" size={18} color="#1a1a1a" />
                       }
-                    } catch (e: any) {
-                      if (e?.message !== 'User cancelled') Alert.alert('Erreur', 'Impossible de partager.');
-                    } finally {
-                      setSharingCustomContract(false);
-                    }
-                  }}
-                  disabled={sharingCustomContract}
-                  activeOpacity={0.75}
-                >
-                  {sharingCustomContract
-                    ? <ActivityIndicator size="small" color="#1a1a1a" />
-                    : <Ionicons name="download-outline" size={18} color="#1a1a1a" />
+                      <Text style={st.downloadBtnTxt}>Télécharger le PDF</Text>
+                    </TouchableOpacity>
                   }
-                  <Text style={st.downloadBtnTxt}>Télécharger le PDF formaté</Text>
-                </TouchableOpacity>
+                />
               </View>
             )}
           </View>
