@@ -11,55 +11,65 @@
 
 export const RAVE_CONTRACT_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#1a1a1a;background:#f8f9fa;padding:16px}
-.page{background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,.08);padding:28px 24px;max-width:600px;margin:0 auto;overflow:hidden}
-.header{text-align:center;border-bottom:2px solid #4ECC8B;padding-bottom:18px;margin-bottom:20px}
-.logo{font-size:28px;font-weight:900;color:#4ECC8B;letter-spacing:2px}
-.logo-sub{font-size:11px;color:#9CA3AF;letter-spacing:1px;margin-top:2px}
-.doc-title{font-size:17px;font-weight:700;color:#1a1a1a;margin-top:12px}
-.ref{font-size:11px;color:#6B7280;margin-top:4px}
-.badge{display:inline-block;background:#D1F2E3;color:#065F46;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;margin-top:8px}
+html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111827;background:#fff;padding:16px}
+.page{background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:28px 24px;max-width:600px;margin:0 auto;overflow:hidden}
+.header{text-align:center;border-bottom:2px solid #059669;padding-bottom:18px;margin-bottom:20px}
+.logo{font-size:28px;font-weight:900;color:#047857;letter-spacing:2px}
+.logo-sub{font-size:11px;color:#374151;letter-spacing:1px;margin-top:2px;font-weight:600}
+.doc-title{font-size:17px;font-weight:700;color:#111827;margin-top:12px}
+.ref{font-size:11px;color:#374151;margin-top:4px;font-weight:500}
+.badge{display:inline-block;background:#D1FAE5;color:#064E3B;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;margin-top:8px;border:1px solid #059669}
 .section{margin-top:18px;clear:both}
-.section-title{display:block;font-size:13px;font-weight:700;color:#4ECC8B;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #F3F4F6;padding-bottom:6px;margin-bottom:12px;line-height:1.3;position:relative;z-index:1}
-.party{background:#FAFAFA;border-radius:8px;padding:12px;margin-bottom:8px}
-.party-label{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.party-name{font-size:14px;font-weight:600;color:#1a1a1a}
-.party-info{font-size:12px;color:#6B7280;margin-top:2px}
-.vehicle-box{background:linear-gradient(135deg,#E8F8F0,#D1F2E3);border-radius:10px;padding:14px;text-align:center;margin-bottom:8px}
-.vehicle-name{font-size:16px;font-weight:800;color:#1a1a1a;word-break:break-word}
-.vehicle-cat{font-size:12px;color:#065F46;margin-top:2px}
-.vehicle-km{font-size:11px;color:#6B7280;margin-top:4px}
+.section-title{display:block;font-size:13px;font-weight:800;color:#047857;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #D1FAE5;padding-bottom:6px;margin-bottom:12px;line-height:1.3;position:relative;z-index:1}
+.party{background:#F3F4F6;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #E5E7EB}
+.party-label{font-size:10px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.party-name{font-size:14px;font-weight:700;color:#111827}
+.party-info{font-size:12px;color:#1F2937;margin-top:2px}
+.vehicle-box{background:#ECFDF5;border:1px solid #059669;border-radius:10px;padding:14px;text-align:center;margin-bottom:8px}
+.vehicle-name{font-size:16px;font-weight:800;color:#111827;word-break:break-word}
+.vehicle-cat{font-size:12px;color:#065F46;margin-top:2px;font-weight:700}
+.vehicle-km{font-size:11px;color:#374151;margin-top:4px;font-weight:500}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px;margin-bottom:8px}
-.info-card{min-width:0;background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:10px;overflow:hidden}
-.info-label{display:block;font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:4px;line-height:1.2}
-.info-value{display:block;font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.35;word-break:break-word;overflow-wrap:anywhere}
+.info-card{min-width:0;background:#F9FAFB;border:1px solid #D1D5DB;border-radius:8px;padding:10px;overflow:hidden}
+.info-label{display:block;font-size:10px;color:#374151;font-weight:700;text-transform:uppercase;margin-bottom:4px;line-height:1.2}
+.info-value{display:block;font-size:13px;font-weight:700;color:#111827;line-height:1.35;word-break:break-word;overflow-wrap:anywhere}
 table{width:100%;border-collapse:collapse;margin:8px 0}
-table td{padding:6px 0;font-size:12px;border-bottom:1px solid #F3F4F6;vertical-align:top;word-break:break-word}
-table .r{text-align:right;font-weight:600;white-space:nowrap;padding-left:8px}
-.total-row{background:#4ECC8B;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0}
-.total-label{font-size:14px;font-weight:700;color:#1a1a1a;flex-shrink:0}
-.total-val{font-size:16px;font-weight:800;color:#1a1a1a;text-align:right;word-break:break-word}
-.article{font-size:12px;color:#374151;line-height:1.6;margin-bottom:6px}
-.article b{color:#1a1a1a}
+table td{padding:6px 0;font-size:12px;color:#111827;border-bottom:1px solid #E5E7EB;vertical-align:top;word-break:break-word}
+table .r{text-align:right;font-weight:700;white-space:nowrap;padding-left:8px;color:#111827}
+.total-row{background:#D1FAE5;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0;border:2px solid #047857}
+.total-label{font-size:14px;font-weight:800;color:#064E3B;flex-shrink:0}
+.total-val{font-size:16px;font-weight:800;color:#064E3B;text-align:right;word-break:break-word}
+.article{font-size:12px;color:#1F2937;line-height:1.65;margin-bottom:6px}
+.article b{color:#111827}
 ul{padding-left:16px;margin:6px 0}
-li{font-size:12px;color:#374151;margin-bottom:3px;line-height:1.5}
-.custom-body{margin-top:8px}
-.custom-body p{font-size:13px;color:#1a1a1a;line-height:1.7;margin-bottom:8px}
-.signature-box{background:#FAFAFA;border:2px dashed #E5E7EB;border-radius:10px;padding:16px;text-align:center;margin-top:12px}
-.sig-label{font-size:10px;color:#9CA3AF;text-transform:uppercase;font-weight:600}
-.sig-name{font-size:15px;font-weight:700;color:#1a1a1a;margin-top:4px}
-.sig-date{font-size:11px;color:#6B7280;margin-top:2px}
+li{font-size:12px;color:#1F2937;margin-bottom:3px;line-height:1.55}
+.custom-body{margin-top:8px;color:#111827}
+.custom-body p{font-size:13px;color:#111827;line-height:1.7;margin-bottom:8px}
+.signature-box{background:#F9FAFB;border:2px dashed #9CA3AF;border-radius:10px;padding:16px;text-align:center;margin-top:12px}
+.sig-label{font-size:10px;color:#374151;text-transform:uppercase;font-weight:700}
+.sig-name{font-size:15px;font-weight:800;color:#111827;margin-top:4px}
+.sig-date{font-size:11px;color:#1F2937;margin-top:2px;font-weight:500}
 .sig-img{max-width:200px;height:auto;margin:8px auto 4px;display:block}
-.footer{text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid #F3F4F6}
-.footer-text{font-size:10px;color:#9CA3AF}
-.summary{background:#F9FAFB;border:1px solid #F3F4F6;border-radius:10px;padding:14px;margin-top:16px}
+.footer{text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid #E5E7EB}
+.footer-text{font-size:10px;color:#4B5563;font-weight:500}
+.summary{background:#F3F4F6;border:1px solid #D1D5DB;border-radius:10px;padding:14px;margin-top:16px}
 .summary-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:6px 0;font-size:12px}
-.summary-label{color:#6B7280;flex:0 0 auto;max-width:38%;line-height:1.35}
-.summary-value{color:#1a1a1a;font-weight:600;text-align:right;flex:1;min-width:0;line-height:1.35;word-break:break-word;overflow-wrap:anywhere}
-.field{color:#4ECC8B;font-weight:700}
+.summary-label{color:#374151;flex:0 0 auto;max-width:38%;line-height:1.35;font-weight:600}
+.summary-value{color:#111827;font-weight:700;text-align:right;flex:1;min-width:0;line-height:1.35;word-break:break-word;overflow-wrap:anywhere}
+.field{color:#047857;font-weight:800}
 @media (max-width:360px){
   .info-grid{grid-template-columns:1fr}
   .page{padding:20px 14px}
+}
+@media print{
+  body{background:#fff;padding:0;color:#000}
+  .page{box-shadow:none;border:none;max-width:none;padding:12px}
+  .section-title,.logo,.field,.vehicle-cat{color:#065F46 !important}
+  .total-row{background:#D1FAE5 !important;border:2px solid #047857 !important}
+  .total-label,.total-val{color:#064E3B !important}
+  .info-label,.party-label,.summary-label,.sig-label,.footer-text,.logo-sub{color:#374151 !important}
+  .info-value,.party-name,.summary-value,.article,li,table td,.custom-body p{color:#111827 !important}
 }
 `.trim();
 
