@@ -35,6 +35,12 @@ import {
 } from '@/lib/vehicle-models-tahiti';
 import { VehiclePhotosPicker } from '@/components/VehiclePhotosPicker';
 import { PricingTiersReadonly } from '@/components/PricingTiersReadonly';
+import {
+  buildCustomRentalContractHtml,
+  buildDefaultRentalContractHtml,
+  CUSTOM_CONTRACT_HINT,
+} from '@/lib/rental-contract-html';
+import { WebView } from 'react-native-webview';
 
 const CATEGORY_LABELS: Record<string, string> = {
   all: 'Toutes',
@@ -47,134 +53,22 @@ const CATEGORY_LABELS: Record<string, string> = {
   autre: 'Autres',
 };
 
-function getDefaultContractHtml(vehicleName: string, plate: string, pricePerDay: string) {
-  return `
-<html><head><meta charset="utf-8"/><style>
-  body { font-family: Helvetica, Arial, sans-serif; padding: 30px; font-size: 13px; color: #222; line-height: 1.6; }
-  h1 { text-align: center; font-size: 20px; margin-bottom: 4px; }
-  h2 { font-size: 15px; margin-top: 22px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-  .header-sub { text-align: center; color: #666; font-size: 12px; margin-bottom: 24px; }
-  .field { color: #4ECC8B; font-weight: bold; }
-  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-  td { padding: 6px 8px; border: 1px solid #ddd; }
-  td:first-child { font-weight: 600; width: 40%; background: #f9f9f9; }
-  .sig-row { display: flex; justify-content: space-between; margin-top: 40px; }
-  .sig-box { width: 45%; border-top: 1px solid #333; padding-top: 6px; text-align: center; font-size: 12px; }
-</style></head><body>
-<h1>CONTRAT DE LOCATION DE VÉHICULE</h1>
-<p class="header-sub">Via la plateforme RAVE</p>
-
-<h2>Article 1 — Parties</h2>
-<p><strong>Le Loueur :</strong> <span class="field">[Nom du loueur]</span>, ci-après dénommé « le Loueur ».</p>
-<p><strong>Le Locataire :</strong> <span class="field">[Nom du client]</span>, ci-après dénommé « le Locataire ».</p>
-
-<h2>Article 2 — Véhicule</h2>
-<table>
-  <tr><td>Modèle</td><td>${vehicleName}</td></tr>
-  <tr><td>Immatriculation</td><td>${plate || '—'}</td></tr>
-</table>
-
-<h2>Article 3 — Durée et tarif</h2>
-<table>
-  <tr><td>Date de début</td><td class="field">[Date début]</td></tr>
-  <tr><td>Date de fin</td><td class="field">[Date fin]</td></tr>
-  <tr><td>Prix par jour</td><td>${pricePerDay || '—'} XPF</td></tr>
-  <tr><td>Tarif longue durée (≥ 7 jours)</td><td class="field">[Si applicable]</td></tr>
-  <tr><td>Caution</td><td class="field">[Montant caution]</td></tr>
-</table>
-
-<h2>Article 4 — Conditions d'utilisation</h2>
-<p>Le Locataire s'engage à :</p>
-<ul>
-  <li>Utiliser le véhicule en bon père de famille, conformément au Code de la Route.</li>
-  <li>Ne pas sous-louer le véhicule à un tiers.</li>
-  <li>Ne pas utiliser le véhicule pour des activités illicites.</li>
-  <li>Restituer le véhicule dans l'état dans lequel il l'a reçu (propreté, carburant, accessoires).</li>
-  <li>Signaler immédiatement tout sinistre, accident ou panne au Loueur.</li>
-</ul>
-
-<h2>Article 5 — Assurance</h2>
-<p>Le véhicule est couvert par l'assurance du Loueur. En cas de sinistre responsable, le Locataire prend en charge la franchise dont le montant sera précisé lors de la remise des clés.</p>
-
-<h2>Article 6 — Restitution</h2>
-<p>Le véhicule doit être restitué à la date et au lieu convenus. Tout retard non signalé entraîne une facturation au tarif journalier majoré de 50 %. En cas de non-restitution sous 48h, le Loueur se réserve le droit de porter plainte.</p>
-
-<h2>Article 7 — Caution</h2>
-<p>La caution est restituée dans un délai de 7 jours après la restitution du véhicule, sous réserve de l'absence de dégâts, d'amendes impayées ou de frais de nettoyage excessifs.</p>
-
-<h2>Article 8 — Responsabilité</h2>
-<p>Le Locataire est responsable du véhicule pendant toute la durée de la location. Les amendes, contraventions et infractions commises pendant la période de location sont à la charge exclusive du Locataire.</p>
-
-<h2>Article 9 — Résiliation</h2>
-<p>Chaque partie peut résilier le contrat avec un préavis de 24 heures. En cas de résiliation anticipée par le Locataire, les jours restants ne sont pas remboursés sauf accord contraire du Loueur.</p>
-
-<h2>Article 10 — Litiges</h2>
-<p>En cas de litige, les parties s'engagent à privilégier un règlement amiable. À défaut, le litige sera soumis aux juridictions compétentes.</p>
-
-<div style="margin-top: 50px;">
-  <div style="display: flex; justify-content: space-between;">
-    <div style="width: 45%; text-align: center;">
-      <p style="margin-bottom: 40px;">Le Loueur</p>
-      <div style="border-top: 1px solid #333; padding-top: 8px;">Signature</div>
-    </div>
-    <div style="width: 45%; text-align: center;">
-      <p style="margin-bottom: 40px;">Le Locataire</p>
-      <div style="border-top: 1px solid #333; padding-top: 8px;">Signature</div>
-    </div>
-  </div>
-</div>
-
-<p style="text-align: center; color: #999; font-size: 10px; margin-top: 30px;">Contrat généré via RAVE — ${new Date().toLocaleDateString('fr-FR')}</p>
-</body></html>`;
-}
-
-function getDefaultContractPlainText(vehicleName: string, plate: string, pricePerDay: string) {
-  return `CONTRAT DE LOCATION DE VÉHICULE
-Via la plateforme RAVE
-──────────────────────────────────
-
-Article 1 — Parties
-Le Loueur : [Nom du loueur]
-Le Locataire : [Nom du client]
-
-Article 2 — Véhicule
-Modèle : ${vehicleName}
-Immatriculation : ${plate || '—'}
-
-Article 3 — Durée et tarif
-Date de début : [Date début]
-Date de fin : [Date fin]
-Prix par jour : ${pricePerDay || '—'} XPF
-Tarif longue durée (≥ 7 jours) : [Si applicable]
-Caution : [Montant caution]
-
-Article 4 — Conditions d'utilisation
-- Utiliser le véhicule conformément au Code de la Route.
-- Ne pas sous-louer le véhicule à un tiers.
-- Ne pas utiliser le véhicule pour des activités illicites.
-- Restituer le véhicule dans l'état reçu (propreté, carburant).
-- Signaler immédiatement tout sinistre au Loueur.
-
-Article 5 — Assurance
-Le véhicule est couvert par l'assurance du Loueur. En cas de sinistre responsable, le Locataire prend en charge la franchise.
-
-Article 6 — Restitution
-Restitution à la date et au lieu convenus. Retard non signalé = tarif majoré de 50 %. Non-restitution sous 48h = dépôt de plainte possible.
-
-Article 7 — Caution
-Restituée sous 7 jours après retour, sous réserve d'absence de dégâts.
-
-Article 8 — Responsabilité
-Le Locataire est responsable du véhicule pendant toute la durée. Amendes et infractions à sa charge.
-
-Article 9 — Résiliation
-Préavis 24h. Jours restants non remboursés sauf accord.
-
-Article 10 — Litiges
-Règlement amiable privilégié, sinon juridictions compétentes.
-
-──────────────────────────────────
-Contrat généré via RAVE — ${new Date().toLocaleDateString('fr-FR')}`;
+function previewDefaultHtml(vehicleName: string, plate: string, pricePerDay: string) {
+  return buildDefaultRentalContractHtml({
+    ref: 'APERCU',
+    contractDate: new Date().toLocaleDateString('fr-FR'),
+    loueurName: '[Votre nom]',
+    clientName: '[Nom du client]',
+    vehicleName,
+    vehicleMeta: plate ? `Immat. ${plate}` : undefined,
+    startLabel: '[Date début]',
+    endLabel: '[Date fin]',
+    days: 3,
+    pickupLocation: '[Lieu]',
+    pricePerDayLabel: `${pricePerDay || '—'} XPF`,
+    totalLabel: `${pricePerDay ? (Number(pricePerDay) * 3).toLocaleString('fr-FR') : '—'} XPF`,
+    previewMode: true,
+  });
 }
 
 type Step = 'select' | 'details';
@@ -202,6 +96,7 @@ export default function AjouterVehiculeScreen() {
   const [customContractText, setCustomContractText] = useState('');
   const [showContractPreview, setShowContractPreview] = useState(false);
   const [sharingContract, setSharingContract] = useState(false);
+  const [sharingCustomContract, setSharingCustomContract] = useState(false);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
   const modelList = Array.isArray(models) ? models : [];
@@ -287,7 +182,7 @@ export default function AjouterVehiculeScreen() {
     if (!selectedModel) return;
     setSharingContract(true);
     try {
-      const html = getDefaultContractHtml(selectedModel.name, plate, pricePerDay);
+      const html = previewDefaultHtml(selectedModel.name, plate, pricePerDay);
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -299,7 +194,7 @@ export default function AjouterVehiculeScreen() {
       } else {
         await Share.share({
           title: 'Contrat de location RAVE',
-          message: getDefaultContractPlainText(selectedModel.name, plate, pricePerDay),
+          message: 'Contrat RAVE — ouvrez le PDF pour le détail formaté.',
         });
       }
     } catch (e: any) {
@@ -366,7 +261,7 @@ export default function AjouterVehiculeScreen() {
 
   // ═══════════════════════ ÉTAPE 2 : DÉTAILS ═══════════════════════
   if (step === 'details' && selectedModel) {
-    const contractText = getDefaultContractPlainText(selectedModel.name, plate, pricePerDay);
+    const contractPreviewHtml = previewDefaultHtml(selectedModel.name, plate, pricePerDay);
 
     return (
       <SafeAreaView style={st.container} edges={['top']}>
@@ -455,14 +350,18 @@ export default function AjouterVehiculeScreen() {
               <View style={st.contractPreviewBox}>
                 <TouchableOpacity style={st.previewToggle} onPress={() => setShowContractPreview(!showContractPreview)}>
                   <Ionicons name={showContractPreview ? 'chevron-up' : 'eye-outline'} size={18} color="#6B7280" />
-                  <Text style={st.previewToggleText}>{showContractPreview ? 'Masquer' : 'Voir le contrat'}</Text>
+                  <Text style={st.previewToggleText}>
+                    {showContractPreview ? 'Masquer' : 'Voir le contrat (identique client)'}
+                  </Text>
                 </TouchableOpacity>
 
                 {showContractPreview && (
-                  <View style={st.contractTextBox}>
-                    <ScrollView nestedScrollEnabled style={{ maxHeight: 300 }}>
-                      <Text style={st.contractPlainText}>{contractText}</Text>
-                    </ScrollView>
+                  <View style={[st.contractTextBox, { height: 320, padding: 0, overflow: 'hidden' }]}>
+                    <WebView
+                      originWhitelist={['*']}
+                      source={{ html: contractPreviewHtml }}
+                      style={{ flex: 1, backgroundColor: 'transparent' }}
+                    />
                   </View>
                 )}
 
@@ -492,20 +391,18 @@ export default function AjouterVehiculeScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={st.contractTitle}>Contrat personnalisé</Text>
-                <Text style={st.contractDesc}>Rédigez vos propres conditions</Text>
+                <Text style={st.contractDesc}>## titres verts · **gras** · - listes</Text>
               </View>
             </TouchableOpacity>
 
             {rentalContractMode === 'custom' && (
               <View style={st.customContractBox}>
-                <Text style={st.customContractHint}>
-                  Rédigez ci-dessous les conditions de votre contrat. Ce texte sera envoyé au client lors de la réservation.
-                </Text>
+                <Text style={st.customContractHint}>{CUSTOM_CONTRACT_HINT}</Text>
                 <TextInput
                   style={st.customContractInput}
                   value={customContractText}
                   onChangeText={setCustomContractText}
-                  placeholder={"Ex:\n\nCONTRAT DE LOCATION\n\nEntre le loueur [votre nom] et le locataire...\n\nArticle 1 — Objet\nLe loueur met à disposition le véhicule...\n\nArticle 2 — Durée\n...\n\nArticle 3 — Prix\n..."}
+                  placeholder={`## Article 1 — Parties\nLe Loueur : **Votre nom**\n\n## Article 2 — Conditions\n- Restituer le véhicule propre`}
                   placeholderTextColor="#D1D5DB"
                   multiline
                   textAlignVertical="top"
@@ -514,6 +411,51 @@ export default function AjouterVehiculeScreen() {
                 <Text style={st.charCount}>
                   {customContractText.length} caractères
                 </Text>
+                <TouchableOpacity
+                  style={st.downloadBtn}
+                  onPress={async () => {
+                    if (!customContractText.trim()) {
+                      Alert.alert('Contrat vide', 'Rédigez votre contrat avant de le télécharger.');
+                      return;
+                    }
+                    setSharingCustomContract(true);
+                    try {
+                      const html = buildCustomRentalContractHtml({
+                        ref: 'APERCU',
+                        contractDate: new Date().toLocaleDateString('fr-FR'),
+                        loueurName: 'Votre nom',
+                        clientName: '[Client]',
+                        vehicleName: selectedModel.name,
+                        startLabel: '[Début]',
+                        endLabel: '[Fin]',
+                        days: 1,
+                        pricePerDayLabel: `${pricePerDay || '—'} XPF`,
+                        totalLabel: `${pricePerDay || '—'} XPF`,
+                        customBody: customContractText,
+                        isCustom: true,
+                      });
+                      const { uri } = await Print.printToFileAsync({ html, base64: false });
+                      const canShare = await Sharing.isAvailableAsync();
+                      if (canShare) {
+                        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Contrat personnalisé' });
+                      } else {
+                        await Share.share({ title: 'Contrat personnalisé', message: customContractText });
+                      }
+                    } catch (e: any) {
+                      if (e?.message !== 'User cancelled') Alert.alert('Erreur', 'Impossible de partager.');
+                    } finally {
+                      setSharingCustomContract(false);
+                    }
+                  }}
+                  disabled={sharingCustomContract}
+                  activeOpacity={0.75}
+                >
+                  {sharingCustomContract
+                    ? <ActivityIndicator size="small" color="#1a1a1a" />
+                    : <Ionicons name="download-outline" size={18} color="#1a1a1a" />
+                  }
+                  <Text style={st.downloadBtnTxt}>Télécharger le PDF formaté</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>

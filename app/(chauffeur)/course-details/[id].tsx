@@ -38,6 +38,7 @@ const statusLabels: Record<string, { label: string; color: string; icon: string 
   in_progress: { label: 'En cours', color: '#10B981', icon: 'navigate' },
   completed: { label: 'Terminée', color: '#22C55E', icon: 'checkmark-done-circle' },
   cancelled: { label: 'Annulée', color: '#EF4444', icon: 'close-circle' },
+  declined: { label: 'Refusée', color: '#EF4444', icon: 'hand-left' },
   expired: { label: 'Expirée', color: '#6B7280', icon: 'timer' },
   payment_pending: { label: 'En attente', color: '#F59E0B', icon: 'time' },
   payment_confirmed: { label: 'Confirmée', color: '#22C55E', icon: 'checkmark-circle' },

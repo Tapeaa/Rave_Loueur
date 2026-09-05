@@ -19,6 +19,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   in_progress: { label: 'En cours', color: '#10B981' },
   completed: { label: 'Terminée', color: '#22C55E' },
   cancelled: { label: 'Annulée', color: '#EF4444' },
+  declined: { label: 'Refusée', color: '#EF4444' },
   expired: { label: 'Expirée', color: '#6B7280' },
   payment_pending: { label: 'En attente', color: '#F59E0B' },
   payment_confirmed: { label: 'Confirmée', color: '#22C55E' },
@@ -221,11 +222,11 @@ export default function ChauffeurCoursesScreen() {
       >
         <Card style={styles.orderCard}>
           <View style={styles.orderHeader}>
-            <Text variant="caption" style={styles.orderDate}>
+            <Text variant="caption" style={styles.orderDate} numberOfLines={1}>
               {formatDate(order.createdAt)}
             </Text>
             <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-              <Text variant="caption" style={[styles.statusText, { color: status.color }]}>
+              <Text variant="caption" style={[styles.statusText, { color: status.color }]} numberOfLines={1}>
                 {status.label}
               </Text>
             </View>
@@ -316,17 +317,17 @@ export default function ChauffeurCoursesScreen() {
             <View style={styles.bookedDateText}>
               {isRental ? (
                 <>
-                  <Text style={styles.bookedDateLabel}>{ro?.title || 'Véhicule'}</Text>
-                  <Text style={styles.bookedTimeLabel}>
+                  <Text style={styles.bookedDateLabel} numberOfLines={1}>{ro?.title || 'Véhicule'}</Text>
+                  <Text style={styles.bookedTimeLabel} numberOfLines={1}>
                     {ro?.days || 0} jour{(ro?.days || 0) > 1 ? 's' : ''} — {ro?.startDate ? new Date(ro.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''} → {ro?.endDate ? new Date(ro.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
                   </Text>
                 </>
               ) : (
                 <>
-                  <Text style={styles.bookedDateLabel}>
+                  <Text style={styles.bookedDateLabel} numberOfLines={1}>
                     {order.scheduledTime ? formatScheduledDate(order.scheduledTime) : 'Date non définie'}
                   </Text>
-                  <Text style={styles.bookedTimeLabel}>
+                  <Text style={styles.bookedTimeLabel} numberOfLines={1}>
                     à {order.scheduledTime ? formatScheduledTime(order.scheduledTime) : '--:--'}
                   </Text>
                 </>
@@ -335,13 +336,13 @@ export default function ChauffeurCoursesScreen() {
           </View>
           {canStart ? (
             <View style={styles.bookedCountdown}>
-              <Text style={styles.bookedCountdownText}>
+              <Text style={styles.bookedCountdownText} numberOfLines={1}>
                 {order.scheduledTime ? getTimeUntil(order.scheduledTime) : (isRental ? 'En attente' : '')}
               </Text>
             </View>
           ) : (
             <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-              <Text variant="caption" style={[styles.statusText, { color: status.color }]}>
+              <Text variant="caption" style={[styles.statusText, { color: status.color }]} numberOfLines={1}>
                 {status.label}
               </Text>
             </View>
@@ -592,14 +593,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 10,
   },
   orderDate: {
     color: '#6b7280',
+    flex: 1,
+    minWidth: 0,
+    marginRight: 4,
   },
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    flexShrink: 0,
+    maxWidth: '48%',
   },
   statusText: {
     fontWeight: '600',
@@ -705,18 +712,22 @@ const styles = StyleSheet.create({
   bookedHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#F5F3FF',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    gap: 10,
   },
   bookedDateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
+    minWidth: 0,
   },
   bookedDateText: {
-    
+    flex: 1,
+    minWidth: 0,
   },
   bookedDateLabel: {
     fontSize: 14,
@@ -725,15 +736,17 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   bookedTimeLabel: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#4ECC8B',
   },
   bookedCountdown: {
     backgroundColor: '#22C55E',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
+    flexShrink: 0,
+    maxWidth: '42%',
   },
   bookedCountdownText: {
     fontSize: 12,
