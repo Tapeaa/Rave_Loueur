@@ -12,33 +12,33 @@
 export const RAVE_CONTRACT_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#1a1a1a;background:#f8f9fa;padding:16px}
-.page{background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,.08);padding:28px 24px;max-width:600px;margin:0 auto}
+.page{background:#fff;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,.08);padding:28px 24px;max-width:600px;margin:0 auto;overflow:hidden}
 .header{text-align:center;border-bottom:2px solid #4ECC8B;padding-bottom:18px;margin-bottom:20px}
 .logo{font-size:28px;font-weight:900;color:#4ECC8B;letter-spacing:2px}
 .logo-sub{font-size:11px;color:#9CA3AF;letter-spacing:1px;margin-top:2px}
 .doc-title{font-size:17px;font-weight:700;color:#1a1a1a;margin-top:12px}
 .ref{font-size:11px;color:#6B7280;margin-top:4px}
 .badge{display:inline-block;background:#D1F2E3;color:#065F46;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;margin-top:8px}
-.section{margin-top:18px}
-.section-title{font-size:13px;font-weight:700;color:#4ECC8B;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #F3F4F6;padding-bottom:6px;margin-bottom:10px}
+.section{margin-top:18px;clear:both}
+.section-title{display:block;font-size:13px;font-weight:700;color:#4ECC8B;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #F3F4F6;padding-bottom:6px;margin-bottom:12px;line-height:1.3;position:relative;z-index:1}
 .party{background:#FAFAFA;border-radius:8px;padding:12px;margin-bottom:8px}
 .party-label{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .party-name{font-size:14px;font-weight:600;color:#1a1a1a}
 .party-info{font-size:12px;color:#6B7280;margin-top:2px}
 .vehicle-box{background:linear-gradient(135deg,#E8F8F0,#D1F2E3);border-radius:10px;padding:14px;text-align:center;margin-bottom:8px}
-.vehicle-name{font-size:16px;font-weight:800;color:#1a1a1a}
+.vehicle-name{font-size:16px;font-weight:800;color:#1a1a1a;word-break:break-word}
 .vehicle-cat{font-size:12px;color:#065F46;margin-top:2px}
 .vehicle-km{font-size:11px;color:#6B7280;margin-top:4px}
-.info-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-.info-card{flex:1;min-width:45%;background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:10px}
-.info-label{font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase}
-.info-value{font-size:13px;font-weight:600;color:#1a1a1a;margin-top:2px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px;margin-bottom:8px}
+.info-card{min-width:0;background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:10px;overflow:hidden}
+.info-label{display:block;font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:4px;line-height:1.2}
+.info-value{display:block;font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.35;word-break:break-word;overflow-wrap:anywhere}
 table{width:100%;border-collapse:collapse;margin:8px 0}
-table td{padding:6px 0;font-size:12px;border-bottom:1px solid #F3F4F6}
-table .r{text-align:right;font-weight:600}
-.total-row{background:#4ECC8B;border-radius:8px;padding:12px;display:flex;justify-content:space-between;margin:10px 0}
-.total-label{font-size:14px;font-weight:700;color:#1a1a1a}
-.total-val{font-size:16px;font-weight:800;color:#1a1a1a}
+table td{padding:6px 0;font-size:12px;border-bottom:1px solid #F3F4F6;vertical-align:top;word-break:break-word}
+table .r{text-align:right;font-weight:600;white-space:nowrap;padding-left:8px}
+.total-row{background:#4ECC8B;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0}
+.total-label{font-size:14px;font-weight:700;color:#1a1a1a;flex-shrink:0}
+.total-val{font-size:16px;font-weight:800;color:#1a1a1a;text-align:right;word-break:break-word}
 .article{font-size:12px;color:#374151;line-height:1.6;margin-bottom:6px}
 .article b{color:#1a1a1a}
 ul{padding-left:16px;margin:6px 0}
@@ -53,10 +53,14 @@ li{font-size:12px;color:#374151;margin-bottom:3px;line-height:1.5}
 .footer{text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid #F3F4F6}
 .footer-text{font-size:10px;color:#9CA3AF}
 .summary{background:#F9FAFB;border:1px solid #F3F4F6;border-radius:10px;padding:14px;margin-top:16px}
-.summary-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
-.summary-label{color:#6B7280}
-.summary-value{color:#1a1a1a;font-weight:600}
+.summary-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:6px 0;font-size:12px}
+.summary-label{color:#6B7280;flex:0 0 auto;max-width:38%;line-height:1.35}
+.summary-value{color:#1a1a1a;font-weight:600;text-align:right;flex:1;min-width:0;line-height:1.35;word-break:break-word;overflow-wrap:anywhere}
 .field{color:#4ECC8B;font-weight:700}
+@media (max-width:360px){
+  .info-grid{grid-template-columns:1fr}
+  .page{padding:20px 14px}
+}
 `.trim();
 
 function esc(s: string): string {
@@ -319,7 +323,7 @@ export function buildCustomRentalContractHtml(p: RentalContractParams): string {
   <div class="summary-row"><span class="summary-label">Loueur</span><span class="summary-value">${esc(p.loueurName)}</span></div>
   <div class="summary-row"><span class="summary-label">Client</span><span class="summary-value">${esc(p.clientName)}</span></div>
   <div class="summary-row"><span class="summary-label">Véhicule</span><span class="summary-value">${esc(p.vehicleName)}</span></div>
-  <div class="summary-row"><span class="summary-label">Période</span><span class="summary-value">${esc(p.startLabel)} → ${esc(p.endLabel)}</span></div>
+  <div class="summary-row"><span class="summary-label">Période</span><span class="summary-value">${esc(p.startLabel)}<br/>→ ${esc(p.endLabel)}</span></div>
   <div class="summary-row"><span class="summary-label">Total</span><span class="summary-value">${esc(p.totalLabel)}</span></div>
 </div>
 ${bodyHtml}
