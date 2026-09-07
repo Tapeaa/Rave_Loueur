@@ -64,7 +64,7 @@ export default function AbonnementScreen() {
     const def = plans[plan];
     Alert.alert(
       `Abonnement ${def.label}`,
-      `Confirmer le paiement de ${def.amountXpf.toLocaleString('fr-FR')} XPF ?\n\nLa période sera activée immédiatement. Réglez ce montant auprès de RAVE.`,
+      `Confirmer la demande d’abonnement à ${def.amountXpf.toLocaleString('fr-FR')} XPF ?\n\nVotre accès restera en attente jusqu’à validation / règlement auprès de RAVE.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -75,10 +75,14 @@ export default function AbonnementScreen() {
               const sessionId = await getDriverSessionId();
               if (!sessionId) throw new SessionExpiredError();
               const res = await subscribeLoueurPlan(plan);
-              Alert.alert('Abonnement activé', res.message || 'Votre abonnement est en cours.');
+              Alert.alert(
+                'Demande enregistrée',
+                res.message ||
+                  'Votre abonnement est en attente de validation RAVE.'
+              );
               await load();
             } catch (e: any) {
-              Alert.alert('Erreur', e?.message || 'Échec de l’activation');
+              Alert.alert('Erreur', e?.message || 'Échec de la demande');
             } finally {
               setSubscribing(null);
             }
@@ -92,11 +96,19 @@ export default function AbonnementScreen() {
   const statusLabel =
     status === 'active'
       ? 'Abonnement en cours'
-      : status === 'expired'
-        ? 'Abonnement expiré'
-        : 'Aucun abonnement';
+      : status === 'pending'
+        ? 'En attente de validation'
+        : status === 'expired'
+          ? 'Abonnement expiré'
+          : 'Aucun abonnement';
   const statusColor =
-    status === 'active' ? '#22C55E' : status === 'expired' ? '#EF4444' : '#6B7280';
+    status === 'active'
+      ? '#22C55E'
+      : status === 'pending'
+        ? '#F59E0B'
+        : status === 'expired'
+          ? '#EF4444'
+          : '#6B7280';
 
   const planLabel =
     info?.plan === 'semiannual'
@@ -153,8 +165,8 @@ export default function AbonnementScreen() {
 
           <Text style={styles.sectionTitle}>Choisir une formule</Text>
           <Text style={styles.hint}>
-            Accès plateforme loueur. Paiement hors app auprès de RAVE — la période démarre à la
-            confirmation.
+            Accès plateforme loueur. Paiement hors app auprès de RAVE — l’accès s’active après
+            validation (statut « en attente » puis « actif »).
           </Text>
 
           <TouchableOpacity
