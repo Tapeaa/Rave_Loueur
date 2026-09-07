@@ -364,17 +364,30 @@ export function onRentalLifecycleChanged(
 
 export function joinRentalOrderRoom(orderId: string): void {
   const s = getSocket();
-  const join = () => {
-    if (s.connected) {
-      s.emit('rental-order:join', { orderId });
+  const join = async () => {
+    if (!s.connected) return;
+    try {
+      const { getDriverSessionId } = await import('./api');
+      const sessionId = await getDriverSessionId();
+      s.emit('rental-order:join', {
+        orderId,
+        ...(sessionId ? { sessionId } : {}),
+      });
       console.log(`[Socket] Joined rental order room: ${orderId}`);
+    } catch (e) {
+      console.warn('[Socket] rental-order:join auth failed', e);
+      s.emit('rental-order:join', { orderId });
     }
   };
-  addReconnectCallback(`rental-order-${orderId}`, join);
+  addReconnectCallback(`rental-order-${orderId}`, () => {
+    void join();
+  });
   if (s.connected) {
-    join();
+    void join();
   } else {
-    s.once('connect', join);
+    s.once('connect', () => {
+      void join();
+    });
     s.connect();
   }
 }

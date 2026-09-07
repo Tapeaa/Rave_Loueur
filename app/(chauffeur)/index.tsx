@@ -217,14 +217,15 @@ export default function ChauffeurHomeScreen() {
         connectSocket();
         if (!isTestSession) {
           joinDriverSession(sid);
+          // Locations : toujours récupérer les demandes (indépendant du statut « en ligne » taxi)
+          try {
+            const rentals = await getPendingRentalOrders(sid);
+            setPendingOrders(rentals.filter((o) => !declinedOrderIds.has(o.id)));
+          } catch {}
           if (wasOnline) {
             setTimeout(() => {
               updateDriverStatusAsync(sid, true);
             }, 1000);
-            try {
-              const rentals = await getPendingRentalOrders(sid);
-              setPendingOrders(rentals.filter((o) => !declinedOrderIds.has(o.id)));
-            } catch {}
           }
         }
         setConnectionStatus('connected');
@@ -316,9 +317,9 @@ export default function ChauffeurHomeScreen() {
     router.push('/(chauffeur)/support-chat');
   }, [router, sessionId, latestAdminMessageId]);
 
-  // ═══ SOCKET LISTENERS ═══
+  // ═══ SOCKET LISTENERS (locations : toujours actifs si session, hors isOnline taxi) ═══
   useEffect(() => {
-    if (!sessionId || !isOnline) return;
+    if (!sessionId) return;
 
     const unsubNew = onNewRentalOrder((order) => {
       if (declinedOrderIds.has(order.id) || order.status !== 'pending') return;
@@ -349,11 +350,11 @@ export default function ChauffeurHomeScreen() {
       setPendingOrders((prev) => prev.filter((o) => o.id !== data.orderId));
     });
     return () => { unsubNew(); unsubPending(); unsubTaken(); unsubExpired(); unsubCancelled(); };
-  }, [sessionId, isOnline, declinedOrderIds, prestataireId, driverId]);
+  }, [sessionId, declinedOrderIds, prestataireId, driverId]);
 
-  // ═══ POLLING ═══
+  // ═══ POLLING demandes location (toujours si session) ═══
   useEffect(() => {
-    if (!sessionId || !isOnline) {
+    if (!sessionId) {
       if (pollingIntervalRef.current) { clearInterval(pollingIntervalRef.current); pollingIntervalRef.current = null; }
       return;
     }
@@ -371,19 +372,19 @@ export default function ChauffeurHomeScreen() {
     poll();
     pollingIntervalRef.current = setInterval(poll, 10000);
     return () => { if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current); };
-  }, [sessionId, isOnline, declinedOrderIds]);
+  }, [sessionId, declinedOrderIds]);
 
   // ═══ SOCKET CONNECTION MONITOR ═══
   useEffect(() => {
     const check = setInterval(() => {
       const connected = isSocketConnected();
       setConnectionStatus(connected ? 'connected' : 'disconnected');
-      if (!connected && isOnline && sessionId) {
+      if (!connected && sessionId) {
         try { connectSocket(); joinDriverSession(sessionId); } catch {}
       }
     }, 10000);
     return () => clearInterval(check);
-  }, [isOnline, sessionId]);
+  }, [sessionId]);
 
   // ═══ HANDLERS ═══
   const handleToggleOnline = async (value: boolean) => {
@@ -393,7 +394,7 @@ export default function ChauffeurHomeScreen() {
     try { await SecureStore.setItemAsync(`driver_${sessionId}_isOnline`, value ? 'true' : 'false'); } catch {}
     try { await apiPatch(`/api/driver-sessions/${sessionId}/status`, { isOnline: value }); } catch {}
     updateDriverStatus(sessionId, value);
-    if (!value) setPendingOrders([]);
+    // Ne plus vider les demandes location en passant « hors ligne » (legacy taxi)
   };
 
   const handleAcceptOrder = async (orderId: string) => {
@@ -440,7 +441,7 @@ export default function ChauffeurHomeScreen() {
   };
 
   const handleRefresh = async () => {
-    if (!sessionId || !isOnline) return;
+    if (!sessionId) return;
     setRefreshing(true);
     try {
       const list = await getPendingRentalOrders(sessionId);
@@ -555,8 +556,8 @@ export default function ChauffeurHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Incoming Orders Band */}
-          {isOnline && pendingOrders.length > 0 && (
+          {/* Incoming Orders Band — visible même hors ligne taxi */}
+          {pendingOrders.length > 0 && (
             <View style={s.incomingSection}>
               <View style={s.sectionHeader}>
                 <View style={s.sectionTitleRow}>
@@ -646,25 +647,14 @@ export default function ChauffeurHomeScreen() {
             </View>
           )}
 
-          {/* Empty state when online but no orders */}
-          {isOnline && pendingOrders.length === 0 && (
+          {/* Empty state when no pending rental requests */}
+          {pendingOrders.length === 0 && (
             <View style={s.emptyBand}>
               <View style={s.emptyIcon}>
                 <Ionicons name="hourglass-outline" size={32} color="#D1D5DB" />
               </View>
               <Text style={s.emptyTitle}>Aucune demande pour le moment</Text>
               <Text style={s.emptySubtitle}>Les nouvelles demandes de location apparaîtront ici en temps réel</Text>
-            </View>
-          )}
-
-          {/* Offline state */}
-          {!isOnline && (
-            <View style={s.offlineBand}>
-              <View style={s.offlineIcon}>
-                <Ionicons name="moon-outline" size={32} color="#9CA3AF" />
-              </View>
-              <Text style={s.offlineTitle}>Vous êtes hors ligne</Text>
-              <Text style={s.offlineSubtitle}>Activez votre statut pour recevoir les demandes de location des clients</Text>
             </View>
           )}
 
