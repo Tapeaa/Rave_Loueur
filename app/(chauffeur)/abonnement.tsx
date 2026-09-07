@@ -152,6 +152,11 @@ export default function AbonnementScreen() {
                     : ''}
                 </Text>
               ) : null}
+              {status === 'pending' ? (
+                <Text style={styles.statusMeta}>
+                  Réglez auprès de RAVE pour activer l’accès (véhicules / acceptation).
+                </Text>
+              ) : null}
               {planLabel ? (
                 <Text style={styles.statusMeta}>
                   Formule : {planLabel}
