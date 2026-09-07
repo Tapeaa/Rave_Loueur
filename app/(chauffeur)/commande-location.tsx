@@ -197,7 +197,7 @@ li{font-size:12px;color:#374151;margin-bottom:3px;line-height:1.5}
     <span class="total-label">Montant total</span>
     <span class="total-val">${formatPrice(totalPrice)}</span>
   </div>
-  <div class="article">Paiement directement auprès du loueur. Aucun paiement en ligne.</div>
+  <div class="article">Paiement chez le loueur, sauf si le professionnel a activé le paiement en ligne par carte (PayZen / OSB).</div>
 </div>
 
 <div class="section">

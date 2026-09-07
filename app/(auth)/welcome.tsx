@@ -1,4 +1,4 @@
-import { View, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
@@ -19,23 +19,32 @@ export default function WelcomeScreen() {
             />
           </View>
 
+          <Text style={styles.title}>Accès Loueur</Text>
           <Text style={styles.subtitle}>
-            Votre application de location de véhicules
+            Votre code d’accès à 6 chiffres est fourni par RAVE. Les comptes loueur sont créés uniquement par l’équipe RAVE — il n’y a pas d’inscription autonome.
           </Text>
         </View>
 
         <View style={styles.buttonsContainer}>
           <Button
-            title="Se connecter"
-            onPress={() => router.push('/(auth)/login')}
+            title="Entrer mon code d’accès"
+            onPress={() => router.replace('/(chauffeur)/login')}
             fullWidth
           />
-          <Button
-            title="Créer un compte"
-            variant="outline"
-            onPress={() => router.push('/(auth)/register')}
-            fullWidth
-          />
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/cgu')}
+            style={styles.legalLink}
+          >
+            <Text style={styles.legalText}>Conditions générales d’utilisation</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              Linking.openURL('https://rave-location.com/politique-de-confidentialite/').catch(() => {});
+            }}
+            style={styles.legalLink}
+          >
+            <Text style={styles.legalText}>Politique de confidentialité</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
@@ -71,21 +80,32 @@ const styles = StyleSheet.create({
     height: 48,
   },
   title: {
-    fontSize: 48,
-    fontWeight: '900',
+    fontSize: 28,
+    fontWeight: '800',
     color: '#1a1a1a',
-    letterSpacing: -1,
+    letterSpacing: -0.5,
     marginBottom: 16,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: '#6b7280',
     textAlign: 'center',
+    lineHeight: 24,
   },
   buttonsContainer: {
-    gap: 16,
+    gap: 12,
     maxWidth: 320,
     alignSelf: 'center',
     width: '100%',
+  },
+  legalLink: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  legalText: {
+    fontSize: 13,
+    color: '#6b7280',
+    textDecorationLine: 'underline',
   },
 });

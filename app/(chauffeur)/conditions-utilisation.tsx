@@ -139,7 +139,7 @@ export default function ConditionsUtilisationScreen() {
 
           <Text variant="body" style={styles.subTitle}>7.3 Paiement</Text>
           <Text variant="body" style={styles.text}>
-            Le Locataire règle la location directement auprès du Loueur (hors application), selon le mode convenu entre les parties.{'\n\n'}
+            Le Locataire peut régler par carte en ligne (PayZen / OSB) si le Loueur a configuré sa caisse. Sinon, le Locataire règle directement auprès du Loueur (espèces ou autre moyen convenu).{'\n\n'}
             Les Loueurs s’acquittent d’un abonnement plateforme RAVE (mensuel ou semestriel) pour accéder aux outils de mise en relation.{'\n\n'}
             En cas de non-paiement de l’abonnement, RAVE peut suspendre temporairement l’accès au service jusqu’à régularisation.
           </Text>
@@ -159,7 +159,7 @@ export default function ConditionsUtilisationScreen() {
 
           <Text variant="body" style={styles.subTitle}>8.3 Paiements et ajustements</Text>
           <Text variant="body" style={styles.text}>
-            Si un paiement a été initié, le montant final correspond à la Location telle qu'exécutée (trajet effectivement réalisé, temps d'attente, options éventuelles). En cas d'anomalie, l'utilisateur peut contacter le support à contact@rave-location.com
+            Si un paiement a été initié, le montant final correspond à la Location (durée, options). En cas d'anomalie, l'utilisateur peut contacter le support à contact@rave-location.com
           </Text>
 
           <Text variant="body" style={styles.subTitle}>8.4 Demandes de remboursement / contestations</Text>

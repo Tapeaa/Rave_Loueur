@@ -507,7 +507,7 @@ export default function ChauffeurProfilScreen() {
               onPress={handleLogout}
               accessibilityLabel="Se déconnecter"
               accessibilityRole="button"
-              accessibilityHint="Déconnecte le chauffeur et retourne à l'écran de connexion"
+              accessibilityHint="Déconnecte le loueur et retourne à l'écran de connexion"
             >
               <Ionicons name="log-out-outline" size={22} color="#EF4444" />
               <Text variant="body" style={styles.logoutText}>Se déconnecter</Text>

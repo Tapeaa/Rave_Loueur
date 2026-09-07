@@ -142,7 +142,8 @@ export default function ChauffeurGainsScreen() {
                 <Text style={styles.commissionTitle}>Paiement</Text>
               </View>
               <Text style={styles.paymentInfoText}>
-                Les locations sont payées en espèces directement par le locataire.
+                Si vous avez configuré PayZen / OSB dans le dashboard prestataire, le client peut payer
+                en ligne par carte. Sinon, il règle chez vous à la prise en charge (espèces ou autre moyen convenu).
                 Les montants ci-dessus correspondent aux locations enregistrées sur RAVE.
               </Text>
             </Card>

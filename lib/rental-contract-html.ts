@@ -202,7 +202,7 @@ export function buildDefaultRentalContractHtml(p: RentalContractParams): string 
 
   const payment =
     p.paymentNote ||
-    "Paiement directement auprès du loueur. Aucun paiement en ligne.";
+    "Paiement chez le loueur (espèces ou autre moyen convenu), sauf si le professionnel propose le paiement en ligne par carte (PayZen / OSB).";
 
   const tahiti = String(p.loueurNumeroTahiti || "").trim();
   const loueurPartyInfo = [

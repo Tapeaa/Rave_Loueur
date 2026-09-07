@@ -586,9 +586,15 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                   <View style={styles.infoContent}>
                     <Text style={styles.infoLabel}>Moyen de paiement</Text>
                     <Text style={styles.infoValue}>
-                      {order.paymentMethod === 'card' ? 'Carte bancaire (TPE)' : 
-                       order.paymentMethod === 'cash' ? 'Espèces' :
-                       order.paymentMethod === 'virement' ? 'Virement bancaire' : order.paymentMethod}
+                      {((order.rideOption as any)?.payzenStatus === 'paid' || order.status === 'payment_confirmed')
+                        ? 'Le client a payé en ligne (PayZen / OSB)'
+                        : order.paymentMethod === 'card'
+                          ? 'Carte en ligne (PayZen / OSB)'
+                          : order.paymentMethod === 'cash'
+                            ? 'Chez le loueur'
+                            : order.paymentMethod === 'virement'
+                              ? 'Virement bancaire'
+                              : order.paymentMethod}
                     </Text>
                   </View>
                 </View>

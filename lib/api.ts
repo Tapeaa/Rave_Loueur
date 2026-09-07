@@ -278,7 +278,7 @@ export async function apiFetch<T = unknown>(
     // Extraire le cookie de session de la réponse si disponible
     // Pour les routes d'authentification, on extrait le cookie même avec skipAuth
     const setCookieHeader = response.headers.get('set-cookie');
-    const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') || endpoint.includes('/auth/verify');
+    const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/verify');
     const isDriverLogin = endpoint.includes('/driver/login');
     
     if (setCookieHeader && (!skipAuth || isAuthEndpoint || isDriverLogin)) {

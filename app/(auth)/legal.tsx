@@ -207,12 +207,12 @@ export default function LegalScreen() {
           <View style={styles.infoContainer}>
             <Ionicons name="information-circle" size={20} color="#6b7280" />
             <Text variant="caption" style={styles.infoText}>
-              Ces informations sont nécessaires pour finaliser votre inscription et utiliser l'application.
+              Ces informations sont nécessaires pour utiliser l’application loueur.
             </Text>
           </View>
 
           <Button
-            title="Finaliser mon inscription"
+            title="Accepter et continuer"
             onPress={handleAcceptCGU}
             loading={isLoading}
             disabled={!acceptCGU || !readPrivacyPolicy}

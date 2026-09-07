@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, Image, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -175,7 +175,10 @@ export default function ChauffeurLoginScreen() {
         <View style={styles.header}>
           <Text variant="h1">Accès Loueur</Text>
           <Text variant="body" style={styles.subtitle}>
-            {"Entrez votre code d'accès à 6 chiffres"}
+            Entrez le code d’accès à 6 chiffres fourni par RAVE.
+          </Text>
+          <Text variant="caption" style={styles.hint}>
+            Les comptes loueur sont créés uniquement par l’équipe RAVE. Vous ne pouvez pas vous inscrire seul.
           </Text>
         </View>
 
@@ -216,6 +219,20 @@ export default function ChauffeurLoginScreen() {
           accessibilityRole="button"
           accessibilityHint="Connecte le loueur à son compte après avoir entré le code d'accès"
         />
+
+        <View style={styles.legalRow}>
+          <TouchableOpacity onPress={() => router.push('/(auth)/cgu')}>
+            <Text style={styles.legalText}>CGU</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalSep}>·</Text>
+          <TouchableOpacity
+            onPress={() => {
+              Linking.openURL('https://rave-location.com/politique-de-confidentialite/').catch(() => {});
+            }}
+          >
+            <Text style={styles.legalText}>Confidentialité</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -244,6 +261,27 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#6b7280',
     marginTop: 8,
+  },
+  hint: {
+    color: '#9CA3AF',
+    marginTop: 10,
+    lineHeight: 18,
+  },
+  legalRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 28,
+    gap: 8,
+  },
+  legalText: {
+    fontSize: 13,
+    color: '#6b7280',
+    textDecorationLine: 'underline',
+  },
+  legalSep: {
+    color: '#9CA3AF',
+    fontSize: 13,
   },
   codeContainer: {
     flexDirection: 'row',

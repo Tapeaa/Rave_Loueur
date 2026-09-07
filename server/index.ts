@@ -150,50 +150,6 @@ app.post('/api/driver/login', (req, res) => {
   }
 });
 
-// Register client (mock)
-app.post('/api/auth/register', (req, res) => {
-  console.log('[MOCK] ✅ POST /api/auth/register received:', req.body);
-  try {
-    const { phone, firstName, lastName, password } = req.body;
-
-    if (!phone || !firstName || !lastName || !password) {
-      console.log('[MOCK] ❌ Missing required fields');
-      return res.status(400).json({ error: 'Tous les champs sont requis' });
-    }
-
-    // Générer un ID client de test
-    const clientId = `client-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const sessionId = generateSessionId();
-
-    console.log(`[MOCK] ✅ Client registered: ${firstName} ${lastName} (${phone})`);
-
-    // Définir le cookie de session
-    res.cookie('clientSessionId', sessionId, {
-      httpOnly: true,
-      secure: false, // En dev, on peut mettre false
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 jours
-    });
-
-    res.json({
-      success: true,
-      client: {
-        id: clientId,
-        phone,
-        firstName,
-        lastName,
-        isVerified: true,
-      },
-      session: {
-        id: sessionId,
-      },
-    });
-  } catch (error) {
-    console.error('[MOCK] ❌ Register error:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'inscription' });
-  }
-});
-
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now(), mode: 'mock' });
@@ -207,7 +163,6 @@ app.get('/api/test', (_req, res) => {
     timestamp: Date.now(),
     availableEndpoints: [
       'POST /api/driver/login',
-      'POST /api/auth/register',
       'GET /api/health',
       'GET /api/test',
       'GET /api/places/autocomplete',
