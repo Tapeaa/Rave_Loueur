@@ -197,16 +197,48 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
 </body></html>`;
   };
 
-  const handleViewContract = () => {
-    const html = buildContractHTML();
-    if (html) {
-      setContractHTML(html);
-      setShowContractModal(true);
+  const handleViewContract = async () => {
+    try {
+      if (id) {
+        try {
+          const sessionId = await getDriverSessionId();
+          const data = await apiFetch<{ html?: string }>(`/api/orders/${id}/contract`, {
+            headers: { 'X-Driver-Session': sessionId || '' },
+          });
+          if (data?.html) {
+            setContractHTML(data.html);
+            setShowContractModal(true);
+            return;
+          }
+        } catch {
+          // fallback local
+        }
+      }
+      const html = buildContractHTML();
+      if (html) {
+        setContractHTML(html);
+        setShowContractModal(true);
+      }
+    } catch {
+      Alert.alert('Erreur', "Impossible d'ouvrir le contrat.");
     }
   };
 
   const handleShareContract = async () => {
-    const html = contractHTML || buildContractHTML();
+    let html = contractHTML;
+    if (!html && id) {
+      try {
+        const sessionId = await getDriverSessionId();
+        const data = await apiFetch<{ html?: string }>(`/api/orders/${id}/contract`, {
+          headers: { 'X-Driver-Session': sessionId || '' },
+        });
+        html = data?.html || '';
+        if (html) setContractHTML(html);
+      } catch {
+        /* fallback */
+      }
+    }
+    if (!html) html = buildContractHTML();
     if (!html) return;
     await shareHtmlAsPdf(html, 'Contrat RAVE');
   };
