@@ -1,3 +1,4 @@
+import '@/lib/patch-web-dimensions';
 import { useEffect, useState, useCallback } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +11,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Constants from 'expo-constants';
 import { Asset } from 'expo-asset';
-import * as SecureStore from 'expo-secure-store';
+import { getDriverProfile, getDriverSessionId, secureStorage } from '@/lib/api';
 
 import { Text } from '@/components/ui/Text';
 import { AuthProvider } from '@/lib/AuthContext';
@@ -19,8 +20,8 @@ import { StripeProvider, isStripeAvailable } from '@/lib/stripe';
 import { NetworkStatus } from '@/components/NetworkStatus';
 import DriverMessageNotification from '@/components/MessageNotification';
 import { initializeOneSignal, setDriverExternalId } from '@/lib/onesignal';
-import { getDriverProfile, getDriverSessionId } from '@/lib/api';
 import { connectSocket, joinDriverSession } from '@/lib/socket';
+import { WebMobileFrame } from '@/components/WebMobileFrame';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -226,12 +227,12 @@ export default function RootLayout() {
           .then((driver) => {
             if (driver?.id) {
               setDriverExternalId(driver.id);
-              SecureStore.setItemAsync('driverExternalId', driver.id).catch(() => {});
+              secureStorage.setItem('driverExternalId', driver.id).catch(() => {});
             }
           })
           .catch(() => {});
 
-        SecureStore.getItemAsync('driverExternalId')
+        secureStorage.getItem('driverExternalId')
           .then((storedId) => {
             if (storedId) setDriverExternalId(storedId);
           })
@@ -254,32 +255,36 @@ export default function RootLayout() {
 
   if (!fontsLoaded || !appIsReady) {
     return (
-      <LoadingScreen
-        progress={loadingProgress}
-        loadedCount={loadedCount}
-        totalCount={totalCount}
-        videoUri={videoUri}
-      />
+      <WebMobileFrame>
+        <LoadingScreen
+          progress={loadingProgress}
+          loadedCount={loadedCount}
+          totalCount={totalCount}
+          videoUri={videoUri}
+        />
+      </WebMobileFrame>
     );
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <QueryClientProvider client={queryClient}>
-        <StripeProviderWrapper>
-          <AuthProvider>
-            <NetworkStatus />
-            <DriverMessageNotification />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(chauffeur)" />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style="dark" />
-          </AuthProvider>
-        </StripeProviderWrapper>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+    <WebMobileFrame>
+      <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        <QueryClientProvider client={queryClient}>
+          <StripeProviderWrapper>
+            <AuthProvider>
+              <NetworkStatus />
+              <DriverMessageNotification />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(chauffeur)" />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+              <StatusBar style="dark" />
+            </AuthProvider>
+          </StripeProviderWrapper>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
+    </WebMobileFrame>
   );
 }
 

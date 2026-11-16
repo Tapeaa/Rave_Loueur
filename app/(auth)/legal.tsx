@@ -29,8 +29,8 @@ const Checkbox = ({ checked, onValueChange }: { checked: boolean; onValueChange:
 
 // Versions des documents légaux
 const LEGAL_VERSIONS = {
-  CGU: '2026-01-21',
-  PRIVACY_POLICY: '2026-01-21'
+  CGU: '2026-11-16',
+  PRIVACY_POLICY: '2026-11-16'
 } as const;
 
 export default function LegalScreen() {
@@ -137,10 +137,7 @@ export default function LegalScreen() {
   };
 
   const openPrivacyPolicy = () => {
-    const url = 'https://rave-location.com/politique-de-confidentialite/';
-    Linking.openURL(url).catch(() => {
-      Alert.alert('Erreur', 'Impossible d\'ouvrir la page web');
-    });
+    router.push('/(auth)/confidentialite');
   };
 
   return (
@@ -173,11 +170,11 @@ export default function LegalScreen() {
               />
               <View style={styles.checkboxText}>
                 <Text variant="body" style={styles.checkboxLabel}>
-                  J'accepte les Conditions d'utilisation (CGU)
+                  J'accepte les Conditions Générales d'Abonnement et de Services Pro (CGS Pro)
                 </Text>
                 <TouchableOpacity onPress={openCGU}>
                   <Text variant="caption" style={styles.link}>
-                    Lire les CGU
+                    Lire les CGS Pro
                   </Text>
                 </TouchableOpacity>
               </View>

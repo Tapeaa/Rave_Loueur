@@ -6,9 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
-import { removeDriverSessionId, getDriverProfile, updateDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
+import { removeDriverSessionId, getDriverProfile, updateDriverProfile, SessionExpiredError, type DriverProfile, secureStorage } from '@/lib/api';
 import { removeExternalId, addDriverTag } from '@/lib/onesignal';
-import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import { disconnectSocket } from '@/lib/socket';
 import { useState, useEffect, useRef } from 'react';
@@ -191,7 +190,7 @@ export default function ChauffeurProfilScreen() {
   const handleLogout = async () => {
     addDriverTag('status', 'offline');
     removeExternalId();
-    await SecureStore.deleteItemAsync('driverExternalId');
+    await secureStorage.deleteItem('driverExternalId');
     await removeDriverSessionId();
     disconnectSocket();
     router.replace('/(chauffeur)/login');
@@ -469,16 +468,11 @@ export default function ChauffeurProfilScreen() {
               <Text variant="label" style={styles.legalSectionTitle}>Légal</Text>
               <TouchableOpacity 
                 style={styles.legalMenuItem}
-                onPress={() => {
-                  const url = 'https://rave-location.com/politique-de-confidentialite/';
-                  Linking.openURL(url).catch(() => {
-                    Alert.alert('Erreur', 'Impossible d\'ouvrir la page web');
-                  });
-                }}
+                onPress={() => router.push('/(chauffeur)/confidentialite')}
                 activeOpacity={0.7}
                 accessibilityLabel="Politique de confidentialité"
                 accessibilityRole="link"
-                accessibilityHint="Ouvre la politique de confidentialité dans le navigateur"
+                accessibilityHint="Ouvre la politique de confidentialité dans l'application"
               >
                 <View style={styles.legalMenuIcon}>
                   <Ionicons name="shield-checkmark-outline" size={20} color="#5c5c5c" />
@@ -490,14 +484,14 @@ export default function ChauffeurProfilScreen() {
                 style={styles.legalMenuItem}
                 onPress={() => router.push('/(chauffeur)/conditions-utilisation')}
                 activeOpacity={0.7}
-                accessibilityLabel="Conditions d'utilisation"
+                accessibilityLabel="Conditions générales d'abonnement et de services Pro"
                 accessibilityRole="button"
-                accessibilityHint="Affiche les conditions d'utilisation de l'application"
+                accessibilityHint="Affiche les CGS Pro de l'application"
               >
                 <View style={styles.legalMenuIcon}>
                   <Ionicons name="document-text-outline" size={20} color="#5c5c5c" />
                 </View>
-                <Text variant="body" style={styles.legalMenuText}>Conditions d'utilisation</Text>
+                <Text variant="body" style={styles.legalMenuText}>CGS Pro</Text>
                 <Ionicons name="chevron-forward" size={20} color="#5c5c5c" />
               </TouchableOpacity>
             </View>

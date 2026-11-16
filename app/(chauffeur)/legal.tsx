@@ -4,10 +4,9 @@ import { useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { apiPatch, getDriverSessionId, getDriverProfile, removeDriverSessionId, SessionExpiredError } from '@/lib/api';
+import { apiPatch, getDriverSessionId, getDriverProfile, removeDriverSessionId, SessionExpiredError, secureStorage } from '@/lib/api';
 import type { Driver } from '@/lib/types';
 
 // Composant Checkbox simple
@@ -34,8 +33,8 @@ const Checkbox = ({ checked, onValueChange }: { checked: boolean; onValueChange:
 
 // Versions des documents légaux
 const LEGAL_VERSIONS = {
-  CGU: '2026-01-21',
-  PRIVACY_POLICY: '2026-01-21'
+  CGU: '2026-11-16',
+  PRIVACY_POLICY: '2026-11-16'
 } as const;
 
 export default function LegalScreen() {
@@ -136,8 +135,8 @@ export default function LegalScreen() {
 
       // IMPORTANT: Stocker l'acceptation dans SecureStore pour éviter la boucle
       // Le backend ne retourne pas toujours cguAccepted dans le profil, donc on utilise ce stockage
-      await SecureStore.setItemAsync(`driver_${driver.id}_cgu_accepted`, 'true');
-      await SecureStore.setItemAsync(`driver_${driver.id}_cgu_accepted_at`, new Date().toISOString());
+      await secureStorage.setItem(`driver_${driver.id}_cgu_accepted`, 'true');
+      await secureStorage.setItem(`driver_${driver.id}_cgu_accepted_at`, new Date().toISOString());
       console.log('[LEGAL] CGU acceptance stored in SecureStore');
 
       // Mettre à jour les données locales du chauffeur
@@ -170,10 +169,7 @@ export default function LegalScreen() {
   };
 
   const openPrivacyPolicy = () => {
-    const url = 'https://rave-location.com/politique-de-confidentialite/';
-    Linking.openURL(url).catch(() => {
-      Alert.alert('Erreur', 'Impossible d\'ouvrir la page web');
-    });
+    router.push('/(chauffeur)/confidentialite');
   };
 
   return (
@@ -206,16 +202,16 @@ export default function LegalScreen() {
               />
               <View style={styles.checkboxText}>
                 <Text variant="body" style={styles.checkboxLabel}>
-                  J'accepte les Conditions d'utilisation (CGU)
+                  J'accepte les Conditions Générales d'Abonnement et de Services Pro (CGS Pro)
                 </Text>
                 <TouchableOpacity 
                   onPress={openCGU}
-                  accessibilityLabel="Lire les Conditions d'utilisation"
+                  accessibilityLabel="Lire les CGS Pro"
                   accessibilityRole="link"
-                  accessibilityHint="Ouvre les Conditions d'utilisation dans l'application"
+                  accessibilityHint="Ouvre les Conditions Générales d'Abonnement et de Services Pro dans l'application"
                 >
                   <Text variant="caption" style={styles.link}>
-                    Lire les CGU
+                    Lire les CGS Pro
                   </Text>
                 </TouchableOpacity>
               </View>

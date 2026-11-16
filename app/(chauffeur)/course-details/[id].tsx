@@ -602,9 +602,21 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                   <Text style={styles.priceValue}>{formatPrice((opt.pricePerDay || 0) * (rentalData.days || 1))}</Text>
                 </View>
               ))}
+              {rideOpt?.tvaRegime === 'assujetti' && rideOpt?.priceHt != null ? (
+                <>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Total HT</Text>
+                    <Text style={styles.priceValue}>{formatPrice(Number(rideOpt.priceHt))}</Text>
+                  </View>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>TVA ({rideOpt.tvaRate || 16} %)</Text>
+                    <Text style={styles.priceValue}>{formatPrice(Number(rideOpt.priceTva || 0))}</Text>
+                  </View>
+                </>
+              ) : null}
               <View style={styles.priceDivider} />
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalLabel}>{rideOpt?.tvaRegime === 'assujetti' ? 'Total TTC' : 'Total'}</Text>
                 <Text style={styles.totalValue}>{formatPrice(order.totalPrice)}</Text>
               </View>
             </Card>
@@ -619,11 +631,13 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                     <Text style={styles.infoLabel}>Moyen de paiement</Text>
                     <Text style={styles.infoValue}>
                       {((order.rideOption as any)?.payzenStatus === 'paid' || order.status === 'payment_confirmed')
-                        ? 'Le client a payé en ligne (PayZen / OSB)'
+                        ? 'Payé en ligne (PayZen / OSB)'
+                        : (order.rideOption as any)?.payzenStatus === 'pending' || (order.rideOption as any)?.payzenStatus === 'waiting'
+                          ? 'Paiement en ligne en attente (PayZen / OSB)'
                         : order.paymentMethod === 'card'
-                          ? 'Carte en ligne (PayZen / OSB)'
+                          ? 'Carte en ligne — en attente de validation PayZen / OSB'
                           : order.paymentMethod === 'cash'
-                            ? 'Chez le loueur'
+                            ? 'À encaisser chez le loueur'
                             : order.paymentMethod === 'virement'
                               ? 'Virement bancaire'
                               : order.paymentMethod}
@@ -710,6 +724,38 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
             </Card>
 
             {/* Documents du client */}
+            {(isUsableMediaUri(rideOpt?.clientIdFront) || isUsableMediaUri(rideOpt?.clientIdBack)) && (
+              <Card style={styles.section}>
+                <Text style={styles.sectionTitle}>Pièce d'identité du client</Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  {isUsableMediaUri(rideOpt.clientIdFront) && (
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6, textAlign: 'center' }}>Recto</Text>
+                      <TouchableOpacity onPress={() => handleShareImage(rideOpt.clientIdFront, 'identite-recto')} activeOpacity={0.8}>
+                        <Image
+                          source={{ uri: rideOpt.clientIdFront }}
+                          style={{ width: '100%', height: 120, borderRadius: 8, backgroundColor: '#F3F4F6' }}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {isUsableMediaUri(rideOpt.clientIdBack) && (
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6, textAlign: 'center' }}>Verso</Text>
+                      <TouchableOpacity onPress={() => handleShareImage(rideOpt.clientIdBack, 'identite-verso')} activeOpacity={0.8}>
+                        <Image
+                          source={{ uri: rideOpt.clientIdBack }}
+                          style={{ width: '100%', height: 120, borderRadius: 8, backgroundColor: '#F3F4F6' }}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </Card>
+            )}
+
             {(isUsableMediaUri(rideOpt?.clientLicenseFront) || isUsableMediaUri(rideOpt?.clientLicenseBack)) && (
               <Card style={styles.section}>
                 <Text style={styles.sectionTitle}>Permis de conduire du client</Text>

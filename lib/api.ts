@@ -73,6 +73,12 @@ async function secureDelete(key: string): Promise<void> {
   }
 }
 
+export const secureStorage = {
+  getItem: secureGet,
+  setItem: secureSet,
+  deleteItem: secureDelete,
+};
+
 export async function getClientSessionId(): Promise<string | null> {
   return secureGet(CLIENT_SESSION_KEY);
 }
@@ -817,6 +823,11 @@ export type LoueurSubscriptionInfo = {
   endsAt: string | null;
   amount: number | null;
   daysRemaining: number | null;
+  graceDaysRemaining?: number | null;
+  access?: boolean;
+  catalogVisible?: boolean;
+  pending?: boolean;
+  paymentUrl?: string | null;
   plans?: Record<string, { id: string; label: string; amountXpf: number; days: number }>;
 };
 

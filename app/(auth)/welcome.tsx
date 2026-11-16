@@ -1,4 +1,4 @@
-import { View, StyleSheet, Image, TouchableOpacity, Linking } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
@@ -35,12 +35,10 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/(auth)/cgu')}
             style={styles.legalLink}
           >
-            <Text style={styles.legalText}>Conditions générales d’utilisation</Text>
+            <Text style={styles.legalText}>Conditions générales d’abonnement (CGS Pro)</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => {
-              Linking.openURL('https://rave-location.com/politique-de-confidentialite/').catch(() => {});
-            }}
+            onPress={() => router.push('/(auth)/confidentialite')}
             style={styles.legalLink}
           >
             <Text style={styles.legalText}>Politique de confidentialité</Text>

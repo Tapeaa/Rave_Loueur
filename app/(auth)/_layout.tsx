@@ -12,6 +12,7 @@ export default function AuthLayout() {
       <Stack.Screen name="welcome" />
       <Stack.Screen name="cgu" />
       <Stack.Screen name="conditions-utilisation" />
+      <Stack.Screen name="confidentialite" />
       <Stack.Screen name="legal" />
     </Stack>
   );

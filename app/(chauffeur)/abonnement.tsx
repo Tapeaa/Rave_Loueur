@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,6 +7,9 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Linking,
+  Platform,
+  AppState,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,27 +36,71 @@ export default function AbonnementScreen() {
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [info, setInfo] = useState<LoueurSubscriptionInfo | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async () => {
+  const stopPoll = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     try {
-      setLoading(true);
+      if (!opts?.silent) setLoading(true);
       const data = await getDriverSubscription();
       setInfo(data);
+      if (data.status === 'active') stopPoll();
     } catch (e) {
       if (e instanceof SessionExpiredError) {
         await removeDriverSessionId();
         router.replace('/(chauffeur)/login');
         return;
       }
-      Alert.alert('Erreur', 'Impossible de charger l’abonnement');
+      if (!opts?.silent) Alert.alert('Erreur', 'Impossible de charger l’abonnement');
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
-  }, [router]);
+  }, [router, stopPoll]);
+
+  const startPoll = useCallback(() => {
+    stopPoll();
+    let ticks = 0;
+    pollRef.current = setInterval(() => {
+      ticks += 1;
+      if (ticks > 40) {
+        stopPoll();
+        return;
+      }
+      load({ silent: true });
+    }, 3000);
+  }, [load, stopPoll]);
 
   useEffect(() => {
     load();
-  }, [load]);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') load();
+    });
+    return () => {
+      sub.remove();
+      stopPoll();
+    };
+  }, [load, stopPoll]);
+
+  const openPayment = async (url?: string | null) => {
+    if (!url) return;
+    startPoll();
+    if (Platform.OS === 'web') {
+      window.open(url, '_blank');
+      return;
+    }
+    const can = await Linking.canOpenURL(url);
+    if (!can) {
+      Alert.alert('Paiement', 'Impossible d’ouvrir le lien Stripe.');
+      return;
+    }
+    await Linking.openURL(url);
+  };
 
   const plans = {
     monthly: info?.plans?.monthly || FALLBACK_PLANS.monthly,
@@ -64,25 +111,21 @@ export default function AbonnementScreen() {
     const def = plans[plan];
     Alert.alert(
       `Abonnement ${def.label}`,
-      `Confirmer la demande d’abonnement à ${def.amountXpf.toLocaleString('fr-FR')} XPF ?\n\nVotre accès restera en attente jusqu’à validation / règlement auprès de RAVE.`,
+      `Payer ${def.amountXpf.toLocaleString('fr-FR')} XPF via Stripe ?\n\nDès que le paiement est validé, l’accès à l’app est activé automatiquement.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: 'Payer',
           onPress: async () => {
             try {
               setSubscribing(plan);
               const sessionId = await getDriverSessionId();
               if (!sessionId) throw new SessionExpiredError();
               const res = await subscribeLoueurPlan(plan);
-              Alert.alert(
-                'Demande enregistrée',
-                res.message ||
-                  'Votre abonnement est en attente de validation RAVE.'
-              );
-              await load();
+              setInfo(res);
+              await openPayment(res.paymentUrl || info?.paymentUrl);
             } catch (e: any) {
-              Alert.alert('Erreur', e?.message || 'Échec de la demande');
+              Alert.alert('Erreur', e?.message || 'Échec du paiement');
             } finally {
               setSubscribing(null);
             }
@@ -94,17 +137,23 @@ export default function AbonnementScreen() {
 
   const status = info?.status || 'none';
   const statusLabel =
-    status === 'active'
+    status === 'trial'
+      ? 'Essai gratuit 30 jours'
+      : status === 'active'
       ? 'Abonnement en cours'
       : status === 'pending'
-        ? 'En attente de validation'
+        ? info?.access
+          ? 'Demande en attente — essai encore actif'
+          : 'En attente de validation RAVE'
+        : status === 'grace'
+          ? 'Délai de grâce (5 jours)'
         : status === 'expired'
-          ? 'Abonnement expiré'
+          ? 'Abonnement expiré — hors catalogue'
           : 'Aucun abonnement';
   const statusColor =
-    status === 'active'
+    status === 'active' || status === 'trial'
       ? '#22C55E'
-      : status === 'pending'
+      : status === 'pending' || status === 'grace'
         ? '#F59E0B'
         : status === 'expired'
           ? '#EF4444'
@@ -143,18 +192,31 @@ export default function AbonnementScreen() {
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <View style={{ flex: 1 }}>
               <Text style={styles.statusLabel}>{statusLabel}</Text>
-              {status === 'active' && info?.daysRemaining != null ? (
+              {(status === 'active' || status === 'trial') && info?.daysRemaining != null ? (
                 <Text style={styles.statusMeta}>
-                  Renouvellement dans {info.daysRemaining} jour
+                  {status === 'trial' ? 'Fin d’essai' : 'Renouvellement'} dans {info.daysRemaining} jour
                   {info.daysRemaining > 1 ? 's' : ''}
                   {info.endsAt
                     ? ` (le ${new Date(info.endsAt).toLocaleDateString('fr-FR')})`
                     : ''}
                 </Text>
               ) : null}
+              {status === 'grace' && info?.graceDaysRemaining != null ? (
+                <Text style={styles.statusMeta}>
+                  Catalogue encore visible {info.graceDaysRemaining} jour
+                  {info.graceDaysRemaining > 1 ? 's' : ''}. Ensuite vos véhicules sont masqués.
+                </Text>
+              ) : null}
               {status === 'pending' ? (
                 <Text style={styles.statusMeta}>
-                  Réglez auprès de RAVE pour activer l’accès (véhicules / acceptation).
+                  {info?.access
+                    ? 'Votre essai reste actif. Finalisez le paiement Stripe : l’abonnement s’active instantanément.'
+                    : 'Finalisez le paiement Stripe pour réactiver l’accès (véhicules / acceptation).'}
+                </Text>
+              ) : null}
+              {status === 'expired' ? (
+                <Text style={styles.statusMeta}>
+                  Vos véhicules sont masqués du catalogue public. Choisissez une formule ci-dessous.
                 </Text>
               ) : null}
               {planLabel ? (
@@ -170,9 +232,20 @@ export default function AbonnementScreen() {
 
           <Text style={styles.sectionTitle}>Choisir une formule</Text>
           <Text style={styles.hint}>
-            Accès plateforme loueur. Paiement hors app auprès de RAVE — l’accès s’active après
-            validation (statut « en attente » puis « actif »).
+            Essai 30 jours à l’ouverture du compte. Ensuite paiement Stripe : l’accès s’active
+            dès confirmation du paiement. Après expiration : 5 jours de grâce, puis masquage du
+            catalogue.
           </Text>
+
+          {info?.paymentUrl && status !== 'active' ? (
+            <TouchableOpacity
+              style={styles.payNow}
+              activeOpacity={0.85}
+              onPress={() => openPayment(info.paymentUrl)}
+            >
+              <Text style={styles.payNowText}>Payer maintenant avec Stripe</Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             style={styles.planCard}
@@ -279,4 +352,12 @@ const styles = StyleSheet.create({
   planName: { fontSize: 18, fontWeight: '800', color: '#111' },
   planPrice: { fontSize: 18, fontWeight: '800', color: '#111' },
   planDesc: { marginTop: 6, fontSize: 13, color: '#6B7280' },
+  payNow: {
+    backgroundColor: '#635BFF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  payNowText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

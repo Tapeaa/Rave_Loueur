@@ -1,13 +1,12 @@
 import { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, Image, Linking } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, Image, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
-import { apiPost, setDriverSessionId } from '@/lib/api';
+import { apiPost, setDriverSessionId, secureStorage } from '@/lib/api';
 import { setDriverExternalId } from '@/lib/onesignal';
-import * as SecureStore from 'expo-secure-store';
 
 export default function ChauffeurLoginScreen() {
   const router = useRouter();
@@ -57,10 +56,14 @@ export default function ChauffeurLoginScreen() {
 
     try {
       // IMPORTANT : Envoyer les headers pour prouver que c'est la bonne version
-      const loginHeaders = {
-        'X-App-Supports-Menu-Burger': 'true',
-        'X-App-Version': '2.0.0'
-      };
+      // Sur le web, ces en-têtes déclenchent un preflight CORS refusé par le backend
+      // déjà déployé. Le serveur renvoie déjà requiresMenuBurger: true.
+      const loginHeaders = Platform.OS === 'web'
+        ? {}
+        : {
+            'X-App-Supports-Menu-Burger': 'true',
+            'X-App-Version': '2.0.0',
+          };
       
       console.log('[LOGIN] ✅ APP FINALE - Sending headers:', loginHeaders);
       console.log('[LOGIN] ✅ APP FINALE - MenuBurger component exists and will be displayed');
@@ -112,7 +115,7 @@ export default function ChauffeurLoginScreen() {
       if (data.success && data.driver && data.session) {
         await setDriverSessionId(data.session.id);
         setDriverExternalId(data.driver.id);
-        await SecureStore.setItemAsync('driverExternalId', data.driver.id);
+        await secureStorage.setItem('driverExternalId', data.driver.id);
         
         // Vérifier l'état des CGU pour le log
         console.log('[LOGIN] CGU status check:', {
@@ -164,72 +167,72 @@ export default function ChauffeurLoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('@/assets/images/logolandingchauffeur.png')}
-            style={styles.logo}
-            resizeMode="contain"
+        <View>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('@/assets/images/logolandingchauffeur.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+
+          <View style={styles.header}>
+            <Text variant="h1">Accès Loueur</Text>
+            <Text variant="body" style={styles.subtitle}>
+              Entrez le code d’accès à 6 chiffres fourni par RAVE.
+            </Text>
+            <Text variant="caption" style={styles.hint}>
+              Les comptes loueur sont créés uniquement par l’équipe RAVE. Vous ne pouvez pas vous inscrire seul.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.form}>
+          <View style={styles.codeContainer}>
+            {code.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(ref) => (inputRefs.current[index] = ref)}
+                style={[
+                  styles.codeInput,
+                  digit ? styles.codeInputFilled : null,
+                  error ? styles.codeInputError : null,
+                ]}
+                value={digit}
+                onChangeText={(value) => handleCodeChange(value, index)}
+                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
+                keyboardType="number-pad"
+                maxLength={6}
+                selectTextOnFocus
+              />
+            ))}
+          </View>
+
+          {error ? (
+            <Text variant="caption" style={styles.errorText}>
+              {error}
+            </Text>
+          ) : null}
+
+          <Button
+            title="Se connecter"
+            onPress={handleLogin}
+            loading={isLoading}
+            disabled={isLoading || code.some((d) => !d)}
+            fullWidth
+            style={styles.loginButton}
+            accessibilityLabel="Se connecter avec votre code à 6 chiffres"
+            accessibilityRole="button"
+            accessibilityHint="Connecte le loueur à son compte après avoir entré le code d'accès"
           />
         </View>
 
-        <View style={styles.header}>
-          <Text variant="h1">Accès Loueur</Text>
-          <Text variant="body" style={styles.subtitle}>
-            Entrez le code d’accès à 6 chiffres fourni par RAVE.
-          </Text>
-          <Text variant="caption" style={styles.hint}>
-            Les comptes loueur sont créés uniquement par l’équipe RAVE. Vous ne pouvez pas vous inscrire seul.
-          </Text>
-        </View>
-
-        <View style={styles.codeContainer}>
-          {code.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => (inputRefs.current[index] = ref)}
-              style={[
-                styles.codeInput,
-                digit ? styles.codeInputFilled : null,
-                error ? styles.codeInputError : null,
-              ]}
-              value={digit}
-              onChangeText={(value) => handleCodeChange(value, index)}
-              onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-              keyboardType="number-pad"
-              maxLength={6}
-              selectTextOnFocus
-            />
-          ))}
-        </View>
-
-        {error ? (
-          <Text variant="caption" style={styles.errorText}>
-            {error}
-          </Text>
-        ) : null}
-
-        <Button
-          title="Se connecter"
-          onPress={handleLogin}
-          loading={isLoading}
-          disabled={isLoading || code.some((d) => !d)}
-          fullWidth
-          style={styles.loginButton}
-          accessibilityLabel="Se connecter avec votre code à 6 chiffres"
-          accessibilityRole="button"
-          accessibilityHint="Connecte le loueur à son compte après avoir entré le code d'accès"
-        />
-
         <View style={styles.legalRow}>
           <TouchableOpacity onPress={() => router.push('/(auth)/cgu')}>
-            <Text style={styles.legalText}>CGU</Text>
+            <Text style={styles.legalText}>CGS Pro</Text>
           </TouchableOpacity>
           <Text style={styles.legalSep}>·</Text>
-          <TouchableOpacity
-            onPress={() => {
-              Linking.openURL('https://rave-location.com/politique-de-confidentialite/').catch(() => {});
-            }}
-          >
+          <TouchableOpacity onPress={() => router.push('/(auth)/confidentialite')}>
             <Text style={styles.legalText}>Confidentialité</Text>
           </TouchableOpacity>
         </View>
@@ -245,18 +248,25 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    justifyContent: 'space-between',
   },
   logoContainer: {
     alignItems: 'center',
-    marginVertical: 40,
+    marginTop: 12,
+    marginBottom: 28,
   },
   logo: {
-    width: 180,
-    height: 50,
+    width: 160,
+    height: 44,
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 8,
+  },
+  form: {
+    width: '100%',
   },
   subtitle: {
     color: '#6b7280',
@@ -271,7 +281,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 28,
+    paddingVertical: 12,
     gap: 8,
   },
   legalText: {
@@ -285,17 +295,20 @@ const styles = StyleSheet.create({
   },
   codeContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
+    width: '100%',
+    marginBottom: 20,
     gap: 8,
   },
   codeInput: {
-    flex: 1,
-    height: 56,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    height: 52,
     borderWidth: 2,
     borderColor: '#e5e7eb',
     borderRadius: 12,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
     color: '#1a1a1a',

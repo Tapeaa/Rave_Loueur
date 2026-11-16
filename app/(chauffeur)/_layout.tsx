@@ -91,6 +91,7 @@ export default function ChauffeurLayout() {
         <Stack.Screen name="profil" />
         <Stack.Screen name="abonnement" />
         <Stack.Screen name="conditions-utilisation" />
+        <Stack.Screen name="confidentialite" />
         <Stack.Screen name="messages" />
         <Stack.Screen name="chat" />
         <Stack.Screen name="course-details/[id]" />

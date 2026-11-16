@@ -30,9 +30,9 @@ import {
   getPendingRentalOrders,
   acceptRentalOrder,
   declineRentalOrder,
+  secureStorage,
 } from '@/lib/api';
 import { setDriverExternalId, addDriverTag, addDriverTags } from '@/lib/onesignal';
-import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   connectSocket,
@@ -147,13 +147,13 @@ export default function ChauffeurHomeScreen() {
             setDriverName(`${driver.firstName || ''} ${driver.lastName || ''}`.trim());
           }
           
-          const cguAcceptedInStorage = await SecureStore.getItemAsync(`driver_${id}_cgu_accepted`);
+          const cguAcceptedInStorage = await secureStorage.getItem(`driver_${id}_cgu_accepted`);
           if (cguAcceptedInStorage !== 'true' && driver.cguAccepted !== true) {
             router.replace('/(chauffeur)/legal');
             return;
           }
         } else {
-          const cguAcceptedInStorage = await SecureStore.getItemAsync(`driver_${sid}_cgu_accepted`);
+          const cguAcceptedInStorage = await secureStorage.getItem(`driver_${sid}_cgu_accepted`);
           if (cguAcceptedInStorage !== 'true') {
             router.replace('/(chauffeur)/legal');
             return;
@@ -165,7 +165,7 @@ export default function ChauffeurHomeScreen() {
           router.replace('/(chauffeur)/login');
           return;
         }
-        const cguAcceptedInStorage = await SecureStore.getItemAsync(`driver_${sid}_cgu_accepted`);
+        const cguAcceptedInStorage = await secureStorage.getItem(`driver_${sid}_cgu_accepted`);
         if (cguAcceptedInStorage !== 'true') {
           router.replace('/(chauffeur)/legal');
           return;
@@ -179,7 +179,7 @@ export default function ChauffeurHomeScreen() {
       if (!isTestSession) {
         try {
           const session = await apiFetch<{ isOnline: boolean }>(`/api/driver-sessions/${sid}`);
-          const savedOnlineStatus = await SecureStore.getItemAsync(`driver_${sid}_isOnline`);
+          const savedOnlineStatus = await secureStorage.getItem(`driver_${sid}_isOnline`);
           const localWasOnline = savedOnlineStatus === 'true';
           
           if (!session.isOnline && localWasOnline) {
@@ -191,7 +191,7 @@ export default function ChauffeurHomeScreen() {
             wasOnline = session.isOnline;
           }
         } catch {
-          const savedOnlineStatus = await SecureStore.getItemAsync(`driver_${sid}_isOnline`);
+          const savedOnlineStatus = await secureStorage.getItem(`driver_${sid}_isOnline`);
           if (savedOnlineStatus === 'true') {
             setIsOnline(true);
             wasOnline = true;
@@ -391,7 +391,7 @@ export default function ChauffeurHomeScreen() {
     if (!sessionId) return;
     setIsOnline(value);
     addDriverTag('status', value ? 'online' : 'offline');
-    try { await SecureStore.setItemAsync(`driver_${sessionId}_isOnline`, value ? 'true' : 'false'); } catch {}
+    try { await secureStorage.setItem(`driver_${sessionId}_isOnline`, value ? 'true' : 'false'); } catch {}
     try { await apiPatch(`/api/driver-sessions/${sessionId}/status`, { isOnline: value }); } catch {}
     updateDriverStatus(sessionId, value);
     // Ne plus vider les demandes location en passant « hors ligne » (legacy taxi)
