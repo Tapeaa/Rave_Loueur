@@ -32,6 +32,8 @@ export default function AbonnementScreen() {
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [info, setInfo] = useState<LoueurSubscriptionInfo | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevStatusRef = useRef<string | null>(null);
+  const thanksShownRef = useRef(false);
 
   const stopPoll = useCallback(() => {
     if (pollRef.current) {
@@ -44,7 +46,21 @@ export default function AbonnementScreen() {
     try {
       if (!opts?.silent) setLoading(true);
       const data = await getDriverSubscription();
+      const prev = prevStatusRef.current;
       setInfo(data);
+      if (
+        data.status === 'active' &&
+        (prev === 'pending' || prev === 'expired' || prev === 'grace' || prev === 'trial') &&
+        !thanksShownRef.current
+      ) {
+        thanksShownRef.current = true;
+        stopPoll();
+        Alert.alert(
+          'Merci pour votre abonnement',
+          'Votre paiement a été validé. L’abonnement est payé et en cours. Vous avez accès à toute l’application.'
+        );
+      }
+      prevStatusRef.current = data.status;
       if (data.status === 'active') stopPoll();
     } catch (e) {
       if (e instanceof SessionExpiredError) {
@@ -133,7 +149,7 @@ export default function AbonnementScreen() {
     status === 'trial'
       ? 'Essai gratuit 30 jours'
       : status === 'active'
-      ? 'Abonnement en cours'
+      ? 'Abonnement payé et en cours'
       : status === 'pending'
         ? info?.access
           ? 'Demande en attente — essai encore actif'
@@ -172,6 +188,19 @@ export default function AbonnementScreen() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
         >
+          {status === 'active' ? (
+            <View style={styles.paidBanner}>
+              <Text style={styles.paidBannerTitle}>Abonnement payé et en cours</Text>
+              {info?.daysRemaining != null ? (
+                <Text style={styles.paidBannerMeta}>
+                  {info.daysRemaining} jour{info.daysRemaining > 1 ? 's' : ''} restants
+                  {info.endsAt
+                    ? ` · jusqu’au ${new Date(info.endsAt).toLocaleDateString('fr-FR')}`
+                    : ''}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           <View style={[styles.statusCard, { borderColor: statusColor + '55' }]}>
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <View style={{ flex: 1 }}>
@@ -294,6 +323,26 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
+  paidBanner: {
+    backgroundColor: '#059669',
+    borderRadius: 16,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  paidBannerTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  paidBannerMeta: {
+    marginTop: 8,
+    color: '#D1FAE5',
+    fontSize: 14,
+    textAlign: 'center',
+  },
   statusLabel: { fontSize: 16, fontWeight: '700', color: '#111' },
   statusMeta: { marginTop: 4, fontSize: 13, color: '#6B7280', lineHeight: 18 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 6 },
