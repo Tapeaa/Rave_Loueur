@@ -221,11 +221,12 @@ export default function AbonnementScreen() {
             catalogue.
           </Text>
 
-          {info?.paymentUrl && status !== 'active' ? (
+          {status !== 'active' && plans.monthly ? (
             <TouchableOpacity
               style={styles.payNow}
               activeOpacity={0.85}
-              onPress={() => openPayment(info.paymentUrl)}
+              disabled={!!subscribing}
+              onPress={() => onSubscribe('monthly')}
             >
               <Text style={styles.payNowText}>Payer maintenant avec Stripe</Text>
             </TouchableOpacity>
