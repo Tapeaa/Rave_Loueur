@@ -26,11 +26,6 @@ import {
 
 type PlanKey = 'monthly' | 'semiannual';
 
-const FALLBACK_PLANS = {
-  monthly: { id: 'monthly' as const, label: 'Mensuel', amountXpf: 5000, days: 30 },
-  semiannual: { id: 'semiannual' as const, label: '6 mois', amountXpf: 30000, days: 180 },
-};
-
 export default function AbonnementScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -102,13 +97,11 @@ export default function AbonnementScreen() {
     await Linking.openURL(url);
   };
 
-  const plans = {
-    monthly: info?.plans?.monthly || FALLBACK_PLANS.monthly,
-    semiannual: info?.plans?.semiannual || FALLBACK_PLANS.semiannual,
-  };
+  const plans = info?.plans || {};
 
   const onSubscribe = (plan: PlanKey) => {
     const def = plans[plan];
+    if (!def) return;
     Alert.alert(
       `Abonnement ${def.label}`,
       `Payer ${def.amountXpf.toLocaleString('fr-FR')} XPF via Stripe ?\n\nDès que le paiement est validé, l’accès à l’app est activé automatiquement.`,
@@ -160,16 +153,7 @@ export default function AbonnementScreen() {
           : '#6B7280';
 
   const planLabel =
-    info?.plan === 'semiannual'
-      ? plans.semiannual.label
-      : info?.plan === 'monthly'
-        ? plans.monthly.label
-        : info?.plan || null;
-
-  const monthlyEq =
-    plans.semiannual.days > 0
-      ? Math.round(plans.semiannual.amountXpf / (plans.semiannual.days / 30))
-      : plans.semiannual.amountXpf;
+    (info?.plan && plans[info.plan as PlanKey]?.label) || info?.plan || null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -247,50 +231,37 @@ export default function AbonnementScreen() {
             </TouchableOpacity>
           ) : null}
 
-          <TouchableOpacity
-            style={styles.planCard}
-            activeOpacity={0.85}
-            disabled={!!subscribing}
-            onPress={() => onSubscribe('monthly')}
-          >
-            <View style={styles.planTop}>
-              <Text style={styles.planName}>{plans.monthly.label}</Text>
-              {subscribing === 'monthly' ? (
-                <ActivityIndicator color="#171717" />
-              ) : (
-                <Text style={styles.planPrice}>
-                  {plans.monthly.amountXpf.toLocaleString('fr-FR')} XPF
-                </Text>
-              )}
-            </View>
-            <Text style={styles.planDesc}>
-              {plans.monthly.days} jours d’accès · renouvelable
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.planCard, styles.planCardHighlight]}
-            activeOpacity={0.85}
-            disabled={!!subscribing}
-            onPress={() => onSubscribe('semiannual')}
-          >
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Économie</Text>
-            </View>
-            <View style={styles.planTop}>
-              <Text style={styles.planName}>{plans.semiannual.label}</Text>
-              {subscribing === 'semiannual' ? (
-                <ActivityIndicator color="#171717" />
-              ) : (
-                <Text style={styles.planPrice}>
-                  {plans.semiannual.amountXpf.toLocaleString('fr-FR')} XPF
-                </Text>
-              )}
-            </View>
-            <Text style={styles.planDesc}>
-              {plans.semiannual.days} jours · {monthlyEq.toLocaleString('fr-FR')} XPF / mois équivalent
-            </Text>
-          </TouchableOpacity>
+          {(['monthly', 'semiannual'] as const)
+            .filter((key) => plans[key])
+            .map((key) => {
+              const def = plans[key]!;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={[styles.planCard, key === 'semiannual' && styles.planCardHighlight]}
+                  activeOpacity={0.85}
+                  disabled={!!subscribing}
+                  onPress={() => onSubscribe(key)}
+                >
+                  {key === 'semiannual' ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>Économie</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.planTop}>
+                    <Text style={styles.planName}>{def.label}</Text>
+                    {subscribing === key ? (
+                      <ActivityIndicator color="#171717" />
+                    ) : (
+                      <Text style={styles.planPrice}>
+                        {def.amountXpf.toLocaleString('fr-FR')} XPF
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.planDesc}>{def.days} jours d’accès · renouvelable</Text>
+                </TouchableOpacity>
+              );
+            })}
         </ScrollView>
       )}
     </SafeAreaView>
