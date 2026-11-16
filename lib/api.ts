@@ -827,6 +827,7 @@ export type LoueurSubscriptionInfo = {
   access?: boolean;
   catalogVisible?: boolean;
   pending?: boolean;
+  waitingFirstVehicle?: boolean;
   paymentUrl?: string | null;
   plans?: Record<string, { id: string; label: string; amountXpf: number; days: number }>;
 };

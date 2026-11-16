@@ -145,9 +145,13 @@ export default function AbonnementScreen() {
   };
 
   const status = info?.status || 'none';
-  const statusLabel =
-    status === 'trial'
-      ? 'Essai gratuit 30 jours'
+  const waitingFirstVehicle = !!info?.waitingFirstVehicle;
+  const statusLabel = waitingFirstVehicle
+    ? "Veuillez créer votre premier véhicule pour activer votre période d'essai, ou payer l'abonnement Tape'ā"
+    : status === 'trial'
+      ? info?.daysRemaining != null
+        ? `Période d'essai lancée · ${info.daysRemaining} jour${info.daysRemaining > 1 ? 's' : ''} restant${info.daysRemaining > 1 ? 's' : ''}`
+        : "Période d'essai lancée"
       : status === 'active'
       ? 'Abonnement payé et en cours'
       : status === 'pending'
@@ -160,7 +164,9 @@ export default function AbonnementScreen() {
           ? 'Abonnement expiré — hors catalogue'
           : 'Aucun abonnement';
   const statusColor =
-    status === 'active' || status === 'trial'
+    waitingFirstVehicle
+      ? '#F59E0B'
+      : status === 'active' || status === 'trial'
       ? '#22C55E'
       : status === 'pending' || status === 'grace'
         ? '#F59E0B'
@@ -205,7 +211,7 @@ export default function AbonnementScreen() {
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <View style={{ flex: 1 }}>
               <Text style={styles.statusLabel}>{statusLabel}</Text>
-              {(status === 'active' || status === 'trial') && info?.daysRemaining != null ? (
+              {!waitingFirstVehicle && (status === 'active' || status === 'trial') && info?.daysRemaining != null ? (
                 <Text style={styles.statusMeta}>
                   {status === 'trial' ? 'Fin d’essai' : 'Renouvellement'} dans {info.daysRemaining} jour
                   {info.daysRemaining > 1 ? 's' : ''}
@@ -245,9 +251,9 @@ export default function AbonnementScreen() {
 
           <Text style={styles.sectionTitle}>Choisir une formule</Text>
           <Text style={styles.hint}>
-            Essai 30 jours à l’ouverture du compte. Ensuite paiement Stripe : l’accès s’active
-            dès confirmation du paiement. Après expiration : 5 jours de grâce, puis masquage du
-            catalogue.
+            L’essai 30 jours démarre dès que vous publiez votre premier véhicule visible sur
+            l’app client. Vous pouvez aussi payer l’abonnement Tape'ā tout de suite. Après
+            expiration : 5 jours de grâce, puis masquage du catalogue.
           </Text>
 
           {status !== 'active' && plans.monthly ? (
