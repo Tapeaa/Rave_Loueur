@@ -229,13 +229,14 @@ export default function CourseDetailsScreen() {
       vehicleName: rideOpt?.title || 'Véhicule',
       vehicleCategory: rideOpt?.categoryLabel || rideOpt?.category || '',
       days: rideOpt?.days || 0,
-      pricePerDay: (rideOpt?.price || 0) / Math.max(1, rideOpt?.days || 1),
+      pricePerDay: Number(rideOpt?.pricingBreakdown?.[0]?.pricePerDay) || rideOpt?.price || 0,
       startDate: rideOpt?.startDate,
       endDate: rideOpt?.endDate,
       pickupAddress: rideOpt?.pickupLocation,
     };
     const clientName = order.clientName || 'Client';
-    const loueurName = (order as any).driverName || (order as any).driver?.name || 'Loueur';
+    const loueurName = rideOpt?.owner || (order as any).driverName || (order as any).driver?.name || 'Loueur';
+    const loueurTahiti = rideOpt?.ownerNumeroTahiti || '';
     const signatureImg = rideOpt?.clientSignatureSvg || '';
     const loueurSigFromDb = rideOpt?.loueurSignatureSvg || '';
     const effectiveLoueurSig = loueurSigFromDb || loueurSignature || '';
@@ -278,7 +279,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
 <h3>Article 5 - Assurance</h3><p>Véhicule couvert par l'assurance du loueur. Le locataire reste responsable des infractions.</p>
 <div class="sig-section">
 <div class="sig-box"><div class="sig-label">Le locataire</div><div class="sig-name">${sigName}</div>${signatureImg ? `<div class="sig-image"><img src="${signatureImg}" alt="Signature"/></div><div class="signed-info">✓ Signé le ${signedDate}${signedTime ? ' à ' + signedTime : ''}</div>` : `<div class="sig-image"><span class="pending">Non signé</span></div>`}</div>
-<div class="sig-box"><div class="sig-label">Le loueur</div><div class="sig-name">${loueurName}</div>${effectiveLoueurSig ? `<div class="sig-image"><img src="${effectiveLoueurSig}" alt="Signature loueur"/></div><div class="signed-info">✓ Signé</div>` : `<div class="sig-image"><span class="pending">En attente</span></div>`}</div>
+<div class="sig-box"><div class="sig-label">Le loueur</div><div class="sig-name">${loueurName}</div>${loueurTahiti ? `<div class="sig-label">N° Tahiti : ${loueurTahiti}</div>` : ''}${effectiveLoueurSig ? `<div class="sig-image"><img src="${effectiveLoueurSig}" alt="Signature loueur"/></div><div class="signed-info">✓ Signé</div>` : `<div class="sig-image"><span class="pending">En attente</span></div>`}</div>
 </div>
 <div class="footer">Document généré par RAVE • Plateforme de location de véhicules</div>
 </body></html>`;
@@ -379,13 +380,13 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
   const rentalData = rideOpt?.rentalData || (rentalLike ? {
     vehicleName: rideOpt?.title || 'Véhicule',
     days: rideOpt?.days || 1,
-    pricePerDay: (rideOpt?.price || 0) / Math.max(1, rideOpt?.days || 1),
+    pricePerDay: Number(rideOpt?.pricingBreakdown?.[0]?.pricePerDay) || rideOpt?.price || 0,
     startDate: rideOpt?.startDate,
     endDate: rideOpt?.endDate,
     pickupAddress: rideOpt?.pickupLocation,
     options: order.supplements?.map((s: any) => ({
       name: s.name || s.id,
-      pricePerDay: (s.price || 0) / Math.max(1, rideOpt?.days || 1),
+      pricePerDay: Number(s.price ?? s.pricePerDay ?? 0),
     })) || [],
   } : null);
   const hasClientSignature = !!(
@@ -788,7 +789,10 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                   {rentalData.vehicleName} × {rentalData.days}j
                 </Text>
                 <Text style={styles.priceValue}>
-                  {formatPrice((rentalData.pricePerDay || 0) * (rentalData.days || 1))}
+                  {formatPrice(
+                    Number(rentalData.vehicleSubtotal ?? rideOpt?.pricingSubtotal) ||
+                      (rentalData.pricePerDay || 0) * (rentalData.days || 1)
+                  )}
                 </Text>
               </View>
               {rentalData.options && rentalData.options.length > 0 && rentalData.options.map((opt: any, idx: number) => (

@@ -13,7 +13,9 @@ export const RAVE_CONTRACT_CSS = `
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
 body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111827;background:#fff;padding:16px}
-.page{background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:28px 24px;max-width:600px;margin:0 auto;overflow:hidden}
+.page{background:#fff;border-radius:12px;border:1px solid #E5E7EB;padding:28px 24px;max-width:600px;margin:0 auto}
+.party,.vehicle-box,.info-card,.total-row,.signature-box,.summary-row,tr{page-break-inside:avoid;break-inside:avoid}
+.section-title{page-break-after:avoid;break-after:avoid}
 .header{text-align:center;border-bottom:2px solid #059669;padding-bottom:18px;margin-bottom:20px}
 .logo{font-size:28px;font-weight:900;color:#047857;letter-spacing:2px}
 .logo-sub{font-size:11px;color:#374151;letter-spacing:1px;margin-top:2px;font-weight:600}
@@ -64,7 +66,7 @@ li{font-size:12px;color:#1F2937;margin-bottom:3px;line-height:1.55}
 }
 @media print{
   body{background:#fff;padding:0;color:#000}
-  .page{box-shadow:none;border:none;max-width:none;padding:12px}
+  .page{box-shadow:none;border:none;border-radius:0;max-width:none;padding:12px;overflow:visible}
   .section-title,.logo,.field,.vehicle-cat{color:#065F46 !important}
   .total-row{background:#D1FAE5 !important;border:2px solid #047857 !important}
   .total-label,.total-val{color:#064E3B !important}
