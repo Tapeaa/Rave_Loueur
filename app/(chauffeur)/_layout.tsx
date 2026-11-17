@@ -17,6 +17,7 @@ import {
   getDriverSessionId,
   fetchPendingCancelRequests,
 } from '@/lib/api';
+import { onNotificationClicked } from '@/lib/onesignal';
 
 const RESYNC_INTERVAL_MS = 45000;
 
@@ -99,6 +100,27 @@ export default function ChauffeurLayout() {
       refreshOrderLists();
     });
     const unsubConnect = onSocketConnected(() => { void resync(); });
+    const unsubNotifClick = onNotificationClicked((notification) => {
+      const data = notification?.additionalData || {};
+      const type = String(data.type || '');
+      const orderId = data.orderId ? String(data.orderId) : '';
+      if (type === 'support_message') {
+        router.push('/(chauffeur)/support-chat' as any);
+        return;
+      }
+      if ((type === 'new_message' || type === 'admin_message') && orderId) {
+        router.push({ pathname: '/(chauffeur)/chat', params: { orderId } } as any);
+        return;
+      }
+      if (type === 'new_rental_order' || type === 'new_order') {
+        // Les nouvelles demandes en attente s'examinent depuis l'accueil loueur
+        router.replace('/(chauffeur)' as any);
+        return;
+      }
+      if (orderId) {
+        router.push(`/(chauffeur)/course-details/${orderId}` as any);
+      }
+    });
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') void resync();
     });
@@ -108,6 +130,7 @@ export default function ChauffeurLayout() {
       unsubCancelled();
       unsubRejected();
       unsubConnect();
+      unsubNotifClick();
       appStateSub.remove();
       clearInterval(interval);
     };
