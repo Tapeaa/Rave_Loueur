@@ -26,7 +26,7 @@ const menuItems: MenuItem[] = [
   { id: 'messages', title: 'Messages', icon: 'chatbubbles-outline', route: '/(chauffeur)/messages' },
 ];
 
-export default function MenuBurger() {
+export default function MenuBurger({ variant = 'light' }: { variant?: 'light' | 'dark' } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [menuKey, setMenuKey] = useState(0);
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
@@ -123,12 +123,12 @@ export default function MenuBurger() {
     <>
       <TouchableOpacity 
         onPress={openMenu} 
-        style={styles.burgerButton}
+        style={[styles.burgerButton, variant === 'dark' && styles.burgerButtonDark]}
         accessibilityLabel="Ouvrir le menu de navigation"
         accessibilityRole="button"
         accessibilityHint="Affiche le menu avec les options de navigation"
       >
-        <Ionicons name="menu" size={24} color="#1a1a1a" />
+        <Ionicons name="menu" size={24} color={variant === 'dark' ? '#FFFFFF' : '#1a1a1a'} />
       </TouchableOpacity>
 
       <Modal
@@ -248,6 +248,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  burgerButtonDark: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   modalContainer: {
     flex: 1,

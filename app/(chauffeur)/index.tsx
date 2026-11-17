@@ -12,6 +12,7 @@ import {
   Linking,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
@@ -630,57 +631,68 @@ export default function ChauffeurHomeScreen() {
     });
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle('light');
+      return () => setStatusBarStyle('dark');
+    }, [])
+  );
+
   // ═══ RENDER ═══
   return (
     <View style={s.container}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
         <View style={s.header}>
-          <MenuBurger />
+          <MenuBurger variant="dark" />
           <Image source={require('@/assets/images/rave-header-logo.png')} style={s.logo} resizeMode="contain" />
           <TouchableOpacity style={s.settingsBtn} onPress={() => router.push('/(chauffeur)/profil')}>
-            <Ionicons name="settings-outline" size={22} color="#1a1a1a" />
+            <Ionicons name="settings-outline" size={21} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
         <ScrollView
-          style={{ flex: 1 }}
+          style={{ flex: 1, backgroundColor: '#FFFFFF' }}
           contentContainerStyle={s.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4ECC8B']} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4ECC8B']} tintColor="#FFFFFF" />
+          }
         >
-          {/* Welcome + Status Card */}
-          <View style={s.statusCard}>
-            <View style={s.statusTopRow}>
-              <View style={s.statusLeft}>
-                <Text style={s.welcomeText}>{formatTodayLabel()}</Text>
-                <Text style={s.driverNameText} numberOfLines={1}>
-                  Bonjour, {driverName.split(' ')[0] || driverName}
+          <View style={s.heroOverscroll} />
+          <View style={s.hero}>
+            <View style={s.heroTopRow}>
+              <Text style={s.welcomeText}>{formatTodayLabel()}</Text>
+              <View style={s.connectionRow}>
+                <View style={[s.connDot, connectionStatus === 'connected' ? s.connGreen : s.connRed]} />
+                <Text style={s.connText}>
+                  {connectionStatus === 'connected'
+                    ? 'En ligne'
+                    : connectionStatus === 'connecting' ? 'Connexion…' : 'Hors ligne'}
                 </Text>
               </View>
-              <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.7}>
-                <Text style={s.earningsLabel}>Gains du mois</Text>
-                <View style={s.earningsValueRow}>
-                  <Text style={s.earningsValue}>{monthEarnings === null ? '-' : formatCompactXpf(monthEarnings)}</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#4ECC8B" />
+            </View>
+            <Text style={s.driverNameText} numberOfLines={1}>
+              Bonjour, {driverName.split(' ')[0] || driverName}
+            </Text>
+
+            <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.8}>
+              <Text style={s.earningsLabel}>Gains du mois</Text>
+              <View style={s.earningsValueRow}>
+                <Text style={s.earningsValue} numberOfLines={1}>
+                  {monthEarnings === null ? '–' : formatCompactXpf(monthEarnings)}
+                </Text>
+                <View style={s.earningsArrow}>
+                  <Ionicons name="arrow-forward" size={16} color="#121212" />
                 </View>
-              </TouchableOpacity>
-            </View>
-            <View style={[s.connectionRow, connectionStatus === 'connected' ? s.connPillOn : s.connPillOff]}>
-              <View style={[s.connDot, connectionStatus === 'connected' ? s.connGreen : s.connRed]} />
-              <Text style={[s.connText, { color: connectionStatus === 'connected' ? '#15803D' : '#B91C1C' }]}>
-                {connectionStatus === 'connected'
-                  ? 'En ligne · demandes en temps réel'
-                  : connectionStatus === 'connecting' ? 'Connexion…' : 'Hors ligne · reconnexion…'}
-              </Text>
-            </View>
-          </View>
+              </View>
+            </TouchableOpacity>
 
           <View style={s.statsRow}>
             {[
-              { key: 'pending', icon: 'time-outline', color: '#F59E0B', bg: '#FEF3C7', value: String(pendingOrders.length), label: 'Demandes', route: null },
-              { key: 'upcoming', icon: 'calendar-outline', color: '#3B82F6', bg: '#DBEAFE', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
-              { key: 'active', icon: 'car-sport-outline', color: '#22C55E', bg: '#DCFCE7', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },
+              { key: 'pending', icon: 'time-outline', color: '#FBBF24', value: String(pendingOrders.length), label: 'Demandes', route: null },
+              { key: 'upcoming', icon: 'calendar-outline', color: '#60A5FA', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
+              { key: 'active', icon: 'car-sport-outline', color: '#4ECC8B', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },
             ].map((chip) => (
               <TouchableOpacity
                 key={chip.key}
@@ -689,7 +701,7 @@ export default function ChauffeurHomeScreen() {
                 disabled={!chip.route}
                 onPress={() => chip.route && router.push(chip.route as any)}
               >
-                <View style={[s.statChipIcon, { backgroundColor: chip.bg }]}>
+                <View style={[s.statChipIcon, { backgroundColor: chip.color + '26' }]}>
                   <Ionicons name={chip.icon as any} size={15} color={chip.color} />
                 </View>
                 <View style={s.statChipText}>
@@ -699,6 +711,9 @@ export default function ChauffeurHomeScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          </View>
+
+          <View style={s.sheet}>
 
           {/* À traiter */}
           {(dashboard.cancelRequestCount > 0 || dashboard.refundPendingCount > 0 || unreadClientMessages > 0 || fleet?.total === 0) && (
@@ -1047,6 +1062,7 @@ export default function ChauffeurHomeScreen() {
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
           )}
+          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -1055,65 +1071,65 @@ export default function ChauffeurHomeScreen() {
   );
 }
 
+const HERO_BG = '#121212';
+
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: HERO_BG },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+    paddingHorizontal: 20, paddingVertical: 10,
+    backgroundColor: HERO_BG,
   },
-  logo: { width: 60, height: 20 },
+  logo: { width: 66, height: 22, tintColor: '#FFFFFF' },
   settingsBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center',
   },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: { flexGrow: 1 },
 
-  // Status Card
-  statusCard: { marginHorizontal: 20, paddingTop: 18, paddingBottom: 4 },
-  statusTopRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  statusLeft: { flex: 1, paddingRight: 16 },
-  earningsBox: { alignItems: 'flex-end' },
-  earningsLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
-  earningsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
-  earningsValue: { fontSize: 22, fontWeight: '800', color: '#4ECC8B' },
-  welcomeText: { fontSize: 13, color: '#9CA3AF', fontWeight: '600', textTransform: 'capitalize' },
-  driverNameText: { fontSize: 26, fontWeight: '800', color: '#1a1a1a', marginTop: 2, letterSpacing: -0.4 },
+  // Hero
+  heroOverscroll: { position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: HERO_BG },
+  hero: { backgroundColor: HERO_BG, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 44 },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  welcomeText: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600', textTransform: 'capitalize' },
+  driverNameText: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', marginTop: 4, letterSpacing: -0.5 },
   connectionRow: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
-    marginTop: 12, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  connPillOn: { backgroundColor: '#F0FDF4' },
-  connPillOff: { backgroundColor: '#FEF2F2' },
   connDot: { width: 7, height: 7, borderRadius: 4 },
-  connGreen: { backgroundColor: '#22C55E' },
+  connGreen: { backgroundColor: '#4ECC8B' },
   connRed: { backgroundColor: '#EF4444' },
-  connText: { fontSize: 12, fontWeight: '600' },
-  statusRight: { alignItems: 'center' },
-  statusIndicator: {
-    width: 56, height: 56, borderRadius: 28,
+  connText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  earningsBox: { marginTop: 22 },
+  earningsLabel: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
+  earningsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
+  earningsValue: { flexShrink: 1, fontSize: 40, fontWeight: '800', color: '#4ECC8B', letterSpacing: -1 },
+  earningsArrow: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: '#4ECC8B',
     justifyContent: 'center', alignItems: 'center',
   },
-  statusOn: { backgroundColor: '#DCFCE7' },
-  statusOff: { backgroundColor: '#F3F4F6' },
-  statusLabel: { fontSize: 10, fontWeight: '800', marginTop: 4, letterSpacing: 1 },
 
   // Stats
-  statsRow: {
-    flexDirection: 'row', gap: 8, marginHorizontal: 20, marginTop: 16,
-    paddingBottom: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
-  },
+  statsRow: { flexDirection: 'row', gap: 8, marginTop: 22 },
   statChip: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F7F7F8', borderRadius: 999, paddingVertical: 7, paddingLeft: 7, paddingRight: 10,
+    backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 999,
+    paddingVertical: 8, paddingLeft: 8, paddingRight: 10,
   },
   statChipText: { flex: 1 },
   statChipIcon: {
-    width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center',
+    width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center',
   },
-  statChipValue: { fontSize: 15, fontWeight: '800', color: '#1a1a1a', lineHeight: 18 },
-  statChipLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
+  statChipValue: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', lineHeight: 19 },
+  statChipLabel: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
+
+  // Feuille blanche
+  sheet: {
+    flexGrow: 1, backgroundColor: '#FFFFFF', marginTop: -24,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 10, paddingBottom: 40,
+  },
 
   // À traiter
   todoSection: { marginHorizontal: 20, marginTop: 14, gap: 8 },
