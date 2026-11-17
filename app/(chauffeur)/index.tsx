@@ -651,25 +651,29 @@ export default function ChauffeurHomeScreen() {
         >
           {/* Welcome + Status Card */}
           <View style={s.statusCard}>
-            <View style={s.statusLeft}>
-              <Text style={s.welcomeText}>{formatTodayLabel()}</Text>
-              <Text style={s.driverNameText}>Bonjour, {driverName.split(' ')[0] || driverName}</Text>
-              <View style={s.connectionRow}>
-                <View style={[s.connDot, connectionStatus === 'connected' ? s.connGreen : s.connRed]} />
-                <Text style={s.connText}>
-                  {connectionStatus === 'connected'
-                    ? 'Connecté — demandes reçues en temps réel'
-                    : connectionStatus === 'connecting' ? 'Connexion...' : 'Déconnecté — reconnexion en cours'}
+            <View style={s.statusTopRow}>
+              <View style={s.statusLeft}>
+                <Text style={s.welcomeText}>{formatTodayLabel()}</Text>
+                <Text style={s.driverNameText} numberOfLines={1}>
+                  Bonjour, {driverName.split(' ')[0] || driverName}
                 </Text>
               </View>
+              <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.7}>
+                <Text style={s.earningsLabel}>Gains du mois</Text>
+                <View style={s.earningsValueRow}>
+                  <Text style={s.earningsValue}>{monthEarnings === null ? '-' : formatCompactXpf(monthEarnings)}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#4ECC8B" />
+                </View>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.7}>
-              <View style={s.earningsIcon}>
-                <Ionicons name="wallet-outline" size={16} color="#4ECC8B" />
-              </View>
-              <Text style={s.earningsValue}>{monthEarnings === null ? '-' : formatCompactXpf(monthEarnings)}</Text>
-              <Text style={s.earningsLabel}>Gains du mois</Text>
-            </TouchableOpacity>
+            <View style={s.connectionRow}>
+              <View style={[s.connDot, connectionStatus === 'connected' ? s.connGreen : s.connRed]} />
+              <Text style={s.connText}>
+                {connectionStatus === 'connected'
+                  ? 'Connecté — demandes reçues en temps réel'
+                  : connectionStatus === 'connecting' ? 'Connexion...' : 'Déconnecté — reconnexion en cours'}
+              </Text>
+            </View>
           </View>
 
           <View style={s.statsRow}>
@@ -688,8 +692,10 @@ export default function ChauffeurHomeScreen() {
                 <View style={[s.statChipIcon, { backgroundColor: chip.bg }]}>
                   <Ionicons name={chip.icon as any} size={15} color={chip.color} />
                 </View>
-                <Text style={s.statChipValue}>{chip.value}</Text>
-                <Text style={s.statChipLabel}>{chip.label}</Text>
+                <View style={s.statChipText}>
+                  <Text style={s.statChipValue}>{chip.value}</Text>
+                  <Text style={s.statChipLabel} numberOfLines={1}>{chip.label}</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -1065,20 +1071,13 @@ const s = StyleSheet.create({
   scrollContent: { paddingBottom: 40 },
 
   // Status Card
-  statusCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginHorizontal: 20, paddingTop: 18, paddingBottom: 4,
-  },
-  statusLeft: { flex: 1 },
-  earningsBox: {
-    alignItems: 'center', marginLeft: 12, paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 16, backgroundColor: '#F0FBF5',
-  },
-  earningsIcon: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: '#D1F2E3', justifyContent: 'center', alignItems: 'center',
-  },
-  earningsValue: { fontSize: 16, fontWeight: '800', color: '#1a1a1a', marginTop: 6 },
-  earningsLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600', marginTop: 1 },
+  statusCard: { marginHorizontal: 20, paddingTop: 18, paddingBottom: 4 },
+  statusTopRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  statusLeft: { flex: 1, paddingRight: 16 },
+  earningsBox: { alignItems: 'flex-end' },
+  earningsLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+  earningsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
+  earningsValue: { fontSize: 22, fontWeight: '800', color: '#4ECC8B' },
   welcomeText: { fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
   driverNameText: { fontSize: 22, fontWeight: '800', color: '#1a1a1a', marginTop: 2 },
   connectionRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
@@ -1097,18 +1096,19 @@ const s = StyleSheet.create({
 
   // Stats
   statsRow: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 20, marginTop: 14,
+    flexDirection: 'row', gap: 8, marginHorizontal: 20, marginTop: 16,
     paddingBottom: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
   },
   statChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#F7F7F8', borderRadius: 999, paddingVertical: 6, paddingLeft: 6, paddingRight: 12,
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#F7F7F8', borderRadius: 999, paddingVertical: 7, paddingLeft: 7, paddingRight: 10,
   },
+  statChipText: { flex: 1 },
   statChipIcon: {
     width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center',
   },
-  statChipValue: { fontSize: 15, fontWeight: '800', color: '#1a1a1a' },
-  statChipLabel: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
+  statChipValue: { fontSize: 15, fontWeight: '800', color: '#1a1a1a', lineHeight: 18 },
+  statChipLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
 
   // À traiter
   todoSection: { marginHorizontal: 20, marginTop: 14, gap: 8 },
