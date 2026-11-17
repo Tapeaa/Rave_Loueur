@@ -633,8 +633,11 @@ export default function ChauffeurHomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setStatusBarStyle('light');
-      return () => setStatusBarStyle('dark');
+      const t = setTimeout(() => setStatusBarStyle('light'), 0);
+      return () => {
+        clearTimeout(t);
+        setStatusBarStyle('dark');
+      };
     }, [])
   );
 
