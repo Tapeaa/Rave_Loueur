@@ -1084,7 +1084,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 10,
     backgroundColor: HERO_BG,
   },
-  logo: { width: 72, height: 23 },
+  logo: { width: 72, height: 23, tintColor: '#FFFFFF' },
   settingsBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center',
