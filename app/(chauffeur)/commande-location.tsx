@@ -8,10 +8,11 @@ import {
   Modal,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { WebView } from 'react-native-webview';
@@ -26,6 +27,7 @@ const formatPrice = (price: number) => `${price.toLocaleString('fr-FR')} XPF`;
 
 export default function CommandeLocationScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     orderId: string;
     sessionId: string;
@@ -504,10 +506,22 @@ export default function CommandeLocationScreen() {
       </View>
 
       {/* Contract Modal */}
-      <Modal visible={showContract} animationType="slide" onRequestClose={() => setShowContract(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }} edges={['top']}>
+      <Modal visible={showContract} animationType="slide" statusBarTranslucent onRequestClose={() => setShowContract(false)}>
+        {/* SafeAreaView renvoie des insets à 0 dans un Modal iOS : la croix finissait sous l'encoche */}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#f8f9fa',
+            paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 36 : 20),
+            paddingBottom: insets.bottom,
+          }}
+        >
           <View style={styles.contractHeader}>
-            <TouchableOpacity onPress={() => setShowContract(false)} style={styles.contractCloseBtn}>
+            <TouchableOpacity
+              onPress={() => setShowContract(false)}
+              style={styles.contractCloseBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
               <Ionicons name="close" size={24} color="#1a1a1a" />
             </TouchableOpacity>
             <Text style={styles.contractHeaderTitle}>Contrat de location</Text>
@@ -536,7 +550,7 @@ export default function CommandeLocationScreen() {
               </TouchableOpacity>
             </View>
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );

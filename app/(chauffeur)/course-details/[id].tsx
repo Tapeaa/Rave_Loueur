@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
@@ -48,6 +48,7 @@ import { isUsableMediaUri, shareHtmlAsPdf, shareImage } from '@/lib/share-media'
 
 export default function CourseDetailsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1045,11 +1046,11 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
       </ScrollView>
 
       {/* Modal Contrat de Location */}
-      <Modal visible={showContractModal} animationType="slide" statusBarTranslucent>
-        <View style={{ flex: 1, backgroundColor: '#FFFFFF', paddingTop: Platform.OS === 'android' ? 45 : 55 }}>
+      <Modal visible={showContractModal} animationType="slide" statusBarTranslucent onRequestClose={() => setShowContractModal(false)}>
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF', paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 36 : 20) + 8, paddingBottom: insets.bottom }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', backgroundColor: '#FFFFFF' }}>
             <Text variant="h2" style={{ fontSize: 18 }}>Contrat de location</Text>
-            <TouchableOpacity onPress={() => setShowContractModal(false)} style={{ padding: 8, backgroundColor: '#F3F4F6', borderRadius: 20 }}>
+            <TouchableOpacity onPress={() => setShowContractModal(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 8, backgroundColor: '#F3F4F6', borderRadius: 20 }}>
               <Ionicons name="close" size={22} color="#1a1a1a" />
             </TouchableOpacity>
           </View>
