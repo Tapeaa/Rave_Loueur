@@ -692,19 +692,21 @@ export default function ChauffeurHomeScreen() {
               </TouchableOpacity>
             </View>
 
+            <View style={s.heroBody}>
             <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.8}>
               <Text style={s.earningsLabel}>Gains du mois</Text>
-              <View style={s.earningsValueRow}>
-                <Text style={s.earningsValue} numberOfLines={1}>
-                  {monthEarnings === null ? '–' : formatCompactXpf(monthEarnings)}
-                </Text>
+              <Text style={s.earningsValue} numberOfLines={1}>
+                {monthEarnings === null ? '–' : formatCompactXpf(monthEarnings)}
+              </Text>
+              <View style={s.earningsLink}>
+                <Text style={s.earningsLinkText}>Voir le détail</Text>
                 <View style={s.earningsArrow}>
-                  <Ionicons name="arrow-forward" size={16} color="#121212" />
+                  <Ionicons name="arrow-forward" size={14} color="#121212" />
                 </View>
               </View>
             </TouchableOpacity>
 
-          <View style={s.statsRow}>
+          <View style={s.statsCol}>
             {[
               { key: 'pending', icon: 'time-outline', color: '#FBBF24', value: String(pendingOrders.length), label: 'Demandes', route: null },
               { key: 'upcoming', icon: 'calendar-outline', color: '#60A5FA', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
@@ -720,13 +722,12 @@ export default function ChauffeurHomeScreen() {
                 <View style={[s.statChipIcon, { backgroundColor: chip.color + '26' }]}>
                   <Ionicons name={chip.icon as any} size={15} color={chip.color} />
                 </View>
-                <View style={s.statChipText}>
-                  <Text style={s.statChipValue}>{chip.value}</Text>
-                  <Text style={s.statChipLabel} numberOfLines={1}>{chip.label}</Text>
-                </View>
+                <Text style={s.statChipLabel} numberOfLines={1}>{chip.label}</Text>
+                <Text style={s.statChipValue}>{chip.value}</Text>
               </TouchableOpacity>
             ))}
           </View>
+            </View>
           </View>
 
           <View style={s.sheet}>
@@ -1116,7 +1117,10 @@ const s = StyleSheet.create({
   connGreen: { backgroundColor: '#4ECC8B' },
   connRed: { backgroundColor: '#EF4444' },
   connText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
-  earningsBox: { marginTop: 22 },
+  heroBody: { flexDirection: 'row', alignItems: 'stretch', gap: 14, marginTop: 22 },
+  earningsBox: { flex: 1, justifyContent: 'center' },
+  earningsLink: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  earningsLinkText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
   dashboardRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   dashboardBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -1127,25 +1131,24 @@ const s = StyleSheet.create({
   dashboardBtnText: { fontSize: 12, fontWeight: '800', color: '#121212' },
   earningsLabel: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
   earningsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
-  earningsValue: { flexShrink: 1, fontSize: 40, fontWeight: '800', color: '#4ECC8B', letterSpacing: -1 },
+  earningsValue: { fontSize: 36, fontWeight: '800', color: '#4ECC8B', letterSpacing: -1, marginTop: 2 },
   earningsArrow: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: '#4ECC8B',
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#4ECC8B',
     justifyContent: 'center', alignItems: 'center',
   },
 
   // Stats
-  statsRow: { flexDirection: 'row', gap: 8, marginTop: 22 },
+  statsCol: { width: 148, gap: 8 },
   statChip: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 999,
     paddingVertical: 8, paddingLeft: 8, paddingRight: 10,
   },
-  statChipText: { flex: 1 },
   statChipIcon: {
     width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center',
   },
-  statChipValue: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', lineHeight: 19 },
-  statChipLabel: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
+  statChipValue: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  statChipLabel: { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
 
   // Feuille blanche
   sheet: {
