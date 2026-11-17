@@ -745,7 +745,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  logo: { width: 88, height: 29 },
+  logo: { width: 72, height: 24 },
   settingsBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center',
