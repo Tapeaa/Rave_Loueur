@@ -17,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import MenuBurger from '@/components/MenuBurger';
+import { BookingCalendar } from '@/components/BookingCalendar';
+import Reanimated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
 import {
   getDriverEarnings,
   getDriverSessionId,
@@ -367,6 +369,13 @@ export default function ChauffeurHomeScreen() {
       refundPendingCount: driverOrders.filter((o) => (o.rideOption as any)?.refund?.status === 'pending').length,
     };
   }, [driverOrders]);
+
+  const calendarOrders = useMemo(() => {
+    const byId = new Map<string, Order>();
+    for (const o of driverOrders) byId.set(o.id, o);
+    for (const o of pendingOrders) if (!byId.has(o.id)) byId.set(o.id, o);
+    return Array.from(byId.values());
+  }, [driverOrders, pendingOrders]);
 
   const fleet = useMemo(() => {
     if (!vehicles) return null;
@@ -742,7 +751,11 @@ export default function ChauffeurHomeScreen() {
 
           {/* Incoming Orders Band — visible même hors ligne taxi */}
           {pendingOrders.length > 0 && (
-            <View style={s.incomingSection}>
+            <Reanimated.View
+              style={s.incomingSection}
+              entering={FadeInDown.duration(350)}
+              exiting={FadeOutUp.duration(250)}
+            >
               <View style={s.sectionHeader}>
                 <View style={s.sectionTitleRow}>
                   <View style={s.liveIndicator}>
@@ -862,19 +875,15 @@ export default function ChauffeurHomeScreen() {
                   );
                 })}
               </ScrollView>
-            </View>
+            </Reanimated.View>
           )}
 
-          {/* Empty state when no pending rental requests */}
-          {pendingOrders.length === 0 && (
-            <View style={s.emptyBand}>
-              <View style={s.emptyIcon}>
-                <Ionicons name="hourglass-outline" size={32} color="#D1D5DB" />
-              </View>
-              <Text style={s.emptyTitle}>Aucune demande pour le moment</Text>
-              <Text style={s.emptySubtitle}>Les nouvelles demandes de location apparaîtront ici en temps réel</Text>
-            </View>
-          )}
+          <Reanimated.View layout={LinearTransition.duration(350)}>
+            <BookingCalendar
+              orders={calendarOrders}
+              onPressOrder={(order) => router.push(`/(chauffeur)/course-details/${order.id}`)}
+            />
+          </Reanimated.View>
 
           {/* Aujourd'hui */}
           <View style={s.blockSection}>
@@ -1220,19 +1229,7 @@ const s = StyleSheet.create({
   acceptBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   btnDisabled: { opacity: 0.5 },
 
-  // Empty / Offline
-  emptyBand: {
-    marginHorizontal: 16, marginTop: 24, backgroundColor: '#FFFFFF', borderRadius: 18,
-    padding: 32, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
-  },
-  emptyIcon: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginBottom: 16,
-  },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#374151', marginBottom: 6 },
-  emptySubtitle: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 20 },
-
+  // Offline
   offlineBand: {
     marginHorizontal: 16, marginTop: 24, backgroundColor: '#FFFFFF', borderRadius: 18,
     padding: 32, alignItems: 'center',
