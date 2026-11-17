@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Platform,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
@@ -363,6 +364,34 @@ export default function CommandeLocationScreen() {
               </View>
             ) : null}
           </View>
+          <View style={styles.contactRow}>
+            <TouchableOpacity
+              style={[styles.contactBtn, styles.contactBtnPrimary]}
+              onPress={() =>
+                router.push({
+                  pathname: '/(chauffeur)/chat',
+                  params: { orderId, clientName },
+                } as any)
+              }
+              disabled={!orderId}
+              accessibilityRole="button"
+              accessibilityLabel="Envoyer un message au client"
+            >
+              <Ionicons name="chatbubbles-outline" size={18} color="#1a1a1a" />
+              <Text style={styles.contactBtnPrimaryText}>Message</Text>
+            </TouchableOpacity>
+            {clientPhone ? (
+              <TouchableOpacity
+                style={styles.contactBtn}
+                onPress={() => Linking.openURL(`tel:${clientPhone.replace(/\s/g, '')}`)}
+                accessibilityRole="button"
+                accessibilityLabel="Appeler le client"
+              >
+                <Ionicons name="call-outline" size={18} color="#1a1a1a" />
+                <Text style={styles.contactBtnText}>Appeler</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
 
         {/* Rental period */}
@@ -615,6 +644,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
   infoValue: { fontSize: 14, color: '#1a1a1a', marginLeft: 10, fontWeight: '500' },
+  contactRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  contactBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 46, borderRadius: 14, backgroundColor: '#F3F4F6',
+  },
+  contactBtnText: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
+  contactBtnPrimary: { backgroundColor: '#4ECC8B' },
+  contactBtnPrimaryText: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
   periodCard: {
     backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12,
     borderWidth: 1, borderColor: '#F3F4F6',
