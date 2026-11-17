@@ -1096,7 +1096,7 @@ const s = StyleSheet.create({
   hero: { backgroundColor: HERO_BG, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 44 },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   welcomeText: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600', textTransform: 'capitalize' },
-  driverNameText: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', marginTop: 4, letterSpacing: -0.5 },
+  driverNameText: { fontSize: 36, lineHeight: 42, fontWeight: '800', color: '#FFFFFF', marginTop: 6, letterSpacing: -0.8 },
   connectionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
