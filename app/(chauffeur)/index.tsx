@@ -1119,7 +1119,7 @@ const s = StyleSheet.create({
   connText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
   heroBody: { flexDirection: 'row', alignItems: 'stretch', gap: 14, marginTop: 22 },
   earningsBox: { flex: 1, justifyContent: 'center' },
-  earningsLink: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  earningsLink: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
   earningsLinkText: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
   dashboardRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   dashboardBtn: {
@@ -1131,7 +1131,7 @@ const s = StyleSheet.create({
   dashboardBtnText: { fontSize: 12, fontWeight: '800', color: '#121212' },
   earningsLabel: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
   earningsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
-  earningsValue: { fontSize: 36, fontWeight: '800', color: '#4ECC8B', letterSpacing: -1, marginTop: 2 },
+  earningsValue: { fontSize: 36, lineHeight: 40, fontWeight: '800', color: '#4ECC8B', letterSpacing: -1, marginTop: 2 },
   earningsArrow: {
     width: 24, height: 24, borderRadius: 12, backgroundColor: '#4ECC8B',
     justifyContent: 'center', alignItems: 'center',
