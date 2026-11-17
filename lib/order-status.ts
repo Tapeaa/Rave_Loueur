@@ -54,8 +54,9 @@ export function getOrderStatusDisplay(order: Order): StatusDisplay {
   if (isRentalOrderLike(order) && !isClosedOrderStatus(order.status)) {
     const phase = getRentalLifecyclePhase(order);
     if (phase === 'awaiting_validation') return { label: 'À valider', color: '#F59E0B', icon: 'time' };
-    if (phase === 'vehicle_ready') return { label: 'À remettre au client', color: '#3B82F6', icon: 'key' };
-    if (phase === 'with_client') return { label: 'Chez le client', color: '#10B981', icon: 'car-sport' };
+    if (phase === 'vehicle_ready' || phase === 'with_client') {
+      return { label: 'Location en cours', color: '#10B981', icon: 'car-sport' };
+    }
     if (phase === 'returned') return { label: 'Véhicule rendu', color: '#22C55E', icon: 'checkmark-done-circle' };
   }
   return STATUS_LABELS[order.status] || { label: order.status, color: '#6B7280', icon: 'help-circle' };

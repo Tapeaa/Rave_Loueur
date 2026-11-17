@@ -337,11 +337,11 @@ export default function ChauffeurHomeScreen() {
     for (const order of driverOrders) {
       if (!isRentalOrderLike(order) || isClosedOrderStatus(order.status)) continue;
       const phase = getRentalLifecyclePhase(order);
-      if (phase === 'vehicle_ready') {
-        const start = rentalStart(order);
-        if (start && tahitiYmd(start) <= today) agenda.push({ kind: 'handover', order, at: start });
-        else upcoming.push(order);
-      } else if (phase === 'with_client') {
+      const start = rentalStart(order);
+      const notStarted = phase === 'vehicle_ready' && !!start && tahitiYmd(start) > today;
+      if (notStarted) {
+        upcoming.push(order);
+      } else if (phase === 'vehicle_ready' || phase === 'with_client') {
         withClient.push(order);
         const end = rentalEnd(order);
         if (end) {
@@ -673,7 +673,7 @@ export default function ChauffeurHomeScreen() {
               </View>
               <View style={s.statTextWrap}>
                 <Text style={s.statNumber}>{dashboard.reservedCount}</Text>
-                <Text style={s.statLabel}>À remettre</Text>
+                <Text style={s.statLabel}>À venir</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/courses')}>
@@ -682,7 +682,7 @@ export default function ChauffeurHomeScreen() {
               </View>
               <View style={s.statTextWrap}>
                 <Text style={s.statNumber}>{dashboard.withClientCount}</Text>
-                <Text style={s.statLabel}>Chez les clients</Text>
+                <Text style={s.statLabel}>En cours</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/gains')}>

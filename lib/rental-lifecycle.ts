@@ -29,12 +29,21 @@ export function getRentalLifecyclePhase(order: Order): RentalLifecyclePhase | nu
   return 'vehicle_ready';
 }
 
+/** Location acceptée et pas encore rendue : `vehicle_ready` et `with_client` forment une seule étape. */
+export function isRentalInProgress(phase: RentalLifecyclePhase | null): boolean {
+  return phase === 'vehicle_ready' || phase === 'with_client';
+}
+
+export const RENTAL_STEP_COUNT = 3;
+
 export type RentalStepperState = {
   show: boolean;
   cancelled: boolean;
   allDone: boolean;
+  /** index 0..2 = étape en cours ; null si terminé */
   currentStep: number | null;
-  doneMask: [boolean, boolean, boolean, boolean];
+  /** étapes entièrement franchies */
+  doneMask: [boolean, boolean, boolean];
 };
 
 export function getRentalStepperState(order: Order): RentalStepperState {
@@ -43,71 +52,31 @@ export function getRentalStepperState(order: Order): RentalStepperState {
     cancelled: false,
     allDone: false,
     currentStep: null,
-    doneMask: [false, false, false, false],
+    doneMask: [false, false, false],
   };
 
   if (!isRentalOrderLike(order)) return empty;
 
   if (RENTAL_ENDED_STATUSES.includes(order.status)) {
-    return {
-      show: true,
-      cancelled: true,
-      allDone: false,
-      currentStep: 0,
-      doneMask: [false, false, false, false],
-    };
+    return { show: true, cancelled: true, allDone: false, currentStep: 0, doneMask: [false, false, false] };
   }
 
   if (order.status === 'completed') {
-    return {
-      show: true,
-      cancelled: false,
-      allDone: true,
-      currentStep: null,
-      doneMask: [true, true, true, true],
-    };
+    return { show: true, cancelled: false, allDone: true, currentStep: null, doneMask: [true, true, true] };
   }
 
   const phase = getRentalLifecyclePhase(order);
 
   if (phase === 'awaiting_validation') {
-    return {
-      show: true,
-      cancelled: false,
-      allDone: false,
-      currentStep: 0,
-      doneMask: [false, false, false, false],
-    };
+    return { show: true, cancelled: false, allDone: false, currentStep: 0, doneMask: [false, false, false] };
   }
 
-  if (phase === 'vehicle_ready') {
-    return {
-      show: true,
-      cancelled: false,
-      allDone: false,
-      currentStep: 1,
-      doneMask: [true, false, false, false],
-    };
-  }
-
-  if (phase === 'with_client') {
-    return {
-      show: true,
-      cancelled: false,
-      allDone: false,
-      currentStep: 2,
-      doneMask: [true, true, false, false],
-    };
+  if (isRentalInProgress(phase)) {
+    return { show: true, cancelled: false, allDone: false, currentStep: 1, doneMask: [true, false, false] };
   }
 
   if (phase === 'returned') {
-    return {
-      show: true,
-      cancelled: false,
-      allDone: false,
-      currentStep: 3,
-      doneMask: [true, true, true, false],
-    };
+    return { show: true, cancelled: false, allDone: false, currentStep: 2, doneMask: [true, true, false] };
   }
 
   return empty;
@@ -115,14 +84,12 @@ export function getRentalStepperState(order: Order): RentalStepperState {
 
 export const RENTAL_STEP_LABELS_CLIENT = [
   'Validation loueur',
-  'Préparation',
-  'Avec vous',
+  'Location en cours',
   'Retour',
 ] as const;
 
 export const RENTAL_STEP_LABELS_LOUEUR = [
   'À valider',
-  'Validée',
-  'Remis client',
+  'Location en cours',
   'Retour',
 ] as const;

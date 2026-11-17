@@ -21,6 +21,7 @@ export function RentalLifecycleStepper({ state, variant, compact }: Props) {
   const labels =
     variant === 'loueur' ? RENTAL_STEP_LABELS_LOUEUR : RENTAL_STEP_LABELS_CLIENT;
   const n = labels.length;
+  const dotSize = compact ? 22 : 26;
 
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
@@ -35,20 +36,28 @@ export function RentalLifecycleStepper({ state, variant, compact }: Props) {
         </Text>
       )}
 
-      <View style={styles.trackRow}>
-        {Array.from({ length: n }, (_, i) => {
+      <View style={styles.row}>
+        {labels.map((label, i) => {
           const done = state.doneMask[i];
-          const current =
-            state.currentStep === i && !state.cancelled && !state.allDone;
-          const showSegment = i < n - 1;
-          const segmentDone = state.doneMask[i];
+          const current = state.currentStep === i && !state.cancelled && !state.allDone;
+          const leftDone = i > 0 && state.doneMask[i - 1];
+          const rightDone = done;
 
           return (
-            <View key={i} style={styles.trackItem}>
-              <View style={styles.dotWrap}>
+            <View key={i} style={styles.step}>
+              <View style={[styles.track, { height: dotSize }]}>
+                <View
+                  style={[
+                    styles.line,
+                    i === 0 && styles.lineHidden,
+                    leftDone && styles.lineDone,
+                    state.cancelled && styles.lineMuted,
+                  ]}
+                />
                 <View
                   style={[
                     styles.dot,
+                    { width: dotSize, height: dotSize, borderRadius: dotSize / 2 },
                     done && styles.dotDone,
                     current && styles.dotCurrent,
                     state.cancelled && styles.dotMuted,
@@ -57,47 +66,38 @@ export function RentalLifecycleStepper({ state, variant, compact }: Props) {
                   {done ? (
                     <Ionicons name="checkmark" size={compact ? 12 : 14} color="#fff" />
                   ) : (
-                    <Text style={styles.dotNum}>{i + 1}</Text>
+                    <Text style={current ? StyleSheet.flatten([styles.dotNum, styles.dotNumCurrent]) : styles.dotNum}>
+                      {i + 1}
+                    </Text>
                   )}
                 </View>
-              </View>
-              {showSegment && (
                 <View
                   style={[
-                    styles.segment,
-                    segmentDone && styles.segmentDone,
-                    state.cancelled && styles.segmentMuted,
+                    styles.line,
+                    i === n - 1 && styles.lineHidden,
+                    rightDone && styles.lineDone,
+                    state.cancelled && styles.lineMuted,
                   ]}
                 />
+              </View>
+              {!compact && (
+                <Text
+                  variant="caption"
+                  numberOfLines={2}
+                  style={StyleSheet.flatten([
+                    styles.label,
+                    done && styles.labelDone,
+                    current && styles.labelCurrent,
+                    state.cancelled && styles.labelMuted,
+                  ])}
+                >
+                  {label}
+                </Text>
               )}
             </View>
           );
         })}
       </View>
-
-      {!compact && (
-        <View style={styles.labelsRow}>
-          {labels.map((label, i) => {
-            const current =
-              state.currentStep === i && !state.cancelled && !state.allDone;
-            return (
-              <View key={i} style={styles.labelCell}>
-                <Text
-                  variant="caption"
-                  numberOfLines={2}
-                  style={[
-                    styles.label,
-                    current ? styles.labelCurrent : null,
-                    state.cancelled ? styles.labelMuted : null,
-                  ]}
-                >
-                  {label}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
     </View>
   );
 }
@@ -105,8 +105,8 @@ export function RentalLifecycleStepper({ state, variant, compact }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     marginTop: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     backgroundColor: '#FAFAFA',
     borderRadius: 12,
     borderWidth: 1,
@@ -128,26 +128,35 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  trackRow: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
+    alignItems: 'flex-start',
   },
-  trackItem: {
+  step: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     minWidth: 0,
   },
-  dotWrap: {
+  track: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'stretch',
+  },
+  line: {
+    flex: 1,
+    height: 3,
+    backgroundColor: '#E5E7EB',
+  },
+  lineHidden: {
+    backgroundColor: 'transparent',
+  },
+  lineDone: {
+    backgroundColor: ACCENT,
+  },
+  lineMuted: {
+    opacity: 0.35,
   },
   dot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
     backgroundColor: '#E5E7EB',
     borderWidth: 2,
     borderColor: '#D1D5DB',
@@ -170,36 +179,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#6B7280',
   },
-  segment: {
-    flex: 1,
-    height: 3,
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: 4,
-    minWidth: 8,
-  },
-  segmentDone: {
-    backgroundColor: ACCENT,
-  },
-  segmentMuted: {
-    opacity: 0.35,
-  },
-  labelsRow: {
-    flexDirection: 'row',
-    marginTop: 10,
-    paddingHorizontal: 0,
-  },
-  labelCell: {
-    flex: 1,
-    paddingHorizontal: 2,
+  dotNumCurrent: {
+    color: ACCENT,
   },
   label: {
+    marginTop: 8,
+    paddingHorizontal: 2,
     textAlign: 'center',
-    fontSize: 10,
+    fontSize: 11,
     color: '#6B7280',
   },
   labelCurrent: {
     color: '#1a1a1a',
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  labelDone: {
+    color: '#374151',
   },
   labelMuted: {
     opacity: 0.5,

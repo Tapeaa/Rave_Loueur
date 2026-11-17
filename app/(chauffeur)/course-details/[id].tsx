@@ -32,6 +32,7 @@ import {
 import {
   getRentalLifecyclePhase,
   getRentalStepperState,
+  isRentalInProgress,
   isRentalOrderLike,
 } from '@/lib/rental-lifecycle';
 import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
@@ -586,25 +587,9 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Suivi de la location</Text>
             <RentalLifecycleStepper state={rentalStepperState} variant="loueur" />
-            {rentalPhase === 'vehicle_ready' &&
+            {isRentalInProgress(rentalPhase) &&
               !cancelPending &&
               (order.status === 'accepted' || order.status === 'booked') && (
-                <TouchableOpacity
-                  style={styles.lifecycleButton}
-                  onPress={() => advanceRentalLifecycle('with_client')}
-                  disabled={lifecycleBusy}
-                >
-                  {lifecycleBusy ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="car-outline" size={20} color="#fff" />
-                      <Text style={styles.lifecycleButtonText}>Véhicule remis au client</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              )}
-            {rentalPhase === 'with_client' && (
               <TouchableOpacity
                 style={[styles.lifecycleButton, styles.lifecycleButtonSecondary]}
                 onPress={() => advanceRentalLifecycle('returned')}

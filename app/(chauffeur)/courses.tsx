@@ -24,7 +24,7 @@ import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
 function activePriority(order: Order): number {
   if (hasPendingCancelRequest(order)) return 0;
   const phase = isRentalOrderLike(order) ? getRentalLifecyclePhase(order) : null;
-  if (phase === 'with_client') return 1;
+  if (phase === 'with_client' || phase === 'vehicle_ready') return 1;
   return 2;
 }
 
