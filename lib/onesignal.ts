@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 
 const ONESIGNAL_APP_ID =
-  Constants.expoConfig?.extra?.oneSignalAppId || 'a36c17b6-38b3-48a4-bc95-72503a18aa2b';
+  Constants.expoConfig?.extra?.oneSignalAppId || 'e36c17b6-38b3-48a4-bc95-72502a18aa2b';
 
 let OneSignalModule: any = null;
 let isInitialized = false;

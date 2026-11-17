@@ -68,7 +68,7 @@ module.exports = {
       // - Pour utiliser le mock local : définir EXPO_PUBLIC_API_URL=http://192.168.99.38:5000/api dans .env
       apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://backend-rave.onrender.com/api",
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "",
-      oneSignalAppId: process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || "a36c17b6-38b3-48a4-bc95-72503a18aa2b",
+      oneSignalAppId: process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID || "e36c17b6-38b3-48a4-bc95-72502a18aa2b",
       eas: {
         projectId: "bf2301d9-7cd4-4a90-9134-7c62c14f34a8",
       },
