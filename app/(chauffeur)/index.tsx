@@ -673,19 +673,6 @@ export default function ChauffeurHomeScreen() {
           <View style={s.hero}>
             <View style={s.heroTopRow}>
               <Text style={s.welcomeText}>{formatTodayLabel()}</Text>
-              <View style={s.connectionRow}>
-                <View style={[s.connDot, connectionStatus === 'connected' ? s.connGreen : s.connRed]} />
-                <Text style={s.connText}>
-                  {connectionStatus === 'connected'
-                    ? 'En ligne'
-                    : connectionStatus === 'connecting' ? 'Connexion…' : 'Hors ligne'}
-                </Text>
-              </View>
-            </View>
-            <View style={s.dashboardRow}>
-              <Text style={[s.driverNameText, { flex: 1, marginTop: 0 }]} numberOfLines={1}>
-                Bonjour, {driverName.split(' ')[0] || driverName}
-              </Text>
               <TouchableOpacity
                 style={s.dashboardBtn}
                 onPress={() => Linking.openURL(LOUEUR_DASHBOARD_URL)}
@@ -697,6 +684,9 @@ export default function ChauffeurHomeScreen() {
                 <Text style={s.dashboardBtnText}>Dashboard</Text>
               </TouchableOpacity>
             </View>
+            <Text style={s.driverNameText}>
+              Bonjour, {driverName}
+            </Text>
 
             <View style={s.heroBody}>
             <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.8}>
@@ -1140,7 +1130,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#4ECC8B', borderRadius: 999,
     paddingHorizontal: 12, paddingVertical: 6,
-    transform: [{ translateY: 4 }],
   },
   dashboardBtnText: { fontSize: 12, fontWeight: '800', color: '#121212' },
   earningsLabel: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
