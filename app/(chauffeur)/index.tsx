@@ -652,9 +652,7 @@ export default function ChauffeurHomeScreen() {
         <View style={s.header}>
           <MenuBurger variant="dark" />
           <Image source={require('@/assets/images/rave-header-logo-white.png')} style={s.logo} resizeMode="contain" />
-          <TouchableOpacity style={s.settingsBtn} onPress={() => router.push('/(chauffeur)/profil')}>
-            <Ionicons name="settings-outline" size={21} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={s.headerSpacer} />
         </View>
 
         <ScrollView
@@ -1100,10 +1098,7 @@ const s = StyleSheet.create({
     backgroundColor: HERO_BG,
   },
   logo: { width: 72, height: 23, tintColor: '#FFFFFF' },
-  settingsBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center',
-  },
+  headerSpacer: { width: 40, height: 40 },
   scrollContent: { flexGrow: 1 },
 
   // Hero
