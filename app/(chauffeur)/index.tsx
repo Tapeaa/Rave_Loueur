@@ -12,7 +12,6 @@ import {
   Linking,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { setStatusBarStyle } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
@@ -631,16 +630,6 @@ export default function ChauffeurHomeScreen() {
     });
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      const t = setTimeout(() => setStatusBarStyle('light'), 0);
-      return () => {
-        clearTimeout(t);
-        setStatusBarStyle('dark');
-      };
-    }, [])
-  );
-
   // ═══ RENDER ═══
   return (
     <View style={s.container}>
@@ -686,16 +675,16 @@ export default function ChauffeurHomeScreen() {
                   {monthEarnings === null ? '–' : formatCompactXpf(monthEarnings)}
                 </Text>
                 <View style={s.earningsArrow}>
-                  <Ionicons name="arrow-forward" size={16} color="#121212" />
+                  <Ionicons name="arrow-forward" size={16} color="#4ECC8B" />
                 </View>
               </View>
             </TouchableOpacity>
 
           <View style={s.statsRow}>
             {[
-              { key: 'pending', icon: 'time-outline', color: '#FBBF24', value: String(pendingOrders.length), label: 'Demandes', route: null },
-              { key: 'upcoming', icon: 'calendar-outline', color: '#60A5FA', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
-              { key: 'active', icon: 'car-sport-outline', color: '#4ECC8B', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },
+              { key: 'pending', icon: 'time-outline', color: '#D97706', value: String(pendingOrders.length), label: 'Demandes', route: null },
+              { key: 'upcoming', icon: 'calendar-outline', color: '#2563EB', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
+              { key: 'active', icon: 'car-sport-outline', color: '#16A34A', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },
             ].map((chip) => (
               <TouchableOpacity
                 key={chip.key}
@@ -704,7 +693,7 @@ export default function ChauffeurHomeScreen() {
                 disabled={!chip.route}
                 onPress={() => chip.route && router.push(chip.route as any)}
               >
-                <View style={[s.statChipIcon, { backgroundColor: chip.color + '26' }]}>
+                <View style={[s.statChipIcon, { backgroundColor: '#FFFFFF' }]}>
                   <Ionicons name={chip.icon as any} size={15} color={chip.color} />
                 </View>
                 <View style={s.statChipText}>
@@ -879,7 +868,7 @@ export default function ChauffeurHomeScreen() {
                           onPress={(e) => { e.stopPropagation(); navigateToOrderDetail(order); }}
                           disabled={isDeclining || cancelRequested}
                         >
-                          <Ionicons name="eye-outline" size={18} color="#FFFFFF" />
+                          <Ionicons name="eye-outline" size={18} color="#1a1a1a" />
                           <Text style={s.acceptBtnText}>Examiner</Text>
                         </TouchableOpacity>
                       </View>
@@ -945,7 +934,7 @@ export default function ChauffeurHomeScreen() {
                         style={s.agendaCall}
                         onPress={(e) => { e.stopPropagation(); Linking.openURL(`tel:${order.clientPhone}`); }}
                       >
-                        <Ionicons name="call" size={16} color="#22C55E" />
+                        <Ionicons name="call" size={16} color="#16A34A" />
                       </TouchableOpacity>
                     ) : (
                       <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
@@ -1075,7 +1064,9 @@ export default function ChauffeurHomeScreen() {
   );
 }
 
-const HERO_BG = '#121212';
+const HERO_BG = '#4ECC8B';
+const INK = '#0B1F14';
+const INK_SOFT = 'rgba(11,31,20,0.6)';
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: HERO_BG },
@@ -1087,7 +1078,7 @@ const s = StyleSheet.create({
   logo: { width: 72, height: 23, tintColor: '#FFFFFF' },
   settingsBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.28)', justifyContent: 'center', alignItems: 'center',
   },
   scrollContent: { flexGrow: 1 },
 
@@ -1095,23 +1086,23 @@ const s = StyleSheet.create({
   heroOverscroll: { position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: HERO_BG },
   hero: { backgroundColor: HERO_BG, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 44 },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  welcomeText: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600', textTransform: 'capitalize' },
-  driverNameText: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', marginTop: 4, letterSpacing: -0.5 },
+  welcomeText: { fontSize: 13, color: INK_SOFT, fontWeight: '700', textTransform: 'capitalize' },
+  driverNameText: { fontSize: 28, fontWeight: '800', color: INK, marginTop: 4, letterSpacing: -0.5 },
   connectionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.32)',
   },
   connDot: { width: 7, height: 7, borderRadius: 4 },
-  connGreen: { backgroundColor: '#4ECC8B' },
+  connGreen: { backgroundColor: INK },
   connRed: { backgroundColor: '#EF4444' },
-  connText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  connText: { fontSize: 12, fontWeight: '700', color: INK },
   earningsBox: { marginTop: 22 },
-  earningsLabel: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
+  earningsLabel: { fontSize: 13, color: INK_SOFT, fontWeight: '700' },
   earningsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
-  earningsValue: { flexShrink: 1, fontSize: 40, fontWeight: '800', color: '#4ECC8B', letterSpacing: -1 },
+  earningsValue: { flexShrink: 1, fontSize: 40, fontWeight: '800', color: INK, letterSpacing: -1 },
   earningsArrow: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: '#4ECC8B',
+    width: 30, height: 30, borderRadius: 15, backgroundColor: INK,
     justifyContent: 'center', alignItems: 'center',
   },
 
@@ -1119,15 +1110,15 @@ const s = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 8, marginTop: 22 },
   statChip: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.32)', borderRadius: 999,
     paddingVertical: 8, paddingLeft: 8, paddingRight: 10,
   },
   statChipText: { flex: 1 },
   statChipIcon: {
     width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center',
   },
-  statChipValue: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', lineHeight: 19 },
-  statChipLabel: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
+  statChipValue: { fontSize: 16, fontWeight: '800', color: INK, lineHeight: 19 },
+  statChipLabel: { fontSize: 11, color: INK_SOFT, fontWeight: '700' },
 
   // Feuille blanche
   sheet: {
@@ -1253,9 +1244,9 @@ const s = StyleSheet.create({
   },
   acceptBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    height: 38, borderRadius: 12, backgroundColor: '#22C55E',
+    height: 44, borderRadius: 14, backgroundColor: '#4ECC8B',
   },
-  acceptBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  acceptBtnText: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
   btnDisabled: { opacity: 0.5 },
 
   // Offline

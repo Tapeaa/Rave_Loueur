@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   burgerButtonDark: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.28)',
     shadowOpacity: 0,
     elevation: 0,
   },

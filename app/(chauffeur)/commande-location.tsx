@@ -287,7 +287,7 @@ export default function CommandeLocationScreen() {
               <Text style={styles.successInfoSub}>Prise en charge : {pickupLocation}</Text>
             </View>
             <TouchableOpacity style={styles.successButton} onPress={() => router.replace('/(chauffeur)/' as any)}>
-              <Ionicons name="home" size={18} color="#FFFFFF" />
+              <Ionicons name="home" size={18} color="#1a1a1a" />
               <Text style={styles.successButtonText}>Retour à l'accueil</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.successSecondaryBtn} onPress={() => router.push('/(chauffeur)/courses' as any)}>
@@ -498,7 +498,7 @@ export default function CommandeLocationScreen() {
           onPress={handleAccept}
           disabled={isAccepting || isDeclining}
         >
-          <Ionicons name="checkmark" size={22} color="#FFFFFF" />
+          <Ionicons name="checkmark" size={22} color="#1a1a1a" />
           <Text style={styles.acceptBtnText}>
             {isAccepting ? 'Acceptation...' : 'Accepter la réservation'}
           </Text>
@@ -720,10 +720,10 @@ const styles = StyleSheet.create({
   declineBtnText: { fontSize: 14, fontWeight: '600', color: '#DC2626' },
   acceptBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#22C55E', borderRadius: 10,
+    backgroundColor: '#4ECC8B', borderRadius: 10,
     paddingVertical: 12, gap: 6,
   },
-  acceptBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  acceptBtnText: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
   btnDisabled: { opacity: 0.5 },
   contractHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -762,10 +762,10 @@ const styles = StyleSheet.create({
   successInfoSub: { fontSize: 12, color: '#9CA3AF', marginTop: 3 },
   successButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#22C55E', borderRadius: 12,
+    backgroundColor: '#4ECC8B', borderRadius: 12,
     paddingVertical: 14, width: '100%', marginTop: 24, gap: 6,
   },
-  successButtonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  successButtonText: { fontSize: 15, fontWeight: '800', color: '#1a1a1a' },
   successSecondaryBtn: { marginTop: 14, paddingVertical: 8 },
   successSecondaryText: { fontSize: 14, fontWeight: '600', color: '#4ECC8B' },
 });

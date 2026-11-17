@@ -337,10 +337,10 @@ export default function ChauffeurLayout() {
                 onPress={() => runDecision('approve')}
                 disabled={!!processing}
               >
-                {processing === 'approve' ? <ActivityIndicator color="#FFF" size="small" /> : (
+                {processing === 'approve' ? <ActivityIndicator color="#1a1a1a" size="small" /> : (
                   <>
-                    <Ionicons name="checkmark" size={18} color="#FFF" />
-                    <Text style={s.actionBtnText}>Accepter l'annulation</Text>
+                    <Ionicons name="checkmark" size={18} color="#1a1a1a" />
+                    <Text style={[s.actionBtnText, { color: '#1a1a1a' }]}>Accepter l'annulation</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -405,7 +405,7 @@ const s = StyleSheet.create({
     gap: 6, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12,
   },
   rejectBtn: { backgroundColor: '#EF4444' },
-  approveBtn: { backgroundColor: '#22C55E' },
+  approveBtn: { backgroundColor: '#4ECC8B' },
   btnDisabled: { opacity: 0.6 },
   actionBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   queueHint: { fontSize: 12, fontWeight: '700', color: '#B45309', marginBottom: 10 },

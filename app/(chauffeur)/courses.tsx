@@ -286,7 +286,7 @@ export default function ChauffeurCoursesScreen() {
           disabled={busy}
           onPress={(e) => { e.stopPropagation(); handleRefundDone(order); }}
         >
-          {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.refundBtnText}>J'ai remboursé</Text>}
+          {busy ? <ActivityIndicator size="small" color="#1a1a1a" /> : <Text style={styles.refundBtnText}>J'ai remboursé</Text>}
         </TouchableOpacity>
       </View>
     );
@@ -623,10 +623,10 @@ const styles = StyleSheet.create({
   refundTitle: { fontSize: 13, fontWeight: '800', color: '#B45309', flexShrink: 1 },
   refundHint: { fontSize: 12, color: '#92400E' },
   refundBtn: {
-    marginTop: 4, backgroundColor: '#16A34A', borderRadius: 10,
+    marginTop: 4, backgroundColor: '#4ECC8B', borderRadius: 10,
     paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
   },
-  refundBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  refundBtnText: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
   cancelBanner: {
     marginTop: 12,
     padding: 12,

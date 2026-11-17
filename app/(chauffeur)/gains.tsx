@@ -2,8 +2,7 @@ import { View, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Refr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { setStatusBarStyle } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -14,7 +13,9 @@ import {
 } from '@/lib/api';
 import { logoutDriver } from '@/lib/logout';
 
-const HERO_BG = '#121212';
+const HERO_BG = '#4ECC8B';
+const INK = '#0B1F14';
+const INK_SOFT = 'rgba(11,31,20,0.6)';
 
 function formatMonthLabel(): string {
   return new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Pacific/Tahiti' });
@@ -70,16 +71,6 @@ export default function ChauffeurGainsScreen() {
     loadData();
   }, [loadData]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const t = setTimeout(() => setStatusBarStyle('light'), 0);
-      return () => {
-        clearTimeout(t);
-        setStatusBarStyle('dark');
-      };
-    }, [])
-  );
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData();
@@ -96,7 +87,7 @@ export default function ChauffeurGainsScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerBtn} onPress={() => safeBack(router)}>
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={22} color={INK} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Mes gains</Text>
           <View style={{ width: 40 }} />
@@ -114,7 +105,7 @@ export default function ChauffeurGainsScreen() {
           <View style={styles.hero}>
             <Text style={styles.heroLabel}>Gains de {formatMonthLabel()}</Text>
             {loading ? (
-              <ActivityIndicator color="#4ECC8B" style={{ alignSelf: 'flex-start', marginVertical: 18 }} />
+              <ActivityIndicator color={INK} style={{ alignSelf: 'flex-start', marginVertical: 18 }} />
             ) : (
               <Text style={styles.heroAmount} numberOfLines={1}>
                 {Math.round(earnings.month || 0).toLocaleString('fr-FR')}
@@ -224,27 +215,27 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: INK },
 
   heroOverscroll: { position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: HERO_BG },
   hero: { backgroundColor: HERO_BG, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 48 },
-  heroLabel: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)', textTransform: 'capitalize' },
-  heroAmount: { fontSize: 46, fontWeight: '800', color: '#4ECC8B', letterSpacing: -1.5, marginTop: 4 },
-  heroCurrency: { fontSize: 20, fontWeight: '700', color: 'rgba(78,204,139,0.7)', letterSpacing: 0 },
+  heroLabel: { fontSize: 13, fontWeight: '700', color: INK_SOFT, textTransform: 'capitalize' },
+  heroAmount: { fontSize: 46, fontWeight: '800', color: INK, letterSpacing: -1.5, marginTop: 4 },
+  heroCurrency: { fontSize: 20, fontWeight: '700', color: INK_SOFT, letterSpacing: 0 },
   periodRow: { flexDirection: 'row', gap: 8, marginTop: 22 },
   periodChip: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(255,255,255,0.32)',
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
-  periodLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
-  periodValue: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', marginTop: 3 },
+  periodLabel: { fontSize: 11, fontWeight: '700', color: INK_SOFT },
+  periodValue: { fontSize: 14, fontWeight: '800', color: INK, marginTop: 3 },
 
   sheet: {
     flexGrow: 1,
