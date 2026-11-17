@@ -592,6 +592,7 @@ export interface DriverProfile {
   privacyPolicyReadAt?: string | null;
   privacyPolicyVersion?: string | null;
   defaultMeetingPoint?: string | null;
+  photoUrl?: string | null;
   subscriptionPlan?: string | null;
   subscriptionStatus?: string;
   subscriptionStartsAt?: string | null;
@@ -658,6 +659,7 @@ export type UpdateDriverProfilePayload = {
   vehicleColor?: string | null;
   vehiclePlate?: string | null;
   defaultMeetingPoint?: string | null;
+  photoUrl?: string | null;
 };
 
 /** Met à jour le profil loueur (sync aussi le dashboard raison sociale). */

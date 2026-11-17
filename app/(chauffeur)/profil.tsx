@@ -5,8 +5,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
-import { getDriverProfile, updateDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
+import { getDriverProfile, updateDriverProfile, SessionExpiredError, API_URL, type DriverProfile } from '@/lib/api';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
 import { logoutDriver } from '@/lib/logout';
 import { useState, useEffect, useRef } from 'react';
 import { BRAND } from '@/constants/brand';
@@ -49,6 +50,7 @@ export default function ChauffeurProfilScreen() {
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', defaultMeetingPoint: '' });
   const webviewRef = useRef<WebView>(null);
 
@@ -187,6 +189,96 @@ export default function ChauffeurProfilScreen() {
     }
   };
 
+  const uploadPhoto = async (uri: string) => {
+    if (!profile) return;
+    setUploadingPhoto(true);
+    try {
+      const filename = uri.split('/').pop() || 'photo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const formData = new FormData();
+      formData.append('image', {
+        uri,
+        name: filename,
+        type: match ? `image/${match[1].toLowerCase()}` : 'image/jpeg',
+      } as any);
+
+      const response = await fetch(`${API_URL}/upload/driver-photo`, { method: 'POST', body: formData });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.error || "Erreur lors de l'envoi de la photo");
+      }
+
+      const updated = await updateDriverProfile(profile.id, { photoUrl: data.url });
+      setProfile({ ...profile, ...(updated || {}), photoUrl: data.url });
+      appAlert('Photo mise à jour', 'Les clients voient maintenant votre photo de profil.');
+    } catch (error: any) {
+      if (error instanceof SessionExpiredError) {
+        await logoutDriver();
+        router.replace('/(chauffeur)/login');
+        return;
+      }
+      appAlert('Erreur', error?.message || "Impossible d'envoyer la photo.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const pickFrom = async (source: 'library' | 'camera') => {
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        appAlert(
+          'Permission requise',
+          source === 'camera'
+            ? "Autorisez l'accès à l'appareil photo pour prendre une photo."
+            : "Autorisez l'accès à vos photos pour choisir une photo de profil."
+        );
+        return;
+      }
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      };
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+      if (!result.canceled && result.assets[0]) {
+        await uploadPhoto(result.assets[0].uri);
+      }
+    } catch {
+      appAlert('Erreur', "Impossible d'ouvrir la photo.");
+    }
+  };
+
+  const removePhoto = async () => {
+    if (!profile) return;
+    try {
+      setUploadingPhoto(true);
+      await updateDriverProfile(profile.id, { photoUrl: null });
+      setProfile({ ...profile, photoUrl: null });
+    } catch (error: any) {
+      appAlert('Erreur', error?.message || 'Impossible de retirer la photo.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const choosePhoto = () => {
+    const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
+      { text: 'Choisir dans la galerie', onPress: () => pickFrom('library') },
+      { text: 'Prendre une photo', onPress: () => pickFrom('camera') },
+    ];
+    if (profile?.photoUrl) {
+      buttons.push({ text: 'Retirer la photo', style: 'destructive', onPress: removePhoto });
+    }
+    buttons.push({ text: 'Annuler', style: 'cancel' });
+    appAlert('Photo de profil', 'Elle est visible par les clients sur vos offres et locations.', buttons);
+  };
+
   const handleLogout = async () => {
     await logoutDriver();
     router.replace('/(chauffeur)/login');
@@ -268,9 +360,29 @@ export default function ChauffeurProfilScreen() {
         >
           <View style={styles.heroOverscroll} />
           <View style={styles.hero}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
+            <TouchableOpacity
+              onPress={choosePhoto}
+              disabled={!profile || uploadingPhoto}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Changer ma photo de profil"
+            >
+              <View style={styles.avatar}>
+                {profile?.photoUrl ? (
+                  <Image source={{ uri: profile.photoUrl }} style={styles.avatarImage} />
+                ) : (
+                  <Text style={styles.avatarText}>{initials}</Text>
+                )}
+                {uploadingPhoto ? (
+                  <View style={styles.avatarOverlay}>
+                    <ActivityIndicator color="#FFFFFF" />
+                  </View>
+                ) : null}
+              </View>
+              <View style={styles.avatarBadge}>
+                <Ionicons name="camera" size={15} color={INK} />
+              </View>
+            </TouchableOpacity>
             <Text style={styles.heroName} numberOfLines={1}>{fullName}</Text>
             <View style={styles.heroMetaRow}>
               <View style={styles.statusPill}>
@@ -484,6 +596,19 @@ const styles = StyleSheet.create({
     width: 88, height: 88, borderRadius: 44, backgroundColor: INK,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 4, borderColor: 'rgba(255,255,255,0.45)',
+    overflow: 'hidden',
+  },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarBadge: {
+    position: 'absolute', right: -2, bottom: -2,
+    width: 30, height: 30, borderRadius: 15, backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: HERO_BG,
   },
   avatarText: { fontSize: 32, fontWeight: '800', color: '#4ECC8B', letterSpacing: 1 },
   heroName: { marginTop: 14, fontSize: 26, fontWeight: '800', color: INK, letterSpacing: -0.5 },
