@@ -663,6 +663,13 @@ export default function ChauffeurHomeScreen() {
                 </Text>
               </View>
             </View>
+            <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.7}>
+              <View style={s.earningsIcon}>
+                <Ionicons name="wallet-outline" size={16} color="#4ECC8B" />
+              </View>
+              <Text style={s.earningsValue}>{monthEarnings === null ? '-' : formatCompactXpf(monthEarnings)}</Text>
+              <Text style={s.earningsLabel}>Gains du mois</Text>
+            </TouchableOpacity>
           </View>
 
           <ScrollView
@@ -674,9 +681,7 @@ export default function ChauffeurHomeScreen() {
             {[
               { key: 'pending', icon: 'time-outline', color: '#F59E0B', bg: '#FEF3C7', value: String(pendingOrders.length), label: 'Demandes', route: null },
               { key: 'upcoming', icon: 'calendar-outline', color: '#3B82F6', bg: '#DBEAFE', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
-              { key: 'active', icon: 'car-sport-outline', color: '#22C55E', bg: '#DCFCE7', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },
-              { key: 'earnings', icon: 'wallet-outline', color: '#4ECC8B', bg: '#D1F2E3', value: monthEarnings === null ? '-' : formatCompactXpf(monthEarnings), label: 'Gains du mois', route: '/(chauffeur)/gains' },
-            ].map((chip) => (
+              { key: 'active', icon: 'car-sport-outline', color: '#22C55E', bg: '#DCFCE7', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },            ].map((chip) => (
               <TouchableOpacity
                 key={chip.key}
                 style={s.statChip}
@@ -1071,6 +1076,15 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
   },
   statusLeft: { flex: 1 },
+  earningsBox: {
+    alignItems: 'center', marginLeft: 12, paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 16, backgroundColor: '#F0FBF5',
+  },
+  earningsIcon: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: '#D1F2E3', justifyContent: 'center', alignItems: 'center',
+  },
+  earningsValue: { fontSize: 16, fontWeight: '800', color: '#1a1a1a', marginTop: 6 },
+  earningsLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600', marginTop: 1 },
   welcomeText: { fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
   driverNameText: { fontSize: 22, fontWeight: '800', color: '#1a1a1a', marginTop: 2 },
   connectionRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
