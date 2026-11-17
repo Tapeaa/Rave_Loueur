@@ -489,7 +489,7 @@ export default function ChauffeurHomeScreen() {
         {/* Header */}
         <View style={s.header}>
           <MenuBurger />
-          <Image source={require('@/assets/images/logo.png')} style={s.logo} resizeMode="contain" />
+          <Image source={require('@/assets/images/rave-header-logo.png')} style={s.logo} resizeMode="contain" />
           <TouchableOpacity style={s.settingsBtn} onPress={() => router.push('/(chauffeur)/profil')}>
             <Ionicons name="settings-outline" size={22} color="#1a1a1a" />
           </TouchableOpacity>
@@ -745,7 +745,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  logo: { width: 100, height: 36 },
+  logo: { width: 88, height: 29 },
   settingsBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center',
