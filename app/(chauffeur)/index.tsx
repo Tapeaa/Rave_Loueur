@@ -799,60 +799,60 @@ export default function ChauffeurHomeScreen() {
                       onPress={() => navigateToOrderDetail(order)}
                     >
                       <View style={s.orderCardHeader}>
-                        <View style={s.orderTypeBadge}>
-                          <Ionicons name="car-sport" size={14} color="#4ECC8B" />
-                          <Text style={s.orderTypeText}>{order.rideOption?.title || 'Location'}</Text>
+                        <View style={s.orderAvatar}>
+                          <Text style={s.orderAvatarText}>{(order.clientName || 'C').trim().charAt(0).toUpperCase()}</Text>
                         </View>
-                        <Text style={s.orderPrice}>{formatPrice(order.totalPrice || 0)}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.orderClientName} numberOfLines={1}>{order.clientName || 'Client'}</Text>
+                          <Text style={s.orderVehicle} numberOfLines={1}>{order.rideOption?.title || 'Location'}</Text>
+                        </View>
+                        <Text style={s.orderPrice}>{formatCompactXpf(order.totalPrice || 0)}</Text>
                       </View>
 
-                      <View
-                        style={[
-                          s.orderPaymentBadge,
-                          isPaidOnline
-                            ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
-                            : isCardUnpaid
-                              ? { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }
-                              : { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' },
-                        ]}
-                      >
-                        <Ionicons
-                          name={isPaidOnline ? 'checkmark-circle' : isCardUnpaid ? 'alert-circle' : 'cash-outline'}
-                          size={14}
-                          color={isPaidOnline ? '#166534' : isCardUnpaid ? '#991B1B' : '#92400E'}
-                        />
-                        <Text
+                      <View style={s.orderChips}>
+                        {(() => {
+                          const start = rentalStart(order);
+                          const end = rentalEnd(order);
+                          if (!start) return null;
+                          const fmt = (d: Date) =>
+                            d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: TAHITI_TZ }).replace('.', '');
+                          return (
+                            <View style={[s.orderChip, { backgroundColor: '#F3F4F6' }]}>
+                              <Ionicons name="calendar-outline" size={13} color="#374151" />
+                              <Text style={[s.orderChipText, { color: '#374151' }]}>
+                                {fmt(start)}{end ? ` → ${fmt(end)}` : ''}
+                              </Text>
+                            </View>
+                          );
+                        })()}
+                        <View
                           style={[
-                            s.orderPaymentBadgeText,
-                            { color: isPaidOnline ? '#166534' : isCardUnpaid ? '#991B1B' : '#92400E' },
+                            s.orderChip,
+                            { backgroundColor: isPaidOnline ? '#DCFCE7' : isCardUnpaid ? '#FEE2E2' : '#FEF3C7' },
                           ]}
                         >
-                          {isPaidOnline
-                            ? 'Déjà payée par carte'
-                            : isCardUnpaid
-                              ? 'Paiement carte non abouti — à encaisser'
-                              : 'À encaisser sur place'}
-                        </Text>
-                      </View>
-
-                      <View style={s.orderClientRow}>
-                        <Ionicons name="person" size={14} color="#6B7280" />
-                        <Text style={s.orderClientName} numberOfLines={1}>{order.clientName || 'Client'}</Text>
-                      </View>
-
-                      <View style={s.orderLocationRow}>
-                        <Ionicons name="location" size={14} color="#22C55E" />
-                        <Text style={s.orderLocationText} numberOfLines={1}>{pickup?.value || 'Lieu de prise en charge'}</Text>
-                      </View>
-
-                      {order.scheduledTime && (
-                        <View style={s.orderDateRow}>
-                          <Ionicons name="calendar" size={14} color="#4ECC8B" />
-                          <Text style={s.orderDateText}>
-                            {new Date(order.scheduledTime).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Pacific/Tahiti' })}
+                          <Ionicons
+                            name={isPaidOnline ? 'checkmark-circle' : isCardUnpaid ? 'alert-circle' : 'cash-outline'}
+                            size={13}
+                            color={isPaidOnline ? '#166534' : isCardUnpaid ? '#991B1B' : '#92400E'}
+                          />
+                          <Text
+                            style={[
+                              s.orderChipText,
+                              { color: isPaidOnline ? '#166534' : isCardUnpaid ? '#991B1B' : '#92400E' },
+                            ]}
+                          >
+                            {isPaidOnline ? 'Payée par carte' : isCardUnpaid ? 'Carte non aboutie' : 'À encaisser'}
                           </Text>
                         </View>
-                      )}
+                      </View>
+
+                      {pickup?.value ? (
+                        <View style={s.orderLocationRow}>
+                          <Ionicons name="location-outline" size={15} color="#6B7280" />
+                          <Text style={s.orderLocationText} numberOfLines={1}>{pickup.value}</Text>
+                        </View>
+                      ) : null}
 
                       {cancelRequested && (
                         <View style={s.cancelRequestBanner}>
@@ -1208,23 +1208,33 @@ const s = StyleSheet.create({
     width: CARD_WIDTH, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16,
     borderWidth: 1, borderColor: '#E5E7EB',
   },
-  orderCardHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
+  orderCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  orderAvatar: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#121212',
+    justifyContent: 'center', alignItems: 'center',
   },
+  orderAvatarText: { fontSize: 16, fontWeight: '800', color: '#4ECC8B' },
+  orderVehicle: { fontSize: 13, color: '#6B7280', fontWeight: '500', marginTop: 1 },
+  orderChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  orderChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+  },
+  orderChipText: { fontSize: 12, fontWeight: '700' },
   orderTypeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#1a1a1a', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
   },
   orderTypeText: { fontSize: 12, fontWeight: '700', color: '#4ECC8B' },
-  orderPrice: { fontSize: 17, fontWeight: '800', color: '#1a1a1a' },
+  orderPrice: { fontSize: 18, fontWeight: '800', color: '#1a1a1a', letterSpacing: -0.3 },
   orderPaymentBadge: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5,
     paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, borderWidth: 1, marginBottom: 10,
   },
   orderPaymentBadgeText: { fontSize: 12, fontWeight: '700' },
   orderClientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  orderClientName: { fontSize: 14, fontWeight: '600', color: '#374151', flex: 1 },
-  orderLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  orderClientName: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
+  orderLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   orderLocationText: { fontSize: 13, color: '#6B7280', flex: 1 },
   orderDateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   orderDateText: { fontSize: 13, color: '#4ECC8B', fontWeight: '600' },
@@ -1233,7 +1243,7 @@ const s = StyleSheet.create({
     backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6,
   },
   cancelRequestText: { flex: 1, fontSize: 12, fontWeight: '700', color: '#B45309' },
-  orderActions: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 12 },
+  orderActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   declineBtn: {
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center',
