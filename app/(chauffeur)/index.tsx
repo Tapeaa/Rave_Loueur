@@ -672,16 +672,12 @@ export default function ChauffeurHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={s.statsStrip}
-            contentContainerStyle={s.statsStripContent}
-          >
+          <View style={s.statsRow}>
             {[
               { key: 'pending', icon: 'time-outline', color: '#F59E0B', bg: '#FEF3C7', value: String(pendingOrders.length), label: 'Demandes', route: null },
               { key: 'upcoming', icon: 'calendar-outline', color: '#3B82F6', bg: '#DBEAFE', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
-              { key: 'active', icon: 'car-sport-outline', color: '#22C55E', bg: '#DCFCE7', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },            ].map((chip) => (
+              { key: 'active', icon: 'car-sport-outline', color: '#22C55E', bg: '#DCFCE7', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },
+            ].map((chip) => (
               <TouchableOpacity
                 key={chip.key}
                 style={s.statChip}
@@ -696,7 +692,7 @@ export default function ChauffeurHomeScreen() {
                 <Text style={s.statChipLabel}>{chip.label}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
 
           {/* À traiter */}
           {(dashboard.cancelRequestCount > 0 || dashboard.refundPendingCount > 0 || unreadClientMessages > 0 || fleet?.total === 0) && (
@@ -1054,7 +1050,7 @@ export default function ChauffeurHomeScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 10,
@@ -1071,9 +1067,7 @@ const s = StyleSheet.create({
   // Status Card
   statusCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF', marginHorizontal: 16, marginTop: 16,
-    borderRadius: 20, padding: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+    marginHorizontal: 20, paddingTop: 18, paddingBottom: 4,
   },
   statusLeft: { flex: 1 },
   earningsBox: {
@@ -1102,12 +1096,13 @@ const s = StyleSheet.create({
   statusLabel: { fontSize: 10, fontWeight: '800', marginTop: 4, letterSpacing: 1 },
 
   // Stats
-  statsStrip: { flexGrow: 0, marginTop: 12 },
-  statsStripContent: { paddingHorizontal: 16, gap: 8 },
+  statsRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 20, marginTop: 14,
+    paddingBottom: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
+  },
   statChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 6, paddingLeft: 6, paddingRight: 14,
-    borderWidth: 1, borderColor: '#F0F0F0',
+    backgroundColor: '#F7F7F8', borderRadius: 999, paddingVertical: 6, paddingLeft: 6, paddingRight: 12,
   },
   statChipIcon: {
     width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center',
@@ -1116,7 +1111,7 @@ const s = StyleSheet.create({
   statChipLabel: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
 
   // À traiter
-  todoSection: { marginHorizontal: 16, marginTop: 14, gap: 8 },
+  todoSection: { marginHorizontal: 20, marginTop: 14, gap: 8 },
   todoRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1,
@@ -1128,8 +1123,8 @@ const s = StyleSheet.create({
 
   // Blocs agenda / prochaines locations / flotte
   blockSection: {
-    marginHorizontal: 16, marginTop: 20, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+    marginHorizontal: 20, paddingVertical: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
   },
   blockHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   blockCount: {
@@ -1159,8 +1154,8 @@ const s = StyleSheet.create({
   upcomingPrice: { fontSize: 13, fontWeight: '800', color: '#1a1a1a' },
   fleetCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginHorizontal: 16, marginTop: 20, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+    marginHorizontal: 20, paddingVertical: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
   },
   fleetAddBtn: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: '#4ECC8B',
@@ -1171,7 +1166,7 @@ const s = StyleSheet.create({
   incomingSection: { marginTop: 24 },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, marginBottom: 12,
+    paddingHorizontal: 20, marginBottom: 12,
   },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   liveIndicator: {
@@ -1186,11 +1181,10 @@ const s = StyleSheet.create({
     backgroundColor: '#D1F2E3', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
   },
 
-  ordersBand: { paddingHorizontal: 16, gap: 12, paddingBottom: 4 },
+  ordersBand: { paddingHorizontal: 20, gap: 12, paddingBottom: 4 },
   orderCard: {
     width: CARD_WIDTH, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
-    borderWidth: 1, borderColor: '#F3F4F6',
+    borderWidth: 1, borderColor: '#E5E7EB',
   },
   orderCardHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
@@ -1231,7 +1225,7 @@ const s = StyleSheet.create({
 
   // Offline
   offlineBand: {
-    marginHorizontal: 16, marginTop: 24, backgroundColor: '#FFFFFF', borderRadius: 18,
+    marginHorizontal: 20, marginTop: 24, backgroundColor: '#FFFFFF', borderRadius: 18,
     padding: 32, alignItems: 'center',
     borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed',
   },
@@ -1243,12 +1237,11 @@ const s = StyleSheet.create({
   offlineSubtitle: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 20 },
 
   // Actions Section
-  actionsSection: { marginTop: 28, paddingHorizontal: 16 },
+  actionsSection: { marginTop: 22, paddingHorizontal: 20 },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   actionCard: {
-    width: (width - 52) / 3, backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14,
+    width: (width - 60) / 3, backgroundColor: '#F7F7F8', borderRadius: 16, paddingVertical: 14,
     alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
   actionIcon: {
     width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 8,
@@ -1264,8 +1257,8 @@ const s = StyleSheet.create({
   // Support
   supportCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginHorizontal: 16, marginTop: 20, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+    marginHorizontal: 20, paddingVertical: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
   },
   supportIconWrap: {
     width: 40, height: 40, borderRadius: 12,
