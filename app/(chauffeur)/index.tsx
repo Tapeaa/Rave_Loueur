@@ -685,7 +685,7 @@ export default function ChauffeurHomeScreen() {
               </TouchableOpacity>
             </View>
             <Text style={s.driverNameText}>
-              Bonjour, {driverName}
+              Bonjour, {driverName.trim().split(/\s+/)[0] || driverName}
             </Text>
 
             <View style={s.heroBody}>
