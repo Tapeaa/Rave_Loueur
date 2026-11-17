@@ -665,47 +665,33 @@ export default function ChauffeurHomeScreen() {
             </View>
           </View>
 
-          {/* Stats 2×2 */}
-          <View style={s.statsGrid}>
-            <View style={s.statCard}>
-              <View style={[s.statIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="time-outline" size={18} color="#F59E0B" />
-              </View>
-              <View style={s.statTextWrap}>
-                <Text style={s.statNumber}>{pendingOrders.length}</Text>
-                <Text style={s.statLabel}>Demandes</Text>
-              </View>
-            </View>
-            <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/courses')}>
-              <View style={[s.statIcon, { backgroundColor: '#DBEAFE' }]}>
-                <Ionicons name="calendar-outline" size={18} color="#3B82F6" />
-              </View>
-              <View style={s.statTextWrap}>
-                <Text style={s.statNumber}>{dashboard.reservedCount}</Text>
-                <Text style={s.statLabel}>À venir</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/courses')}>
-              <View style={[s.statIcon, { backgroundColor: '#DCFCE7' }]}>
-                <Ionicons name="car-sport-outline" size={18} color="#22C55E" />
-              </View>
-              <View style={s.statTextWrap}>
-                <Text style={s.statNumber}>{dashboard.withClientCount}</Text>
-                <Text style={s.statLabel}>En cours</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/gains')}>
-              <View style={[s.statIcon, { backgroundColor: '#D1F2E3' }]}>
-                <Ionicons name="wallet-outline" size={18} color="#4ECC8B" />
-              </View>
-              <View style={s.statTextWrap}>
-                <Text style={s.statNumber}>
-                  {monthEarnings === null ? '-' : formatCompactXpf(monthEarnings)}
-                </Text>
-                <Text style={s.statLabel}>Gains du mois</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.statsStrip}
+            contentContainerStyle={s.statsStripContent}
+          >
+            {[
+              { key: 'pending', icon: 'time-outline', color: '#F59E0B', bg: '#FEF3C7', value: String(pendingOrders.length), label: 'Demandes', route: null },
+              { key: 'upcoming', icon: 'calendar-outline', color: '#3B82F6', bg: '#DBEAFE', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
+              { key: 'active', icon: 'car-sport-outline', color: '#22C55E', bg: '#DCFCE7', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },
+              { key: 'earnings', icon: 'wallet-outline', color: '#4ECC8B', bg: '#D1F2E3', value: monthEarnings === null ? '-' : formatCompactXpf(monthEarnings), label: 'Gains du mois', route: '/(chauffeur)/gains' },
+            ].map((chip) => (
+              <TouchableOpacity
+                key={chip.key}
+                style={s.statChip}
+                activeOpacity={chip.route ? 0.7 : 1}
+                disabled={!chip.route}
+                onPress={() => chip.route && router.push(chip.route as any)}
+              >
+                <View style={[s.statChipIcon, { backgroundColor: chip.bg }]}>
+                  <Ionicons name={chip.icon as any} size={15} color={chip.color} />
+                </View>
+                <Text style={s.statChipValue}>{chip.value}</Text>
+                <Text style={s.statChipLabel}>{chip.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
           {/* À traiter */}
           {(dashboard.cancelRequestCount > 0 || dashboard.refundPendingCount > 0 || unreadClientMessages > 0 || fleet?.total === 0) && (
@@ -878,7 +864,7 @@ export default function ChauffeurHomeScreen() {
             </Reanimated.View>
           )}
 
-          <Reanimated.View layout={LinearTransition.duration(350)}>
+          <Reanimated.View layout={LinearTransition.duration(350)} style={{ marginTop: 16 }}>
             <BookingCalendar
               orders={calendarOrders}
               onPressOrder={(order) => router.push(`/(chauffeur)/course-details/${order.id}`)}
@@ -1102,18 +1088,18 @@ const s = StyleSheet.create({
   statusLabel: { fontSize: 10, fontWeight: '800', marginTop: 4, letterSpacing: 1 },
 
   // Stats
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 16, marginTop: 12, gap: 10 },
-  statCard: {
-    width: (width - 42) / 2, flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+  statsStrip: { flexGrow: 0, marginTop: 12 },
+  statsStripContent: { paddingHorizontal: 16, gap: 8 },
+  statChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 6, paddingLeft: 6, paddingRight: 14,
+    borderWidth: 1, borderColor: '#F0F0F0',
   },
-  statIcon: {
-    width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
+  statChipIcon: {
+    width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center',
   },
-  statTextWrap: { flex: 1 },
-  statNumber: { fontSize: 18, fontWeight: '800', color: '#1a1a1a' },
-  statLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginTop: 1 },
+  statChipValue: { fontSize: 15, fontWeight: '800', color: '#1a1a1a' },
+  statChipLabel: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
 
   // À traiter
   todoSection: { marginHorizontal: 16, marginTop: 14, gap: 8 },
