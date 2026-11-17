@@ -382,6 +382,11 @@ export default function ChauffeurHomeScreen() {
     return Array.from(byId.values());
   }, [driverOrders, pendingOrders]);
 
+  const missingCancellationCount = useMemo(
+    () => (vehicles ?? []).filter((v) => v.cancellation && !v.cancellation.configured).length,
+    [vehicles],
+  );
+
   const fleet = useMemo(() => {
     if (!vehicles) return null;
     const active = vehicles.filter((v) => v.isActive !== false);
@@ -733,8 +738,17 @@ export default function ChauffeurHomeScreen() {
           <View style={s.sheet}>
 
           {/* À traiter */}
-          {(dashboard.cancelRequestCount > 0 || dashboard.refundPendingCount > 0 || unreadClientMessages > 0 || fleet?.total === 0) && (
+          {(dashboard.cancelRequestCount > 0 || dashboard.refundPendingCount > 0 || unreadClientMessages > 0 || fleet?.total === 0 || missingCancellationCount > 0) && (
             <View style={s.todoSection}>
+              {missingCancellationCount > 0 && (
+                <TouchableOpacity style={[s.todoRow, s.todoDanger]} onPress={() => router.push('/(chauffeur)/conditions-annulation')}>
+                  <Ionicons name="document-text" size={20} color="#B91C1C" />
+                  <Text style={[s.todoText, { color: '#991B1B' }]}>
+                    {missingCancellationCount} véhicule{missingCancellationCount > 1 ? 's' : ''} masqué{missingCancellationCount > 1 ? 's' : ''} aux clients : ajoutez vos conditions d'annulation
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#B91C1C" />
+                </TouchableOpacity>
+              )}
               {dashboard.cancelRequestCount > 0 && (
                 <TouchableOpacity style={[s.todoRow, s.todoWarn]} onPress={() => router.push('/(chauffeur)/courses')}>
                   <Ionicons name="alert-circle" size={20} color="#B45309" />

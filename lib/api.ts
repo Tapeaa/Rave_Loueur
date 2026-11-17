@@ -1000,6 +1000,13 @@ export interface LoueurVehicle {
   modelSeats: number | null;
   modelTransmission: string | null;
   modelFuel: string | null;
+  cancellation?: VehicleCancellationPolicy;
+}
+
+export interface VehicleCancellationPolicy {
+  title: string;
+  desc: string;
+  configured: boolean;
 }
 
 export interface CreateVehicleData {
@@ -1192,6 +1199,21 @@ export async function updateVehicle(vehicleId: string, data: Partial<CreateVehic
   return apiFetch<LoueurVehicle>(`/api/driver/vehicles/${encodeURIComponent(vehicleId)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+    headers: { 'X-Driver-Session': sessionId },
+  });
+}
+
+/** Publie les conditions d'annulation sur une sélection de véhicules ou sur toute la flotte. */
+export async function saveCancellationPolicy(
+  title: string,
+  desc: string,
+  vehicleIds: string[] | 'all',
+): Promise<{ success: boolean; updated: number }> {
+  const sessionId = await getDriverSessionId();
+  if (!sessionId) throw new ApiError('Session requise', 401);
+  return apiFetch<{ success: boolean; updated: number }>('/api/driver/vehicles/cancellation-policy', {
+    method: 'PUT',
+    body: JSON.stringify({ title, desc, vehicleIds }),
     headers: { 'X-Driver-Session': sessionId },
   });
 }

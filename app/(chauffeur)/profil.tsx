@@ -523,6 +523,7 @@ export default function ChauffeurProfilScreen() {
                   <Text style={styles.sectionTitle}>Mon compte</Text>
                   {renderRow({ icon: 'ribbon-outline', label: 'Abonnement', onPress: () => router.push('/(chauffeur)/abonnement'), first: true })}
                   {renderRow({ icon: 'wallet-outline', label: 'Mes gains', onPress: () => router.push('/(chauffeur)/gains') })}
+                  {renderRow({ icon: 'document-text-outline', label: "Conditions d'annulation", onPress: () => router.push('/(chauffeur)/conditions-annulation') })}
                   {renderRow({ icon: 'mail-outline', label: 'Contactez-nous', onPress: openContact })}
                 </View>
 

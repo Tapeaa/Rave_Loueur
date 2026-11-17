@@ -119,9 +119,12 @@ export default function MesVehiculesScreen() {
     const cover = normalizeLoueurImageUrls(vehicle)[0] || vehicle.modelImageUrl || null;
     const photoCount = normalizeLoueurImageUrls(vehicle).length;
 
+    const missingCancellation = vehicle.cancellation ? !vehicle.cancellation.configured : false;
     const status = !vehicle.isActive
       ? { label: 'Inactif', bg: '#FEF2F2', color: '#EF4444' }
-      : vehicle.availableForRental
+      : missingCancellation
+        ? { label: 'Masqué', bg: '#FEF2F2', color: '#B91C1C' }
+        : vehicle.availableForRental
         ? { label: 'Disponible', bg: '#ECFDF5', color: '#059669' }
         : { label: 'Masqué', bg: '#FEF3C7', color: '#B45309' };
 
@@ -186,6 +189,29 @@ export default function MesVehiculesScreen() {
             maxRentalDays={vehicle.maxRentalDays}
             pricePerDay={vehicle.pricePerDay}
           />
+
+          {vehicle.cancellation ? (
+            <TouchableOpacity
+              style={[styles.cancelRow, missingCancellation ? styles.cancelRowMissing : null]}
+              onPress={() => router.push({ pathname: '/(chauffeur)/conditions-annulation', params: { vehicleId: vehicle.id } })}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name={missingCancellation ? 'alert-circle' : 'document-text-outline'}
+                size={18}
+                color={missingCancellation ? '#B91C1C' : '#16A34A'}
+              />
+              <Text
+                style={[styles.cancelRowText, { color: missingCancellation ? '#991B1B' : '#0B1F14' }]}
+                numberOfLines={1}
+              >
+                {missingCancellation
+                  ? "Conditions d'annulation à ajouter (masqué aux clients)"
+                  : vehicle.cancellation.title}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={missingCancellation ? '#B91C1C' : '#9CA3AF'} />
+            </TouchableOpacity>
+          ) : null}
 
           <View style={styles.cardActions}>
             <TouchableOpacity
@@ -346,6 +372,13 @@ const styles = StyleSheet.create({
   cardPriceRow: { flexDirection: 'row', gap: 24, marginBottom: 12 },
   priceLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   priceValue: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
+  cancelRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 12, paddingHorizontal: 12, height: 42, borderRadius: 12,
+    backgroundColor: '#F0FBF5',
+  },
+  cancelRowMissing: { backgroundColor: '#FEF2F2' },
+  cancelRowText: { flex: 1, fontSize: 13, fontWeight: '700' },
   cardActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 14 },
   editBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

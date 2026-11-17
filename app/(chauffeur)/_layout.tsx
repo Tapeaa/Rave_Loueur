@@ -244,6 +244,7 @@ export default function ChauffeurLayout() {
         <Stack.Screen name="mes-vehicules" />
         <Stack.Screen name="ajouter-vehicule" />
         <Stack.Screen name="modifier-vehicule" />
+        <Stack.Screen name="conditions-annulation" />
       </Stack>
 
       <Modal visible={!!cancelRequest} transparent animationType="slide" onRequestClose={handleLater}>
