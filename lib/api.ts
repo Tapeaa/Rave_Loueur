@@ -1001,6 +1001,9 @@ export interface LoueurVehicle {
   modelTransmission: string | null;
   modelFuel: string | null;
   cancellation?: VehicleCancellationPolicy;
+  cardPaymentEnabled?: boolean;
+  /** Le loueur a configuré sa banque (PayZen / Systempay) dans le dashboard. */
+  paymentOnlineConfigured?: boolean;
 }
 
 export interface VehicleCancellationPolicy {
@@ -1193,7 +1196,7 @@ export function normalizeLoueurImageUrls(vehicle: Pick<LoueurVehicle, 'customIma
   return Array.from(new Set(urls));
 }
 
-export async function updateVehicle(vehicleId: string, data: Partial<CreateVehicleData & { isActive: boolean }>): Promise<LoueurVehicle> {
+export async function updateVehicle(vehicleId: string, data: Partial<CreateVehicleData & { isActive: boolean; cardPaymentEnabled: boolean }>): Promise<LoueurVehicle> {
   const sessionId = await getDriverSessionId();
   if (!sessionId) throw new ApiError('Session requise', 401);
   return apiFetch<LoueurVehicle>(`/api/driver/vehicles/${encodeURIComponent(vehicleId)}`, {

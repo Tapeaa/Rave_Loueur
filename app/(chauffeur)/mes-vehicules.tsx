@@ -190,6 +190,19 @@ export default function MesVehiculesScreen() {
             pricePerDay={vehicle.pricePerDay}
           />
 
+          {vehicle.paymentOnlineConfigured ? (
+            <View style={styles.payChip}>
+              <Ionicons
+                name={vehicle.cardPaymentEnabled !== false ? 'card-outline' : 'cash-outline'}
+                size={14}
+                color={vehicle.cardPaymentEnabled !== false ? '#16A34A' : '#B45309'}
+              />
+              <Text style={[styles.payChipText, { color: vehicle.cardPaymentEnabled !== false ? '#16A34A' : '#B45309' }]}>
+                {vehicle.cardPaymentEnabled !== false ? 'Carte acceptée' : 'Paiement sur place'}
+              </Text>
+            </View>
+          ) : null}
+
           {vehicle.cancellation ? (
             <TouchableOpacity
               style={[styles.cancelRow, missingCancellation ? styles.cancelRowMissing : null]}
@@ -372,6 +385,12 @@ const styles = StyleSheet.create({
   cardPriceRow: { flexDirection: 'row', gap: 24, marginBottom: 12 },
   priceLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   priceValue: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
+  payChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    marginTop: 10, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+    backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  payChipText: { fontSize: 12, fontWeight: '700' },
   cancelRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 12, paddingHorizontal: 12, height: 42, borderRadius: 12,

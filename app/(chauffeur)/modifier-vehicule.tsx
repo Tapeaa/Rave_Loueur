@@ -76,6 +76,7 @@ export default function ModifierVehiculeScreen() {
   const [availableForRental, setAvailableForRental] = useState(true);
   const [rentalContractMode, setRentalContractMode] = useState<'app_default' | 'custom'>('app_default');
   const [isActive, setIsActive] = useState(true);
+  const [cardPaymentEnabled, setCardPaymentEnabled] = useState(true);
   const [customContractText, setCustomContractText] = useState('');
   const [showContractPreview, setShowContractPreview] = useState(false);
   const [sharingContract, setSharingContract] = useState(false);
@@ -101,6 +102,7 @@ export default function ModifierVehiculeScreen() {
       setRentalContractMode(found.rentalContractMode || 'app_default');
       setCustomContractText(found.customContractText || '');
       setIsActive(found.isActive);
+      setCardPaymentEnabled(found.cardPaymentEnabled !== false);
       setPhotoUrls(normalizeLoueurImageUrls(found));
     } catch (error: any) {
       appAlert('Erreur', error.message || 'Impossible de charger le véhicule');
@@ -157,6 +159,7 @@ export default function ModifierVehiculeScreen() {
         rentalContractMode,
         customContractText: rentalContractMode === 'custom' ? customContractText.trim() : undefined,
         isActive,
+        ...(vehicle.cardPaymentEnabled !== undefined ? { cardPaymentEnabled } : {}),
       });
       appAlert('Modifications enregistrées', 'Votre véhicule a été mis à jour.', [
         { text: 'OK', onPress: () => safeBack(router) },
@@ -270,6 +273,33 @@ export default function ModifierVehiculeScreen() {
             <Text style={st.sectionTitle}>Services proposés</Text>
             <SwitchRow icon="car-outline" label="Location" desc="Le client récupère le véhicule" value={availableForRental} onChange={setAvailableForRental} />
           </View>
+
+          {/* Paiement */}
+          {vehicle.cardPaymentEnabled !== undefined ? (
+            <View style={st.section}>
+              <Text style={st.sectionTitle}>Paiement</Text>
+              {vehicle.paymentOnlineConfigured ? (
+                <SwitchRow
+                  icon="card-outline"
+                  label="Paiement par carte en ligne"
+                  desc={
+                    cardPaymentEnabled
+                      ? 'Le client paie à la réservation, la demande vous arrive déjà payée'
+                      : 'Le client règle sur place, à la prise du véhicule'
+                  }
+                  value={cardPaymentEnabled}
+                  onChange={setCardPaymentEnabled}
+                />
+              ) : (
+                <View style={st.payInfo}>
+                  <Ionicons name="information-circle-outline" size={20} color="#B45309" />
+                  <Text style={st.payInfoText}>
+                    Paiement sur place uniquement. Pour accepter la carte, configurez votre banque (Socredo, Banque de Polynésie ou Banque de Tahiti) dans le dashboard loueur, rubrique Profil.
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : null}
 
           {/* Contrat */}
           <View style={st.section}>
@@ -478,6 +508,11 @@ const st = StyleSheet.create({
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F3F4F6',
   },
   sectionTitle: { fontSize: 17, fontWeight: '800', color: '#1a1a1a', marginBottom: 14 },
+  payInfo: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    padding: 12, borderRadius: 12, backgroundColor: '#FFFBEB',
+  },
+  payInfoText: { flex: 1, fontSize: 13, lineHeight: 19, color: '#92400E', fontWeight: '600' },
   label: { fontSize: 14, fontWeight: '700', color: '#374151', marginBottom: 6 },
   hint: { fontSize: 12, color: '#9CA3AF', marginTop: 6 },
 
