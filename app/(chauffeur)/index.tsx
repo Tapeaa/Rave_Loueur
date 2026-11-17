@@ -679,7 +679,7 @@ export default function ChauffeurHomeScreen() {
               </View>
             </View>
             <View style={s.dashboardRow}>
-              <Text style={[s.driverNameText, { flex: 1 }]} numberOfLines={1}>
+              <Text style={[s.driverNameText, { flex: 1, marginTop: 0 }]} numberOfLines={1}>
                 Bonjour, {driverName.split(' ')[0] || driverName}
               </Text>
               <TouchableOpacity
@@ -1122,7 +1122,7 @@ const s = StyleSheet.create({
   connRed: { backgroundColor: '#EF4444' },
   connText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
   earningsBox: { marginTop: 22 },
-  dashboardRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dashboardRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
   dashboardBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#4ECC8B', borderRadius: 999,
