@@ -154,6 +154,81 @@ export function formatCustomContractBody(raw: string): string {
   return `<div class="custom-body">${out.join("\n")}</div>`;
 }
 
+export type ContractSummaryKey = "loueur" | "tahiti" | "client" | "vehicle" | "period" | "total";
+
+export const CONTRACT_SUMMARY_DEFAULT_LABELS: Record<ContractSummaryKey, string> = {
+  loueur: "Loueur",
+  tahiti: "N° Tahiti / K-BIS",
+  client: "Client",
+  vehicle: "Véhicule",
+  period: "Période",
+  total: "Total",
+};
+
+/** Réglages du bloc résumé d'un contrat perso (stockés par véhicule) */
+export type ContractSettings = {
+  labels?: Partial<Record<ContractSummaryKey, string>>;
+  hidden?: ContractSummaryKey[];
+  extraRows?: { label: string; value: string }[];
+};
+
+export function normalizeContractSettings(raw: unknown): ContractSettings | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as any;
+  const keys = Object.keys(CONTRACT_SUMMARY_DEFAULT_LABELS) as ContractSummaryKey[];
+  const labels: Partial<Record<ContractSummaryKey, string>> = {};
+  for (const k of keys) {
+    const v = typeof r.labels?.[k] === "string" ? r.labels[k].trim().slice(0, 60) : "";
+    if (v && v !== CONTRACT_SUMMARY_DEFAULT_LABELS[k]) labels[k] = v;
+  }
+  const hidden = Array.isArray(r.hidden)
+    ? keys.filter((k) => r.hidden.includes(k))
+    : [];
+  const extraRows = Array.isArray(r.extraRows)
+    ? r.extraRows
+        .map((x: any) => ({
+          label: String(x?.label ?? "").trim().slice(0, 60),
+          value: String(x?.value ?? "").trim().slice(0, 200),
+        }))
+        .filter((x: { label: string; value: string }) => x.label || x.value)
+        .slice(0, 15)
+    : [];
+  if (!Object.keys(labels).length && !hidden.length && !extraRows.length) return null;
+  return { labels, hidden, extraRows };
+}
+
+/** Champs insérables dans les articles, remplacés à chaque réservation */
+export const CONTRACT_VARIABLES = [
+  { token: "{nom du client}", label: "Nom du client" },
+  { token: "{véhicule}", label: "Véhicule" },
+  { token: "{plaque}", label: "Plaque" },
+  { token: "{date de début}", label: "Date de début" },
+  { token: "{date de fin}", label: "Date de fin" },
+  { token: "{nombre de jours}", label: "Nombre de jours" },
+  { token: "{prix total}", label: "Prix total" },
+  { token: "{caution}", label: "Caution" },
+  { token: "{lieu de remise}", label: "Lieu de remise" },
+  { token: "{nom du loueur}", label: "Nom du loueur" },
+  { token: "{n° tahiti}", label: "N° Tahiti" },
+] as const;
+
+function fillContractVariables(text: string, p: RentalContractParams): string {
+  const values: Record<string, string> = {
+    "{nom du client}": p.clientName,
+    "{véhicule}": p.vehicleName,
+    "{plaque}": p.plate || "—",
+    "{date de début}": p.startLabel,
+    "{date de fin}": p.endLabel,
+    "{nombre de jours}": `${p.days} jour${p.days > 1 ? "s" : ""}`,
+    "{prix total}": p.totalLabel,
+    "{caution}": p.depositLabel || "—",
+    "{lieu de remise}": p.pickupLocation || "—",
+    "{nom du loueur}": p.loueurName,
+    "{n° tahiti}": String(p.loueurNumeroTahiti || "").trim() || "—",
+  };
+  return text.replace(/\{[^{}\n]{2,30}\}/g, (m) => values[m.toLowerCase()] ?? m);
+}
+
 export type RentalContractParams = {
   ref: string;
   contractDate: string;
@@ -180,6 +255,9 @@ export type RentalContractParams = {
   /** Contrat perso markdown / texte */
   customBody?: string | null;
   isCustom?: boolean;
+  plate?: string | null;
+  depositLabel?: string | null;
+  contractSettings?: ContractSettings | null;
   /** Mode aperçu loueur (placeholders) */
   previewMode?: boolean;
 };
@@ -328,8 +406,32 @@ export function buildDefaultRentalContractHtml(p: RentalContractParams): string 
 
 /** Contrat personnalisé (corps formaté + en-tête RAVE + résumé réservation) */
 export function buildCustomRentalContractHtml(p: RentalContractParams): string {
-  const bodyHtml = formatCustomContractBody(p.customBody || "");
+  const bodyHtml = formatCustomContractBody(fillContractVariables(p.customBody || "", p));
   const tahiti = String(p.loueurNumeroTahiti || "").trim();
+  const st = p.contractSettings || {};
+  const hidden = new Set(st.hidden || []);
+  const row = (k: ContractSummaryKey, valueHtml: string) =>
+    hidden.has(k)
+      ? ""
+      : `<div class="summary-row"><span class="summary-label">${esc(
+          st.labels?.[k]?.trim() || CONTRACT_SUMMARY_DEFAULT_LABELS[k]
+        )}</span><span class="summary-value">${valueHtml}</span></div>`;
+  const summaryRows = [
+    row("loueur", esc(p.loueurName)),
+    tahiti ? row("tahiti", esc(tahiti)) : "",
+    row("client", esc(p.clientName)),
+    row("vehicle", esc(p.vehicleName)),
+    row("period", `${esc(p.startLabel)}<br/>→ ${esc(p.endLabel)}`),
+    row("total", esc(p.totalLabel)),
+    ...(st.extraRows || []).map(
+      (x) =>
+        `<div class="summary-row"><span class="summary-label">${esc(x.label)}</span><span class="summary-value">${esc(
+          fillContractVariables(x.value, p)
+        )}</span></div>`
+    ),
+  ]
+    .filter(Boolean)
+    .join("\n  ");
   const sig =
     p.signatureHtml ||
     `<div class="signature-box">
@@ -345,18 +447,7 @@ export function buildCustomRentalContractHtml(p: RentalContractParams): string {
   <div class="badge">Contrat personnalisé du loueur</div>
   <div class="ref">Réf. ${esc(p.ref)} — ${esc(p.contractDate)}</div>
 </div>
-<div class="summary">
-  <div class="summary-row"><span class="summary-label">Loueur</span><span class="summary-value">${esc(p.loueurName)}</span></div>
-  ${
-    tahiti
-      ? `<div class="summary-row"><span class="summary-label">N° Tahiti / K-BIS</span><span class="summary-value">${esc(tahiti)}</span></div>`
-      : ""
-  }
-  <div class="summary-row"><span class="summary-label">Client</span><span class="summary-value">${esc(p.clientName)}</span></div>
-  <div class="summary-row"><span class="summary-label">Véhicule</span><span class="summary-value">${esc(p.vehicleName)}</span></div>
-  <div class="summary-row"><span class="summary-label">Période</span><span class="summary-value">${esc(p.startLabel)}<br/>→ ${esc(p.endLabel)}</span></div>
-  <div class="summary-row"><span class="summary-label">Total</span><span class="summary-value">${esc(p.totalLabel)}</span></div>
-</div>
+${summaryRows ? `<div class="summary">\n  ${summaryRows}\n</div>` : ""}
 ${bodyHtml}
 <div class="section">
   <div class="section-title">Signature électronique</div>
