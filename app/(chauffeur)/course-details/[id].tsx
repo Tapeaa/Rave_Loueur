@@ -10,6 +10,7 @@ import {
   Image,
   Modal,
   TextInput,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
@@ -507,6 +508,37 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
           <Text style={styles.dateText}>{formatDate(order.createdAt)}</Text>
           <Text style={styles.timeText}>à {formatTime(order.createdAt)}</Text>
         </Card>
+
+        {rentalData && (
+          <View style={styles.contactRow}>
+            <TouchableOpacity
+              style={[styles.contactBtn, styles.contactBtnPrimary]}
+              onPress={() => router.push({
+                pathname: '/(chauffeur)/chat',
+                params: {
+                  orderId: order.id,
+                  clientName: order.clientName || 'Client',
+                },
+              })}
+              accessibilityRole="button"
+              accessibilityLabel="Envoyer un message au client"
+            >
+              <Ionicons name="chatbubbles-outline" size={18} color="#1a1a1a" />
+              <Text style={styles.contactBtnPrimaryText}>Message</Text>
+            </TouchableOpacity>
+            {order.clientPhone ? (
+              <TouchableOpacity
+                style={styles.contactBtn}
+                onPress={() => Linking.openURL(`tel:${String(order.clientPhone).replace(/\s/g, '')}`)}
+                accessibilityRole="button"
+                accessibilityLabel="Appeler le client"
+              >
+                <Ionicons name="call-outline" size={18} color="#1a1a1a" />
+                <Text style={styles.contactBtnText}>Appeler</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
 
         {cancelPending && (
           <Card style={styles.cancelCard}>
@@ -1033,21 +1065,6 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                 </View>
               </View>
             </Card>
-
-            {/* Bouton Messages */}
-            <TouchableOpacity 
-              style={styles.messagesButton}
-              onPress={() => router.push({
-                pathname: '/(chauffeur)/chat',
-                params: {
-                  orderId: order.id,
-                  clientName: order.clientName || 'Client',
-                },
-              })}
-            >
-              <Ionicons name="chatbubbles-outline" size={22} color="#1a1a1a" />
-              <Text style={styles.messagesButtonText}>Contacter le client</Text>
-            </TouchableOpacity>
           </>
         )}
 
@@ -1510,26 +1527,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1a1a1a',
   },
-  messagesButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  contactRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  contactBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 48, borderRadius: 14, backgroundColor: '#F3F4F6',
   },
-  messagesButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginLeft: 10,
-  },
+  contactBtnText: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
+  contactBtnPrimary: { backgroundColor: '#4ECC8B' },
+  contactBtnPrimaryText: { fontSize: 15, fontWeight: '800', color: '#1a1a1a' },
   bottomSpacer: {
     height: 24,
   },
