@@ -5,7 +5,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
-import { Card } from '@/components/ui/Card';
 import { getDriverProfile, updateDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
 import * as FileSystem from 'expo-file-system/legacy';
 import { logoutDriver } from '@/lib/logout';
@@ -20,7 +19,7 @@ const signaturePadHTML = `<!DOCTYPE html><html><head><meta name="viewport" conte
 canvas{display:block;width:100%;height:100%}
 .btns{position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:12px;background:#fff;border-top:1px solid #e5e7eb}
 .btn{flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
-.clear{background:#f3f4f6;color:#374151}.save{background:#171717;color:#fff}
+.clear{background:#f3f4f6;color:#374151}.save{background:#4ECC8B;color:#0B1F14}
 </style></head><body>
 <canvas id="c"></canvas>
 <div class="btns"><button class="btn clear" onclick="clearSig()">Effacer</button><button class="btn save" onclick="saveSig()">Valider</button></div>
@@ -193,319 +192,247 @@ export default function ChauffeurProfilScreen() {
     router.replace('/(chauffeur)/login');
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => safeBack(router)}
-          accessibilityLabel="Retour"
-          accessibilityRole="button"
-        >
-          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
-        </TouchableOpacity>
-        <Text variant="h1">Profil Loueur</Text>
-        <View style={{ width: 40 }} />
+  const fullName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : 'Loueur RAVE';
+  const initials = profile
+    ? `${(profile.firstName || '').charAt(0)}${(profile.lastName || '').charAt(0)}`.toUpperCase() || 'R'
+    : 'R';
+
+  const openContact = () => {
+    appAlert(
+      'Contactez nous',
+      `Email : contact@rave-location.com\n\nTéléphone : +689 87 75 98 97`,
+      [
+        { text: 'Appeler', onPress: () => Linking.openURL('tel:+68987759897') },
+        { text: 'Envoyer un email', onPress: () => Linking.openURL('mailto:contact@rave-location.com') },
+        { text: 'Fermer', style: 'cancel' },
+      ]
+    );
+  };
+
+  const renderRow = (opts: {
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    sub?: string;
+    onPress?: () => void;
+    first?: boolean;
+    right?: React.ReactNode;
+  }) => (
+    <TouchableOpacity
+      key={opts.label}
+      style={[styles.row, !opts.first && styles.rowDivider]}
+      onPress={opts.onPress}
+      disabled={!opts.onPress}
+      activeOpacity={0.7}
+      accessibilityRole={opts.onPress ? 'button' : undefined}
+      accessibilityLabel={opts.label}
+    >
+      <View style={styles.rowIcon}>
+        <Ionicons name={opts.icon} size={19} color="#16A34A" />
       </View>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {loading ? (
-          <ActivityIndicator size="large" color="#4ECC8B" style={{ marginTop: 40 }} />
-        ) : (
-          <>
-            <Card style={styles.profileCard}>
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={40} color={BRAND.green} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowLabel}>{opts.label}</Text>
+        {opts.sub ? <Text style={styles.rowSub} numberOfLines={2}>{opts.sub}</Text> : null}
+      </View>
+      {opts.right ?? (opts.onPress ? <Ionicons name="chevron-forward" size={18} color="#C4C7CC" /> : null)}
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => safeBack(router)}
+            accessibilityLabel="Retour"
+            accessibilityRole="button"
+          >
+            <Ionicons name="arrow-back" size={22} color={INK} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Mon profil</Text>
+          {profile && !editing ? (
+            <TouchableOpacity style={styles.headerBtn} onPress={startEditing} accessibilityLabel="Modifier mon profil">
+              <Ionicons name="create-outline" size={20} color={INK} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 40 }} />
+          )}
+        </View>
+
+        <ScrollView
+          style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+        >
+          <View style={styles.heroOverscroll} />
+          <View style={styles.hero}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+            <Text style={styles.heroName} numberOfLines={1}>{fullName}</Text>
+            <View style={styles.heroMetaRow}>
+              <View style={styles.statusPill}>
+                <View style={[styles.statusDot, { backgroundColor: profile?.isActive ? '#16A34A' : '#DC2626' }]} />
+                <Text style={styles.statusPillText}>{profile?.isActive ? 'Compte actif' : 'Compte inactif'}</Text>
               </View>
-              {editing ? (
-                <View style={{ width: '100%', gap: 10, marginTop: 8 }}>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editForm.firstName}
-                    onChangeText={(v) => setEditForm((f) => ({ ...f, firstName: v }))}
-                    placeholder="Prénom"
-                    placeholderTextColor="#9CA3AF"
-                    autoCapitalize="words"
-                  />
-                  <TextInput
-                    style={styles.editInput}
-                    value={editForm.lastName}
-                    onChangeText={(v) => setEditForm((f) => ({ ...f, lastName: v }))}
-                    placeholder="Nom"
-                    placeholderTextColor="#9CA3AF"
-                    autoCapitalize="words"
-                  />
-                  <TextInput
-                    style={styles.editInput}
-                    value={editForm.phone}
-                    onChangeText={(v) => setEditForm((f) => ({ ...f, phone: v }))}
-                    placeholder="Téléphone"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="phone-pad"
-                  />
-                  <TextInput
-                    style={[styles.editInput, { minHeight: 72, textAlignVertical: 'top' }]}
-                    value={editForm.defaultMeetingPoint}
-                    onChangeText={(v) => setEditForm((f) => ({ ...f, defaultMeetingPoint: v }))}
-                    placeholder="Lieu de RDV par défaut (ex. Parking Fare Ute)"
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                  />
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                    <TouchableOpacity
-                      style={[styles.editBtn, styles.editBtnGhost]}
-                      onPress={cancelEditing}
-                      disabled={saving}
-                    >
-                      <Text style={styles.editBtnGhostText}>Annuler</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.editBtn, styles.editBtnPrimary]}
-                      onPress={saveProfile}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <Text style={styles.editBtnPrimaryText}>Enregistrer</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
+              {profile?.prestataireName ? (
+                <Text style={styles.heroCompany} numberOfLines={1}>{profile.prestataireName}</Text>
+              ) : null}
+            </View>
+            {profile ? (
+              <View style={styles.heroStats}>
+                <View style={styles.heroStat}>
+                  <Text style={styles.heroStatValue}>{profile.totalRides ?? 0}</Text>
+                  <Text style={styles.heroStatLabel}>Locations</Text>
                 </View>
-              ) : (
-                <>
-                  <Text variant="h3">
-                    {profile ? `${profile.firstName} ${profile.lastName}` : 'Loueur RAVE'}
-                  </Text>
-                  <Text variant="caption" style={{ color: profile?.isActive ? '#22c55e' : '#ef4444' }}>
-                    {profile?.isActive ? 'Actif' : 'Inactif'}
-                  </Text>
-                  {profile?.phone ? (
-                    <Text variant="caption" style={{ color: '#6b7280', marginTop: 4 }}>
-                      {profile.phone}
+                <View style={styles.heroStat}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.heroStatValue}>
+                      {profile.averageRating ? profile.averageRating.toFixed(1) : '–'}
                     </Text>
-                  ) : null}
-                  {profile?.prestataireName ? (
-                    <Text variant="caption" style={{ color: '#6b7280', marginTop: 6 }}>
-                      {profile.prestataireName}
-                    </Text>
-                  ) : null}
-                  {profile?.defaultMeetingPoint ? (
-                    <Text variant="caption" style={{ color: '#6b7280', marginTop: 8, textAlign: 'center' }}>
-                      RDV par défaut : {profile.defaultMeetingPoint}
-                    </Text>
-                  ) : (
-                    <Text variant="caption" style={{ color: '#9CA3AF', marginTop: 8, textAlign: 'center' }}>
-                      Aucun lieu de RDV par défaut
-                    </Text>
-                  )}
-                  {profile ? (
-                    <TouchableOpacity style={styles.modifyLink} onPress={startEditing} activeOpacity={0.7}>
-                      <Ionicons name="create-outline" size={16} color={BRAND.green} />
-                      <Text style={styles.modifyLinkText}>Modifier mon profil</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </>
-              )}
-            </Card>
-            
-            {/* Statistiques */}
-            {profile && (
-              <Card style={styles.statsCard}>
-                <Text variant="label" style={styles.sectionTitle}>Statistiques</Text>
-                <View style={styles.statsRow}>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{profile.totalRides}</Text>
-                    <Text style={styles.statLabel}>Locations</Text>
+                    {profile.averageRating ? <Ionicons name="star" size={15} color={INK} /> : null}
                   </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>
-                      {profile.averageRating ? profile.averageRating.toFixed(1) : '-'}
-                    </Text>
-                    <Text style={styles.statLabel}>Note</Text>
-                  </View>
+                  <Text style={styles.heroStatLabel}>Note moyenne</Text>
                 </View>
-              </Card>
-            )}
+              </View>
+            ) : null}
+          </View>
 
-            {/* ═══ SIGNATURE PAR DÉFAUT ═══ */}
-            <Card style={[styles.statsCard, { borderWidth: 1, borderColor: savedSignature ? '#22C55E30' : '#F59E0B30' }]}>
-              <Text variant="label" style={styles.sectionTitle}>Signature pour les contrats</Text>
-              <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 14, lineHeight: 18 }}>
-                Cette signature sera automatiquement ajoutée sur tous les contrats de location que vous acceptez.
-              </Text>
-
-              {savedSignature ? (
-                <View>
-                  <View style={{ backgroundColor: '#FAFAFA', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, alignItems: 'center' }}>
-                    <Image source={{ uri: savedSignature }} style={{ width: '100%', height: 80 }} resizeMode="contain" />
+          <View style={styles.sheet}>
+            {loading ? (
+              <ActivityIndicator size="large" color="#4ECC8B" style={{ marginTop: 30 }} />
+            ) : (
+              <>
+                {editing ? (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Modifier mon profil</Text>
+                    <View style={{ gap: 10 }}>
+                      <TextInput
+                        style={styles.editInput}
+                        value={editForm.firstName}
+                        onChangeText={(v) => setEditForm((f) => ({ ...f, firstName: v }))}
+                        placeholder="Prénom"
+                        placeholderTextColor="#9CA3AF"
+                        autoCapitalize="words"
+                      />
+                      <TextInput
+                        style={styles.editInput}
+                        value={editForm.lastName}
+                        onChangeText={(v) => setEditForm((f) => ({ ...f, lastName: v }))}
+                        placeholder="Nom"
+                        placeholderTextColor="#9CA3AF"
+                        autoCapitalize="words"
+                      />
+                      <TextInput
+                        style={styles.editInput}
+                        value={editForm.phone}
+                        onChangeText={(v) => setEditForm((f) => ({ ...f, phone: v }))}
+                        placeholder="Téléphone"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="phone-pad"
+                      />
+                      <TextInput
+                        style={[styles.editInput, { minHeight: 72, textAlignVertical: 'top' }]}
+                        value={editForm.defaultMeetingPoint}
+                        onChangeText={(v) => setEditForm((f) => ({ ...f, defaultMeetingPoint: v }))}
+                        placeholder="Lieu de RDV par défaut (ex. Parking Fare Ute)"
+                        placeholderTextColor="#9CA3AF"
+                        multiline
+                      />
+                      <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                        <TouchableOpacity style={[styles.editBtn, styles.editBtnGhost]} onPress={cancelEditing} disabled={saving}>
+                          <Text style={styles.editBtnGhostText}>Annuler</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.editBtn, styles.editBtnPrimary]} onPress={saveProfile} disabled={saving}>
+                          {saving ? <ActivityIndicator color={INK} /> : <Text style={styles.editBtnPrimaryText}>Enregistrer</Text>}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, gap: 4 }}>
-                    <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-                    <Text style={{ fontSize: 12, color: '#22C55E', fontWeight: '600' }}>Signature enregistrée</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                    <TouchableOpacity
-                      onPress={() => setShowSignaturePad(true)}
-                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F3F4F6', borderRadius: 10, paddingVertical: 12 }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="pencil-outline" size={16} color="#374151" />
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151' }}>Modifier</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={handleDeleteSignature}
-                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FEE2E2', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16 }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={() => setShowSignaturePad(true)}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#171717', borderRadius: 12, paddingVertical: 14 }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="pencil" size={18} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>Ajouter ma signature</Text>
-                </TouchableOpacity>
-              )}
-            </Card>
-
-            <View style={styles.menuContainer}>
-              <View>
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => setShowVehicleInfo(!showVehicleInfo)}
-                  accessibilityLabel="Mon véhicule"
-                  accessibilityRole="button"
-                  accessibilityHint={showVehicleInfo ? "Masque les informations du véhicule" : "Affiche les informations du véhicule"}
-                >
-                  <View style={styles.menuIcon}>
-                    <Ionicons name="car-outline" size={22} color="#1a1a1a" />
-                  </View>
-                  <Text variant="body">Mon véhicule</Text>
-                  <Ionicons 
-                    name={showVehicleInfo ? "chevron-down" : "chevron-forward"} 
-                    size={20} 
-                    color="#6b7280" 
-                  />
-                </TouchableOpacity>
-                {showVehicleInfo && profile && (
-                  <View style={styles.vehicleInfoContainer}>
-                    {profile.vehicleModel ? (
-                      <Text style={styles.vehicleInfoText}>
-                        Modèle : {profile.vehicleModel}
-                      </Text>
-                    ) : null}
-                    {profile.vehiclePlate ? (
-                      <Text style={styles.vehicleInfoText}>
-                        Plaque : {profile.vehiclePlate}
-                      </Text>
-                    ) : null}
-                    {!profile.vehicleModel && !profile.vehiclePlate && (
-                      <Text style={styles.vehicleInfoText}>
-                        Aucune information disponible
-                      </Text>
-                    )}
+                ) : (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Mes informations</Text>
+                    {renderRow({ icon: 'call-outline', label: 'Téléphone', sub: profile?.phone || 'Non renseigné', first: true })}
+                    {renderRow({
+                      icon: 'location-outline',
+                      label: 'Lieu de RDV par défaut',
+                      sub: profile?.defaultMeetingPoint || 'Aucun lieu défini',
+                      onPress: profile ? startEditing : undefined,
+                    })}
+                    {renderRow({
+                      icon: 'car-outline',
+                      label: 'Mon véhicule',
+                      sub: showVehicleInfo
+                        ? [profile?.vehicleModel && `Modèle : ${profile.vehicleModel}`, profile?.vehiclePlate && `Plaque : ${profile.vehiclePlate}`]
+                            .filter(Boolean)
+                            .join(' · ') || 'Aucune information disponible'
+                        : undefined,
+                      onPress: () => setShowVehicleInfo(!showVehicleInfo),
+                      right: <Ionicons name={showVehicleInfo ? 'chevron-down' : 'chevron-forward'} size={18} color="#C4C7CC" />,
+                    })}
                   </View>
                 )}
-              </View>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => router.push('/(chauffeur)/abonnement')}
-                accessibilityLabel="Abonnement RAVE"
-                accessibilityRole="button"
-              >
-                <View style={styles.menuIcon}>
-                  <Ionicons name="ribbon-outline" size={22} color="#1a1a1a" />
-                </View>
-                <Text variant="body">Abonnement</Text>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.menuItem}
-                onPress={() => {
-                  appAlert(
-                    'Contactez nous',
-                    `Email : contact@rave-location.com\n\nTéléphone : +689 87 75 98 97`,
-                    [
-                      {
-                        text: 'Appeler',
-                        onPress: () => Linking.openURL('tel:+68987759897'),
-                      },
-                      {
-                        text: 'Envoyer un email',
-                        onPress: () => Linking.openURL('mailto:contact@rave-location.com'),
-                      },
-                      { text: 'Fermer', style: 'cancel' },
-                    ]
-                  );
-                }}
-                accessibilityLabel="Contactez nous par email ou téléphone"
-                accessibilityRole="button"
-                accessibilityHint="Ouvre un menu avec les options pour appeler ou envoyer un email"
-              >
-                <View style={styles.menuIcon}>
-                  <Ionicons name="mail-outline" size={22} color="#1a1a1a" />
-                </View>
-                <Text variant="body">Contactez nous</Text>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
 
-            {/* Section Légal */}
-            <View style={styles.legalSection}>
-              <Text variant="label" style={styles.legalSectionTitle}>Légal</Text>
-              <TouchableOpacity 
-                style={styles.legalMenuItem}
-                onPress={() => router.push('/(chauffeur)/confidentialite')}
-                activeOpacity={0.7}
-                accessibilityLabel="Politique de confidentialité"
-                accessibilityRole="link"
-                accessibilityHint="Ouvre la politique de confidentialité dans l'application"
-              >
-                <View style={styles.legalMenuIcon}>
-                  <Ionicons name="shield-checkmark-outline" size={20} color="#5c5c5c" />
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Signature des contrats</Text>
+                  <Text style={styles.sectionHint}>
+                    Ajoutée automatiquement sur tous les contrats de location que vous acceptez.
+                  </Text>
+                  {savedSignature ? (
+                    <>
+                      <View style={styles.signatureBox}>
+                        <Image source={{ uri: savedSignature }} style={{ width: '100%', height: 80 }} resizeMode="contain" />
+                        <View style={styles.signatureBadge}>
+                          <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
+                          <Text style={styles.signatureBadgeText}>Enregistrée</Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                        <TouchableOpacity onPress={() => setShowSignaturePad(true)} style={styles.signatureEditBtn} activeOpacity={0.7}>
+                          <Ionicons name="pencil-outline" size={16} color="#1a1a1a" />
+                          <Text style={styles.signatureEditText}>Modifier</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleDeleteSignature} style={styles.signatureDeleteBtn} activeOpacity={0.7}>
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  ) : (
+                    <TouchableOpacity onPress={() => setShowSignaturePad(true)} style={styles.signatureAddBtn} activeOpacity={0.8}>
+                      <Ionicons name="pencil" size={18} color={INK} />
+                      <Text style={styles.signatureAddText}>Ajouter ma signature</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <Text variant="body" style={styles.legalMenuText}>Politique de confidentialité</Text>
-                <Ionicons name="chevron-forward" size={20} color="#5c5c5c" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.legalMenuItem}
-                onPress={() => router.push('/(chauffeur)/conditions-utilisation')}
-                activeOpacity={0.7}
-                accessibilityLabel="Conditions générales d'abonnement et de services Pro"
-                accessibilityRole="button"
-                accessibilityHint="Affiche les CGS Pro de l'application"
-              >
-                <View style={styles.legalMenuIcon}>
-                  <Ionicons name="document-text-outline" size={20} color="#5c5c5c" />
-                </View>
-                <Text variant="body" style={styles.legalMenuText}>CGS Pro</Text>
-                <Ionicons name="chevron-forward" size={20} color="#5c5c5c" />
-              </TouchableOpacity>
-            </View>
 
-            <TouchableOpacity 
-              style={styles.logoutButton} 
-              onPress={handleLogout}
-              accessibilityLabel="Se déconnecter"
-              accessibilityRole="button"
-              accessibilityHint="Déconnecte le loueur et retourne à l'écran de connexion"
-            >
-              <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-              <Text variant="body" style={styles.logoutText}>Se déconnecter</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </ScrollView>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Mon compte</Text>
+                  {renderRow({ icon: 'ribbon-outline', label: 'Abonnement', onPress: () => router.push('/(chauffeur)/abonnement'), first: true })}
+                  {renderRow({ icon: 'wallet-outline', label: 'Mes gains', onPress: () => router.push('/(chauffeur)/gains') })}
+                  {renderRow({ icon: 'mail-outline', label: 'Contactez-nous', onPress: openContact })}
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Légal</Text>
+                  {renderRow({ icon: 'shield-checkmark-outline', label: 'Politique de confidentialité', onPress: () => router.push('/(chauffeur)/confidentialite'), first: true })}
+                  {renderRow({ icon: 'document-text-outline', label: 'CGS Pro', onPress: () => router.push('/(chauffeur)/conditions-utilisation') })}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.logoutButton}
+                  onPress={handleLogout}
+                  accessibilityLabel="Se déconnecter"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                  <Text style={styles.logoutText}>Se déconnecter</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </ScrollView>
 
       {/* Modal Signature Pad */}
       <Modal visible={showSignaturePad} animationType="slide" statusBarTranslucent onRequestClose={() => setShowSignaturePad(false)}>
@@ -526,210 +453,128 @@ export default function ChauffeurProfilScreen() {
           />
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
+const HERO_BG = '#4ECC8B';
+const INK = '#0B1F14';
+const INK_SOFT = 'rgba(11,31,20,0.65)';
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  container: { flex: 1, backgroundColor: HERO_BG },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingVertical: 10,
+    backgroundColor: HERO_BG,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  scrollView: {
-    flex: 1,
+  headerTitle: { fontSize: 17, fontWeight: '800', color: INK },
+
+  heroOverscroll: { position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: HERO_BG },
+  hero: { backgroundColor: HERO_BG, alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 48 },
+  avatar: {
+    width: 88, height: 88, borderRadius: 44, backgroundColor: INK,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 4, borderColor: 'rgba(255,255,255,0.45)',
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 32,
+  avatarText: { fontSize: 32, fontWeight: '800', color: '#4ECC8B', letterSpacing: 1 },
+  heroName: { marginTop: 14, fontSize: 26, fontWeight: '800', color: INK, letterSpacing: -0.5 },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
   },
-  profileCard: {
-    alignItems: 'center',
-    padding: 24,
-    marginBottom: 24,
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  statusPillText: { fontSize: 12, fontWeight: '800', color: INK },
+  heroCompany: { fontSize: 13, fontWeight: '700', color: INK_SOFT, maxWidth: 200 },
+  heroStats: { flexDirection: 'row', gap: 10, marginTop: 20, alignSelf: 'stretch' },
+  heroStat: {
+    flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.32)',
+    borderRadius: 18, paddingVertical: 12,
   },
+  heroStatValue: { fontSize: 20, fontWeight: '800', color: INK },
+  heroStatLabel: { fontSize: 12, fontWeight: '700', color: INK_SOFT, marginTop: 2 },
+
+  sheet: {
+    flexGrow: 1, backgroundColor: '#FFFFFF', marginTop: -24,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 20, paddingTop: 6, paddingBottom: 40,
+  },
+  section: {
+    paddingVertical: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a1a', letterSpacing: -0.2, marginBottom: 8 },
+  sectionHint: { fontSize: 13, color: '#6B7280', lineHeight: 18, marginBottom: 14 },
+
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEF0F2' },
+  rowIcon: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8F8F0',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  rowLabel: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
+  rowSub: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+
   editInput: {
     width: '100%',
     borderWidth: 1.5,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
     color: '#1a1a1a',
     backgroundColor: '#FAFAFA',
   },
-  editBtn: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  editBtn: { flex: 1, borderRadius: 14, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  editBtnGhost: { backgroundColor: '#F3F4F6' },
+  editBtnGhostText: { fontSize: 14, fontWeight: '700', color: '#374151' },
+  editBtnPrimary: { backgroundColor: BRAND.green },
+  editBtnPrimaryText: { fontSize: 14, fontWeight: '800', color: INK },
+
+  signatureBox: {
+    backgroundColor: '#FAFAFA', borderRadius: 16, padding: 12, alignItems: 'center',
+    borderWidth: 1, borderColor: '#EEF0F2',
   },
-  editBtnGhost: {
-    backgroundColor: '#F3F4F6',
+  signatureBadge: {
+    position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#E8F8F0', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
   },
-  editBtnGhostText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+  signatureBadgeText: { fontSize: 11, fontWeight: '800', color: '#166534' },
+  signatureEditBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#F3F4F6', borderRadius: 14, paddingVertical: 13,
   },
-  editBtnPrimary: {
-    backgroundColor: BRAND.green,
+  signatureEditText: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
+  signatureDeleteBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FEE2E2', borderRadius: 14, paddingHorizontal: 18,
   },
-  editBtnPrimaryText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  signatureAddBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#4ECC8B', borderRadius: 14, paddingVertical: 15,
   },
-  modifyLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingVertical: 6,
-  },
-  modifyLinkText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: BRAND.green,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#D1F2E3',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  statsCard: {
-    padding: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    marginBottom: 12,
-    color: '#6b7280',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#e5e7eb',
-  },
-  menuContainer: {
-    gap: 8,
-    marginBottom: 24,
-  },
-  legalSection: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  legalSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#343434',
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  legalMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f6f6f6',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 8,
-  },
-  legalMenuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffdf6d',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  legalMenuText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#5c5c5c',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  vehicleInfoContainer: {
-    backgroundColor: '#f9fafb',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  vehicleInfoText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 4,
-  },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
+  signatureAddText: { color: INK, fontSize: 15, fontWeight: '800' },
+
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 32,
-    paddingVertical: 16,
-    backgroundColor: '#FEE2E2',
-    borderRadius: 12,
+    marginTop: 24,
+    paddingVertical: 15,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 14,
   },
-  logoutText: {
-    color: '#EF4444',
-    fontWeight: '600',
-  },
+  logoutText: { color: '#EF4444', fontSize: 15, fontWeight: '700' },
 });
