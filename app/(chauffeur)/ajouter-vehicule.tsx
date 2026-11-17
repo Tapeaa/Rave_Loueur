@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
   Switch,
   Platform,
   KeyboardAvoidingView,
@@ -41,6 +40,7 @@ import {
 } from '@/lib/rental-contract-html';
 import { WebView } from 'react-native-webview';
 import { CustomContractEditor } from '@/components/CustomContractEditor';
+import { appAlert } from '@/components/AppAlert';
 
 const CATEGORY_LABELS: Record<string, string> = {
   all: 'Toutes',
@@ -162,11 +162,11 @@ export default function AjouterVehiculeScreen() {
 
   const goToDetails = () => {
     if (!selectedModelId || !selectedModel) {
-      Alert.alert('Sélection requise', 'Veuillez choisir un modèle de véhicule.');
+      appAlert('Sélection requise', 'Veuillez choisir un modèle de véhicule.');
       return;
     }
     if (limitReached) {
-      Alert.alert('Limite atteinte', `Vous avez déjà ${MAX_VEHICLES} véhicules.`);
+      appAlert('Limite atteinte', `Vous avez déjà ${MAX_VEHICLES} véhicules.`);
       return;
     }
     setStep('details');
@@ -199,7 +199,7 @@ export default function AjouterVehiculeScreen() {
       }
     } catch (e: any) {
       if (e?.message !== 'User cancelled') {
-        Alert.alert('Erreur', 'Impossible de partager le contrat.');
+        appAlert('Erreur', 'Impossible de partager le contrat.');
       }
     } finally {
       setSharingContract(false);
@@ -209,15 +209,15 @@ export default function AjouterVehiculeScreen() {
   const handleSubmit = async () => {
     if (!selectedModelId || !selectedModel) return;
     if (!pricePerDay || isNaN(Number(pricePerDay)) || Number(pricePerDay) <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un prix par jour valide');
+      appAlert('Erreur', 'Veuillez entrer un prix par jour valide');
       return;
     }
     if (!availableForRental) {
-      Alert.alert('Erreur', 'Activez la location pour publier ce véhicule');
+      appAlert('Erreur', 'Activez la location pour publier ce véhicule');
       return;
     }
     if (rentalContractMode === 'custom' && customContractText.trim().length < 20) {
-      Alert.alert('Erreur', 'Le contrat personnalisé doit contenir au moins quelques lignes.');
+      appAlert('Erreur', 'Le contrat personnalisé doit contenir au moins quelques lignes.');
       return;
     }
     setSubmitting(true);
@@ -240,11 +240,11 @@ export default function AjouterVehiculeScreen() {
         customContractText: rentalContractMode === 'custom' ? customContractText.trim() : undefined,
       };
       await addVehicle(data);
-      Alert.alert('Véhicule créé', 'Votre véhicule a été ajouté avec succès.', [
+      appAlert('Véhicule créé', 'Votre véhicule a été ajouté avec succès.', [
         { text: 'OK', onPress: () => safeBack(router) },
       ]);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || "Impossible d'ajouter le véhicule");
+      appAlert('Erreur', error.message || "Impossible d'ajouter le véhicule");
     } finally {
       setSubmitting(false);
     }
@@ -407,7 +407,7 @@ export default function AjouterVehiculeScreen() {
                       style={st.downloadBtn}
                       onPress={async () => {
                         if (!customContractText.trim()) {
-                          Alert.alert('Contrat vide', 'Rédigez votre contrat avant de le télécharger.');
+                          appAlert('Contrat vide', 'Rédigez votre contrat avant de le télécharger.');
                           return;
                         }
                         setSharingCustomContract(true);
@@ -434,7 +434,7 @@ export default function AjouterVehiculeScreen() {
                             await Share.share({ title: 'Contrat personnalisé', message: customContractText });
                           }
                         } catch (e: any) {
-                          if (e?.message !== 'User cancelled') Alert.alert('Erreur', 'Impossible de partager.');
+                          if (e?.message !== 'User cancelled') appAlert('Erreur', 'Impossible de partager.');
                         } finally {
                           setSharingCustomContract(false);
                         }

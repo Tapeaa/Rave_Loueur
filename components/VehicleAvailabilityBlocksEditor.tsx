@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -18,6 +17,7 @@ import {
   getVehicleAvailabilityBlocks,
   type AvailabilityBlock,
 } from '@/lib/api';
+import { appAlert } from '@/components/AppAlert';
 
 function toYmd(d: Date): string {
   const y = d.getFullYear();
@@ -64,7 +64,7 @@ export function VehicleAvailabilityBlocksEditor({ vehicleId }: Props) {
 
   const onAdd = async () => {
     if (endYmd < startYmd) {
-      Alert.alert('Dates', 'La fin doit être après le début.');
+      appAlert('Dates', 'La fin doit être après le début.');
       return;
     }
     try {
@@ -76,16 +76,16 @@ export function VehicleAvailabilityBlocksEditor({ vehicleId }: Props) {
       });
       setReason('');
       await load();
-      Alert.alert('Bloqué', 'Ces dates sont indisponibles pour les clients.');
+      appAlert('Bloqué', 'Ces dates sont indisponibles pour les clients.');
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Impossible de bloquer les dates');
+      appAlert('Erreur', e?.message || 'Impossible de bloquer les dates');
     } finally {
       setSaving(false);
     }
   };
 
   const onDelete = (block: AvailabilityBlock) => {
-    Alert.alert(
+    appAlert(
       'Débloquer',
       `Retirer le blocage ${formatBlockRangeLabel(block.startDate, block.endDate)} ?`,
       [
@@ -98,7 +98,7 @@ export function VehicleAvailabilityBlocksEditor({ vehicleId }: Props) {
               await deleteVehicleAvailabilityBlock(vehicleId, block.id);
               await load();
             } catch (e: any) {
-              Alert.alert('Erreur', e?.message || 'Suppression impossible');
+              appAlert('Erreur', e?.message || 'Suppression impossible');
             }
           },
         },

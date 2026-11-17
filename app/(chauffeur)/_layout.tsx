@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { View, TouchableOpacity, Modal, StyleSheet, Linking, Alert, ActivityIndicator, AppState } from 'react-native';
+import { View, TouchableOpacity, Modal, StyleSheet, Linking, ActivityIndicator, AppState } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { Text } from '@/components/ui/Text';
@@ -18,6 +18,7 @@ import {
   fetchPendingCancelRequests,
 } from '@/lib/api';
 import { onNotificationClicked } from '@/lib/onesignal';
+import { appAlert } from '@/components/AppAlert';
 
 const RESYNC_INTERVAL_MS = 45000;
 
@@ -83,7 +84,7 @@ export default function ChauffeurLayout() {
         const refundLine = info.refund
           ? `\n\nLe client avait payé par carte : remboursez-lui ${Math.round(info.refund.amount || 0).toLocaleString('fr-FR')} XPF puis confirmez-le dans Réservations.`
           : '';
-        Alert.alert(
+        appAlert(
           'Demande expirée',
           `La demande de ${info.clientName || 'votre client'} pour ${info.vehicleTitle || 'votre véhicule'} a expiré sans réponse.${refundLine}`,
           info.refund
@@ -149,7 +150,7 @@ export default function ChauffeurLayout() {
       removeFromQueue(cancelRequest.orderId);
       refreshOrderLists();
       if (kind === 'approve' && cancelRequest.paid) {
-        Alert.alert(
+        appAlert(
           'Annulation validée',
           `La location est annulée et le client a été prévenu.\n\nRemboursez-lui ${(cancelRequest.totalPrice || 0).toLocaleString('fr-FR')} XPF, puis appuyez sur « J'ai remboursé » dans Réservations.`,
           [
@@ -159,7 +160,7 @@ export default function ChauffeurLayout() {
         );
         return;
       }
-      Alert.alert(
+      appAlert(
         kind === 'approve' ? 'Annulation validée' : 'Annulation refusée',
         kind === 'approve'
           ? 'La location est annulée. Le client a été prévenu.'
@@ -170,10 +171,10 @@ export default function ChauffeurLayout() {
       if (msg.includes('409') || msg.includes('déjà')) {
         removeFromQueue(cancelRequest.orderId);
         refreshOrderLists();
-        Alert.alert('Déjà traitée', 'Cette location est déjà annulée ou terminée.');
+        appAlert('Déjà traitée', 'Cette location est déjà annulée ou terminée.');
       } else {
         console.warn('[Layout] cancel decision failed:', msg);
-        Alert.alert('Erreur', 'Impossible d\'enregistrer votre décision. Vérifiez votre connexion et réessayez.');
+        appAlert('Erreur', 'Impossible d\'enregistrer votre décision. Vérifiez votre connexion et réessayez.');
       }
     } finally {
       setProcessing(null);
@@ -196,7 +197,7 @@ export default function ChauffeurLayout() {
 
   const handleCall = useCallback(() => {
     if (!cancelRequest?.clientPhone) {
-      Alert.alert('Erreur', 'Numéro de téléphone indisponible.');
+      appAlert('Erreur', 'Numéro de téléphone indisponible.');
       return;
     }
     Linking.openURL(`tel:${cancelRequest.clientPhone}`);

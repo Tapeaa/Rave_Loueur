@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Alert, ScrollView, Image, Modal, Platform, TextInput } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, ScrollView, Image, Modal, Platform, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { logoutDriver } from '@/lib/logout';
 import { useState, useEffect, useRef } from 'react';
 import { BRAND } from '@/constants/brand';
+import { appAlert } from '@/components/AppAlert';
 
 const SIGNATURE_FILE = `${FileSystem.documentDirectory}loueur_signature.txt`;
 
@@ -74,15 +75,15 @@ export default function ChauffeurProfilScreen() {
         setSavedSignature(msg.data);
         FileSystem.writeAsStringAsync(SIGNATURE_FILE, msg.data).catch(() => {});
         setShowSignaturePad(false);
-        Alert.alert('Signature enregistrée', 'Votre signature sera automatiquement appliquée sur tous les contrats de location.');
+        appAlert('Signature enregistrée', 'Votre signature sera automatiquement appliquée sur tous les contrats de location.');
       } else if (msg.type === 'error') {
-        Alert.alert('Attention', msg.msg);
+        appAlert('Attention', msg.msg);
       }
     } catch {}
   };
 
   const handleDeleteSignature = () => {
-    Alert.alert('Supprimer la signature', 'Êtes-vous sûr de vouloir supprimer votre signature par défaut ?', [
+    appAlert('Supprimer la signature', 'Êtes-vous sûr de vouloir supprimer votre signature par défaut ?', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer', style: 'destructive', onPress: async () => {
@@ -148,11 +149,11 @@ export default function ChauffeurProfilScreen() {
     const phone = editForm.phone.trim();
     const defaultMeetingPoint = editForm.defaultMeetingPoint.trim() || null;
     if (!firstName || !lastName) {
-      Alert.alert('Champs requis', 'Prénom et nom sont obligatoires.');
+      appAlert('Champs requis', 'Prénom et nom sont obligatoires.');
       return;
     }
     if (!phone) {
-      Alert.alert('Champs requis', 'Le téléphone est obligatoire.');
+      appAlert('Champs requis', 'Le téléphone est obligatoire.');
       return;
     }
     try {
@@ -173,7 +174,7 @@ export default function ChauffeurProfilScreen() {
           defaultMeetingPoint,
         });
         setEditing(false);
-        Alert.alert('Profil mis à jour', 'Les changements sont aussi visibles sur le dashboard.');
+        appAlert('Profil mis à jour', 'Les changements sont aussi visibles sur le dashboard.');
       }
     } catch (error: any) {
       if (error instanceof SessionExpiredError) {
@@ -181,7 +182,7 @@ export default function ChauffeurProfilScreen() {
         router.replace('/(chauffeur)/login');
         return;
       }
-      Alert.alert('Erreur', error?.message || 'Impossible de sauvegarder le profil.');
+      appAlert('Erreur', error?.message || 'Impossible de sauvegarder le profil.');
     } finally {
       setSaving(false);
     }
@@ -431,7 +432,7 @@ export default function ChauffeurProfilScreen() {
               <TouchableOpacity 
                 style={styles.menuItem}
                 onPress={() => {
-                  Alert.alert(
+                  appAlert(
                     'Contactez nous',
                     `Email : contact@rave-location.com\n\nTéléphone : +689 87 75 98 97`,
                     [

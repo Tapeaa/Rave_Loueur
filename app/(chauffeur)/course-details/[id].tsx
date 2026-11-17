@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Share,
   Platform,
   Image,
@@ -46,6 +45,7 @@ import {
 import type { Order } from '@/lib/types';
 import { getOrderStatusDisplay, hasPendingCancelRequest, isClosedOrderStatus } from '@/lib/order-status';
 import { isUsableMediaUri, shareHtmlAsPdf, shareImage } from '@/lib/share-media';
+import { appAlert } from '@/components/AppAlert';
 
 export default function CourseDetailsScreen() {
   const router = useRouter();
@@ -138,7 +138,7 @@ export default function CourseDetailsScreen() {
     const run = async () => {
       const sessionId = await getDriverSessionId();
       if (!sessionId) {
-        Alert.alert('Erreur', 'Session loueur introuvable.');
+        appAlert('Erreur', 'Session loueur introuvable.');
         return;
       }
       setCancelDecisionBusy(kind);
@@ -146,7 +146,7 @@ export default function CourseDetailsScreen() {
         if (kind === 'approve') await approveCancelRequest(order.id, sessionId);
         else await rejectCancelRequest(order.id, sessionId);
         await loadOrder({ silent: true });
-        Alert.alert(
+        appAlert(
           kind === 'approve' ? 'Annulation validée' : 'Annulation refusée',
           kind === 'approve'
             ? (order.rideOption as any)?.payzenStatus === 'paid'
@@ -156,14 +156,14 @@ export default function CourseDetailsScreen() {
         );
       } catch (err: any) {
         await loadOrder({ silent: true });
-        Alert.alert('Erreur', String(err?.message || '').includes('409')
+        appAlert('Erreur', String(err?.message || '').includes('409')
           ? 'Cette location est déjà annulée ou terminée.'
           : 'Impossible d\'enregistrer votre décision. Réessayez.');
       } finally {
         setCancelDecisionBusy(null);
       }
     };
-    Alert.alert(
+    appAlert(
       kind === 'approve' ? 'Accepter l\'annulation ?' : 'Refuser l\'annulation ?',
       kind === 'approve' ? 'La location sera annulée.' : 'La location sera maintenue.',
       [
@@ -176,7 +176,7 @@ export default function CourseDetailsScreen() {
   const confirmRefundDone = () => {
     if (!order) return;
     const amount = (order.rideOption as any)?.refund?.amount ?? order.totalPrice ?? 0;
-    Alert.alert(
+    appAlert(
       'Confirmer le remboursement',
       `Confirmez-vous avoir remboursé ${formatPrice(amount)} à ${order.clientName || 'votre client'} ? Le client sera prévenu.`,
       [
@@ -191,7 +191,7 @@ export default function CourseDetailsScreen() {
               await markRefundDone(order.id, sessionId);
               await loadOrder({ silent: true });
             } catch (err: any) {
-              Alert.alert('Erreur', err?.message || "Impossible d'enregistrer le remboursement. Réessayez.");
+              appAlert('Erreur', err?.message || "Impossible d'enregistrer le remboursement. Réessayez.");
             } finally {
               setRefundBusy(false);
             }
@@ -310,7 +310,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
         setShowContractModal(true);
       }
     } catch {
-      Alert.alert('Erreur', "Impossible d'ouvrir le contrat.");
+      appAlert('Erreur', "Impossible d'ouvrir le contrat.");
     }
   };
 
@@ -412,7 +412,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
   const saveMeetingPoint = async () => {
     const value = meetingDraft.trim();
     if (!value) {
-      Alert.alert('Lieu requis', 'Indiquez le lieu de rendez-vous pour le client.');
+      appAlert('Lieu requis', 'Indiquez le lieu de rendez-vous pour le client.');
       return;
     }
     try {
@@ -434,9 +434,9 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
         } as Order;
       });
       setMeetingDraft(confirmed);
-      Alert.alert('RDV envoyé', 'Le client voit désormais ce lieu de rendez-vous.');
+      appAlert('RDV envoyé', 'Le client voit désormais ce lieu de rendez-vous.');
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || 'Impossible d’enregistrer le lieu de RDV.');
+      appAlert('Erreur', e?.message || 'Impossible d’enregistrer le lieu de RDV.');
     } finally {
       setMeetingBusy(false);
     }
@@ -445,7 +445,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
   const advanceRentalLifecycle = async (nextPhase: 'with_client' | 'returned') => {
     const sessionId = await getDriverSessionId();
     if (!sessionId) {
-      Alert.alert('Erreur', 'Session loueur introuvable.');
+      appAlert('Erreur', 'Session loueur introuvable.');
       return;
     }
     setLifecycleBusy(true);
@@ -456,15 +456,33 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
       });
       setOrder(orderData);
       if (nextPhase === 'returned') setShowCongrats(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[CourseDetails] lifecycle:', err);
-      Alert.alert(
-        'Erreur',
-        'Impossible de mettre à jour cette étape. Vérifiez que le serveur expose POST /api/rental-orders/.../lifecycle.'
+      appAlert(
+        'Retour non enregistré',
+        err?.message || 'Impossible de clôturer cette location pour le moment. Réessayez dans un instant.'
       );
     } finally {
       setLifecycleBusy(false);
     }
+  };
+
+  const confirmReturn = () => {
+    const end = rideOpt?.endDate ? new Date(rideOpt.endDate) : null;
+    const early = !!end && !Number.isNaN(end.getTime()) && end.getTime() > Date.now();
+    const endLabel = end
+      ? end.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Pacific/Tahiti' })
+      : '';
+    appAlert(
+      early ? 'Retour anticipé ?' : 'Confirmer le retour ?',
+      early
+        ? `Cette location devait se terminer le ${endLabel}. En confirmant, elle sera clôturée dès maintenant et le client pourra vous noter.`
+        : 'Le véhicule vous a été rendu ? La location sera clôturée et le client pourra vous noter.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: early ? 'Clôturer maintenant' : 'Confirmer', onPress: () => advanceRentalLifecycle('returned') },
+      ]
+    );
   };
 
   return (
@@ -592,7 +610,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
               (order.status === 'accepted' || order.status === 'booked') && (
               <TouchableOpacity
                 style={[styles.lifecycleButton, styles.lifecycleButtonSecondary]}
-                onPress={() => advanceRentalLifecycle('returned')}
+                onPress={confirmReturn}
                 disabled={lifecycleBusy}
               >
                 {lifecycleBusy ? (

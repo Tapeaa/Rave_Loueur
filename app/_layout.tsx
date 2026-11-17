@@ -2,6 +2,7 @@ import '@/lib/patch-web-dimensions';
 import { useEffect, useState, useCallback } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { AppDialogHost } from '@/components/AppAlert';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -273,6 +274,7 @@ export default function RootLayout() {
                 <Stack.Screen name="+not-found" />
               </Stack>
               <StatusBar style="dark" />
+              <AppDialogHost />
             </AuthProvider>
           </StripeProviderWrapper>
         </QueryClientProvider>

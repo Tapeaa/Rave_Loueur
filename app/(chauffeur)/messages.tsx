@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
@@ -17,6 +16,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { getDriverSessionId, apiFetch, getDeletedConversationsMap, setDeletedConversationsMap } from '@/lib/api';
+import { appAlert } from '@/components/AppAlert';
 
 interface Conversation {
   orderId: string;
@@ -207,7 +207,7 @@ export default function DriverMessagesScreen() {
 
   const handleDeleteConversation = (conversation: Conversation) => {
     if (!sessionId) return;
-    Alert.alert(
+    appAlert(
       'Supprimer la conversation',
       'Voulez-vous supprimer toute cette conversation ?',
       [

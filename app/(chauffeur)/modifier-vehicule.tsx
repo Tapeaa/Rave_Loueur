@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
   Switch,
   Platform,
   KeyboardAvoidingView,
@@ -34,6 +33,7 @@ import {
 } from '@/lib/rental-contract-html';
 import { WebView } from 'react-native-webview';
 import { CustomContractEditor } from '@/components/CustomContractEditor';
+import { appAlert } from '@/components/AppAlert';
 
 const CATEGORY_LABELS: Record<string, string> = {
   citadine: 'Citadine',
@@ -91,7 +91,7 @@ export default function ModifierVehiculeScreen() {
       const all = await getMyVehicles();
       const found = all.find((v) => v.id === id);
       if (!found) {
-        Alert.alert('Erreur', 'Véhicule introuvable', [{ text: 'OK', onPress: () => safeBack(router) }]);
+        appAlert('Erreur', 'Véhicule introuvable', [{ text: 'OK', onPress: () => safeBack(router) }]);
         return;
       }
       setVehicle(found);
@@ -103,7 +103,7 @@ export default function ModifierVehiculeScreen() {
       setIsActive(found.isActive);
       setPhotoUrls(normalizeLoueurImageUrls(found));
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de charger le véhicule');
+      appAlert('Erreur', error.message || 'Impossible de charger le véhicule');
     } finally {
       setLoading(false);
     }
@@ -130,7 +130,7 @@ export default function ModifierVehiculeScreen() {
       }
     } catch (e: any) {
       if (e?.message !== 'User cancelled') {
-        Alert.alert('Erreur', 'Impossible de partager le contrat.');
+        appAlert('Erreur', 'Impossible de partager le contrat.');
       }
     } finally {
       setSharingContract(false);
@@ -140,7 +140,7 @@ export default function ModifierVehiculeScreen() {
   const handleSave = async () => {
     if (!vehicle) return;
     if (!pricePerDay || isNaN(Number(pricePerDay)) || Number(pricePerDay) <= 0) {
-      Alert.alert('Erreur', 'Veuillez entrer un prix par jour valide');
+      appAlert('Erreur', 'Veuillez entrer un prix par jour valide');
       return;
     }
 
@@ -158,11 +158,11 @@ export default function ModifierVehiculeScreen() {
         customContractText: rentalContractMode === 'custom' ? customContractText.trim() : undefined,
         isActive,
       });
-      Alert.alert('Modifications enregistrées', 'Votre véhicule a été mis à jour.', [
+      appAlert('Modifications enregistrées', 'Votre véhicule a été mis à jour.', [
         { text: 'OK', onPress: () => safeBack(router) },
       ]);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de modifier le véhicule');
+      appAlert('Erreur', error.message || 'Impossible de modifier le véhicule');
     } finally {
       setSubmitting(false);
     }
@@ -349,7 +349,7 @@ export default function ModifierVehiculeScreen() {
                       style={st.downloadBtn}
                       onPress={async () => {
                         if (!customContractText.trim()) {
-                          Alert.alert('Contrat vide', 'Rédigez votre contrat avant de le télécharger.');
+                          appAlert('Contrat vide', 'Rédigez votre contrat avant de le télécharger.');
                           return;
                         }
                         setSharingCustomContract(true);
@@ -376,7 +376,7 @@ export default function ModifierVehiculeScreen() {
                             await Share.share({ title: 'Contrat personnalisé', message: customContractText });
                           }
                         } catch (e: any) {
-                          if (e?.message !== 'User cancelled') Alert.alert('Erreur', 'Impossible de partager.');
+                          if (e?.message !== 'User cancelled') appAlert('Erreur', 'Impossible de partager.');
                         } finally {
                           setSharingCustomContract(false);
                         }

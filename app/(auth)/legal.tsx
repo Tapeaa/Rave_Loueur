@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { apiPatch, getDriverSessionId, getDriverProfile } from '@/lib/api';
 import type { Driver } from '@/lib/types';
+import { appAlert } from '@/components/AppAlert';
 
 // Composant Checkbox simple
 const Checkbox = ({ checked, onValueChange }: { checked: boolean; onValueChange: (value: boolean) => void }) => (
@@ -66,17 +67,17 @@ export default function LegalScreen() {
 
   const handleAcceptCGU = async () => {
     if (!acceptCGU) {
-      Alert.alert('Erreur', 'Vous devez accepter les Conditions d\'utilisation pour continuer');
+      appAlert('Erreur', 'Vous devez accepter les Conditions d\'utilisation pour continuer');
       return;
     }
 
     if (!readPrivacyPolicy) {
-      Alert.alert('Erreur', 'Vous devez confirmer avoir pris connaissance de la Politique de confidentialité');
+      appAlert('Erreur', 'Vous devez confirmer avoir pris connaissance de la Politique de confidentialité');
       return;
     }
 
     if (!driver) {
-      Alert.alert('Erreur', 'Impossible de récupérer votre profil. Veuillez réessayer.');
+      appAlert('Erreur', 'Impossible de récupérer votre profil. Veuillez réessayer.');
       return;
     }
 
@@ -126,7 +127,7 @@ export default function LegalScreen() {
       router.replace('/(chauffeur)');
     } catch (error) {
       console.error('[LEGAL] Error saving legal acceptances:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue lors de la sauvegarde');
+      appAlert('Erreur', 'Une erreur est survenue lors de la sauvegarde');
     } finally {
       setIsLoading(false);
     }

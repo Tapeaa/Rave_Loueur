@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Modal,
   Dimensions,
   ActivityIndicator,
@@ -20,6 +19,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import { acceptRentalOrder, declineRentalOrder, apiFetch } from '@/lib/api';
+import { appAlert } from '@/components/AppAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -182,13 +182,13 @@ export default function CommandeLocationScreen() {
         html = await loadSignedContract();
       }
       if (!html) {
-        Alert.alert('Erreur', 'Contrat signé indisponible. Réessayez.');
+        appAlert('Erreur', 'Contrat signé indisponible. Réessayez.');
         return;
       }
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Contrat de location RAVE' });
     } catch {
-      Alert.alert('Erreur', 'Impossible de générer le PDF.');
+      appAlert('Erreur', 'Impossible de générer le PDF.');
     }
   };
 
@@ -213,16 +213,16 @@ export default function CommandeLocationScreen() {
     } catch (e: any) {
       const code = e?.data?.code;
       if (code === 'SUBSCRIPTION_REQUIRED') {
-        Alert.alert('Abonnement requis', e?.message || 'Votre abonnement RAVE est inactif.', [
+        appAlert('Abonnement requis', e?.message || 'Votre abonnement RAVE est inactif.', [
           { text: 'Fermer', style: 'cancel' },
           { text: 'Voir mon abonnement', onPress: () => router.push('/(chauffeur)/abonnement' as any) },
         ]);
       } else if (code === 'CANCEL_REQUEST_PENDING') {
-        Alert.alert('Annulation demandée', e?.message || "Le client a demandé l'annulation : répondez d'abord à sa demande.");
+        appAlert('Annulation demandée', e?.message || "Le client a demandé l'annulation : répondez d'abord à sa demande.");
       } else if (code === 'VEHICLE_UNAVAILABLE') {
-        Alert.alert('Véhicule indisponible', e?.message || "Ce véhicule n'est plus disponible sur ces dates.");
+        appAlert('Véhicule indisponible', e?.message || "Ce véhicule n'est plus disponible sur ces dates.");
       } else {
-        Alert.alert('Erreur', e?.message || "Impossible d'accepter la demande.");
+        appAlert('Erreur', e?.message || "Impossible d'accepter la demande.");
       }
     } finally {
       setIsAccepting(false);
@@ -236,7 +236,7 @@ export default function CommandeLocationScreen() {
       await doAccept(loueurSig);
       return;
     }
-    Alert.alert(
+    appAlert(
       'Signature manquante',
       "Vous n'avez pas encore enregistré votre signature. Elle sera apposée sur le contrat de location.",
       [
@@ -248,7 +248,7 @@ export default function CommandeLocationScreen() {
   };
 
   const handleDecline = () => {
-    Alert.alert(
+    appAlert(
       'Refuser la demande',
       'Êtes-vous sûr de vouloir refuser cette demande de location ?',
       [

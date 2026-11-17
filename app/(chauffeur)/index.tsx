@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  TouchableOpacity, 
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
   ScrollView,
   Image,
   Dimensions,
   RefreshControl,
   Platform,
-  Alert,
   Animated,
   Linking,
 } from 'react-native';
@@ -51,6 +50,7 @@ import {
   isSocketConnected,
 } from '@/lib/socket';
 import type { Order } from '@/lib/types';
+import { appAlert } from '@/components/AppAlert';
 
 function formatCompactXpf(amount: number): string {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1).replace('.0', '')}M`;
@@ -539,7 +539,7 @@ export default function ChauffeurHomeScreen() {
     const message = paid
       ? `Le client sera prévenu. Il a déjà payé par carte : vous devrez lui rembourser ${(target?.totalPrice || 0).toLocaleString('fr-FR')} XPF puis le confirmer dans Réservations.`
       : 'Le client sera prévenu que vous refusez sa location.';
-    Alert.alert('Refuser la demande ?', message, [
+    appAlert('Refuser la demande ?', message, [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Refuser',
@@ -552,7 +552,7 @@ export default function ChauffeurHomeScreen() {
             setDeclinedOrderIds((prev) => new Set(prev).add(orderId));
             setPendingOrders((prev) => prev.filter((o) => o.id !== orderId));
           } catch (error: any) {
-            Alert.alert('Erreur', error?.message || 'Impossible de refuser la demande. Réessayez.');
+            appAlert('Erreur', error?.message || 'Impossible de refuser la demande. Réessayez.');
           } finally {
             setDecliningOrderId(null);
           }

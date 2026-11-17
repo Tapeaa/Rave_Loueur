@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   Image,
 } from 'react-native';
@@ -16,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { getMyVehicles, deleteVehicle, normalizeLoueurImageUrls, type LoueurVehicle } from '@/lib/api';
 import { PricingTiersReadonly } from '@/components/PricingTiersReadonly';
+import { appAlert } from '@/components/AppAlert';
 
 const CATEGORY_LABELS: Record<string, string> = {
   citadine: 'Citadine',
@@ -93,7 +93,7 @@ export default function MesVehiculesScreen() {
   );
 
   const handleDelete = (vehicle: LoueurVehicle) => {
-    Alert.alert(
+    appAlert(
       'Supprimer le véhicule',
       `Voulez-vous vraiment supprimer ${vehicle.modelName || 'ce véhicule'} ?`,
       [
@@ -106,7 +106,7 @@ export default function MesVehiculesScreen() {
               await deleteVehicle(vehicle.id);
               setVehicles((prev) => prev.filter((v) => v.id !== vehicle.id));
             } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Impossible de supprimer le véhicule');
+              appAlert('Erreur', error.message || 'Impossible de supprimer le véhicule');
             }
           },
         },

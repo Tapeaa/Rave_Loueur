@@ -1,4 +1,5 @@
-import { Alert, Platform, Share } from 'react-native';
+import { Platform, Share } from 'react-native';
+import { appAlert } from '@/components/AppAlert';
 
 function getFileSystem(): any {
   try {
@@ -66,11 +67,11 @@ export async function materializeImageForShare(
 
 export async function shareImage(uri: string, name: string): Promise<void> {
   if (!uri) {
-    Alert.alert('Erreur', 'Image introuvable.');
+    appAlert('Erreur', 'Image introuvable.');
     return;
   }
   if (isEphemeralLocalUri(uri)) {
-    Alert.alert(
+    appAlert(
       'Document indisponible',
       "Ce permis n'est plus accessible (fichier temporaire). Demandez au client de refaire une réservation — les nouvelles photos sont stockées en ligne."
     );
@@ -96,10 +97,10 @@ export async function shareImage(uri: string, name: string): Promise<void> {
       return;
     }
 
-    Alert.alert('Indisponible', "Le partage n'est pas disponible sur cet appareil.");
+    appAlert('Indisponible', "Le partage n'est pas disponible sur cet appareil.");
   } catch (err: any) {
     console.error('[Share] Error:', err);
-    Alert.alert(
+    appAlert(
       'Impossible d’enregistrer',
       err?.message || 'Impossible d’enregistrer ou de partager cette image. Réessayez.'
     );
@@ -123,9 +124,9 @@ export async function shareHtmlAsPdf(html: string, title = 'Contrat RAVE'): Prom
       await Share.share({ url: uri, title });
       return;
     }
-    Alert.alert('Indisponible', "Le partage n'est pas disponible sur cet appareil.");
+    appAlert('Indisponible', "Le partage n'est pas disponible sur cet appareil.");
   } catch (err) {
     console.error('[Share] Contract error:', err);
-    Alert.alert('Erreur', 'Impossible d’enregistrer le contrat. Réessayez.');
+    appAlert('Erreur', 'Impossible d’enregistrer le contrat. Réessayez.');
   }
 }

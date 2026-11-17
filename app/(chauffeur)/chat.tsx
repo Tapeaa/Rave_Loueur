@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
@@ -18,6 +17,7 @@ import Constants from 'expo-constants';
 import { Text } from '@/components/ui/Text';
 import { getDriverSessionId, apiFetch, apiPost } from '@/lib/api';
 import { getSocket, isSocketConnected, joinOrderChatRoom } from '@/lib/socket';
+import { appAlert } from '@/components/AppAlert';
 
 // API URL pour le fallback HTTP
 const API_URL = Constants.expoConfig?.extra?.apiUrl || '';
@@ -196,7 +196,7 @@ export default function DriverChatScreen() {
       }
     } catch (error) {
       console.error('[Chat] Error sending message:', error);
-      Alert.alert('Erreur', 'Impossible d\'envoyer le message');
+      appAlert('Erreur', 'Impossible d\'envoyer le message');
       setNewMessage(messageContent); // Restaurer le message
     } finally {
       setSending(false);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ import type { Order } from '@/lib/types';
 import { getRentalStepperState, isRentalOrderLike, getRentalLifecyclePhase } from '@/lib/rental-lifecycle';
 import { CLOSED_ORDER_STATUSES as CLOSED_STATUSES, getOrderStatusDisplay, hasPendingCancelRequest } from '@/lib/order-status';
 import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
+import { appAlert } from '@/components/AppAlert';
 
 function activePriority(order: Order): number {
   if (hasPendingCancelRequest(order)) return 0;
@@ -99,7 +100,7 @@ export default function ChauffeurCoursesScreen() {
         if (kind === 'approve') await approveCancelRequest(order.id, sessionId);
         else await rejectCancelRequest(order.id, sessionId);
         await refetch();
-        Alert.alert(
+        appAlert(
           kind === 'approve' ? 'Annulation validée' : 'Annulation refusée',
           kind === 'approve'
             ? (order.rideOption as any)?.payzenStatus === 'paid'
@@ -109,14 +110,14 @@ export default function ChauffeurCoursesScreen() {
         );
       } catch (err: any) {
         await refetch();
-        Alert.alert('Erreur', String(err?.message || '').includes('409')
+        appAlert('Erreur', String(err?.message || '').includes('409')
           ? 'Cette location est déjà annulée ou terminée.'
           : 'Impossible d\'enregistrer votre décision. Réessayez.');
       } finally {
         setDecidingOrder(null);
       }
     };
-    Alert.alert(
+    appAlert(
       kind === 'approve' ? 'Accepter l\'annulation ?' : 'Refuser l\'annulation ?',
       kind === 'approve'
         ? `La location de ${order.clientName} sera annulée.`
@@ -223,7 +224,7 @@ export default function ChauffeurCoursesScreen() {
 
   const handleRefundDone = (order: Order) => {
     const amount = (order.rideOption as any)?.refund?.amount ?? order.totalPrice ?? 0;
-    Alert.alert(
+    appAlert(
       'Confirmer le remboursement',
       `Confirmez-vous avoir remboursé ${formatPrice(amount)} à ${order.clientName || 'votre client'} ? Le client sera prévenu.`,
       [
@@ -237,7 +238,7 @@ export default function ChauffeurCoursesScreen() {
               await markRefundDone(order.id, sessionId);
               await refetch();
             } catch (err: any) {
-              Alert.alert('Erreur', err?.message || "Impossible d'enregistrer le remboursement. Réessayez.");
+              appAlert('Erreur', err?.message || "Impossible d'enregistrer le remboursement. Réessayez.");
             } finally {
               setRefundingOrderId(null);
             }
@@ -285,7 +286,7 @@ export default function ChauffeurCoursesScreen() {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   
   const handleCancelBooking = async (orderId: string) => {
-    Alert.alert(
+    appAlert(
       'Annuler la location',
       'Êtes-vous sûr de vouloir annuler cette location ?',
       [
@@ -299,10 +300,10 @@ export default function ChauffeurCoursesScreen() {
             try {
               await cancelRentalOrder(orderId, sessionId, 'Annulation par le loueur');
               await refetch();
-              Alert.alert('Location annulée', 'La location a été annulée avec succès.');
+              appAlert('Location annulée', 'La location a été annulée avec succès.');
             } catch (error: any) {
               console.warn('[Courses] Error cancelling booking:', error);
-              Alert.alert('Erreur', error?.message || 'Impossible d\'annuler la location. Veuillez réessayer.');
+              appAlert('Erreur', error?.message || 'Impossible d\'annuler la location. Veuillez réessayer.');
             } finally {
               setCancellingOrderId(null);
             }

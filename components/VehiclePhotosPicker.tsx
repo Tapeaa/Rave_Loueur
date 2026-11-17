@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Text } from '@/components/ui/Text';
 import { uploadVehiclePhoto } from '@/lib/api';
+import { appAlert } from '@/components/AppAlert';
 
 const MAX_PHOTOS = 8;
 
@@ -33,7 +33,7 @@ export function VehiclePhotosPicker({ photos, onChange, max = MAX_PHOTOS }: Prop
       const url = await uploadVehiclePhoto(uri);
       onChange([...photos, url].slice(0, max));
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || "Impossible d'envoyer la photo");
+      appAlert('Erreur', e?.message || "Impossible d'envoyer la photo");
     } finally {
       setUploading(false);
     }
@@ -42,7 +42,7 @@ export function VehiclePhotosPicker({ photos, onChange, max = MAX_PHOTOS }: Prop
   const pickFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission requise', "Autorisez l'accès à la galerie pour ajouter des photos.");
+      appAlert('Permission requise', "Autorisez l'accès à la galerie pour ajouter des photos.");
       return;
     }
 
@@ -66,7 +66,7 @@ export function VehiclePhotosPicker({ photos, onChange, max = MAX_PHOTOS }: Prop
       }
       onChange([...photos, ...uploaded].slice(0, max));
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || "Impossible d'envoyer les photos");
+      appAlert('Erreur', e?.message || "Impossible d'envoyer les photos");
     } finally {
       setUploading(false);
     }
@@ -75,7 +75,7 @@ export function VehiclePhotosPicker({ photos, onChange, max = MAX_PHOTOS }: Prop
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission requise', "Autorisez l'accès à la caméra pour photographier le véhicule.");
+      appAlert('Permission requise', "Autorisez l'accès à la caméra pour photographier le véhicule.");
       return;
     }
 
@@ -93,7 +93,7 @@ export function VehiclePhotosPicker({ photos, onChange, max = MAX_PHOTOS }: Prop
 
   const handleAdd = () => {
     if (!canAdd || uploading) return;
-    Alert.alert('Photo du véhicule', 'Comment souhaitez-vous ajouter la photo ?', [
+    appAlert('Photo du véhicule', 'Comment souhaitez-vous ajouter la photo ?', [
       { text: 'Appareil photo', onPress: () => takePhoto() },
       { text: 'Galerie', onPress: () => pickFromLibrary() },
       { text: 'Annuler', style: 'cancel' },
@@ -101,7 +101,7 @@ export function VehiclePhotosPicker({ photos, onChange, max = MAX_PHOTOS }: Prop
   };
 
   const removeAt = (index: number) => {
-    Alert.alert('Supprimer la photo', 'Retirer cette photo du véhicule ?', [
+    appAlert('Supprimer la photo', 'Retirer cette photo du véhicule ?', [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Supprimer',
