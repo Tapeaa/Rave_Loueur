@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -37,6 +37,35 @@ const TRANSMISSION_LABELS: Record<string, string> = {
   auto: 'Automatique',
   manual: 'Manuelle',
 };
+
+/** Photo affichée entière, à ses proportions d'origine (jamais rognée). */
+function VehicleCover({ uri, photoCount }: { uri: string; photoCount: number }) {
+  const [ratio, setRatio] = useState(16 / 9);
+
+  useEffect(() => {
+    let active = true;
+    Image.getSize(
+      uri,
+      (w, h) => {
+        if (active && w > 0 && h > 0) setRatio(Math.min(Math.max(w / h, 0.75), 2.5));
+      },
+      () => {}
+    );
+    return () => { active = false; };
+  }, [uri]);
+
+  return (
+    <View style={[styles.coverWrap, { aspectRatio: ratio }]}>
+      <Image source={{ uri }} style={styles.coverImage} resizeMode="contain" />
+      {photoCount > 1 && (
+        <View style={styles.photoCountBadge}>
+          <Ionicons name="images-outline" size={12} color="#fff" />
+          <Text style={styles.photoCountText}>{photoCount}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function MesVehiculesScreen() {
   const router = useRouter();
@@ -90,31 +119,30 @@ export default function MesVehiculesScreen() {
     const cover = normalizeLoueurImageUrls(vehicle)[0] || vehicle.modelImageUrl || null;
     const photoCount = normalizeLoueurImageUrls(vehicle).length;
 
+    const status = !vehicle.isActive
+      ? { label: 'Inactif', bg: '#FEF2F2', color: '#EF4444' }
+      : vehicle.availableForRental
+        ? { label: 'Disponible', bg: '#ECFDF5', color: '#059669' }
+        : { label: 'Masqué', bg: '#FEF3C7', color: '#B45309' };
+
     return (
       <View key={vehicle.id} style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardIconBox}>
-            {cover ? (
-              <Image source={{ uri: cover }} style={styles.cardThumb} />
-            ) : (
-              <Ionicons name="car-sport" size={28} color="#4ECC8B" />
-            )}
-            {photoCount > 1 && (
-              <View style={styles.photoCountBadge}>
-                <Text style={styles.photoCountText}>{photoCount}</Text>
-              </View>
-            )}
+        {cover ? (
+          <VehicleCover uri={cover} photoCount={photoCount} />
+        ) : (
+          <View style={styles.coverPlaceholder}>
+            <Ionicons name="car-sport" size={40} color="#4ECC8B" />
           </View>
+        )}
+        <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardTitle}>{vehicle.modelName || 'Véhicule'}</Text>
             {(vehicle.plate || catLabel) ? (
               <Text style={styles.cardPlate}>{vehicle.plate ? `${vehicle.plate} · ` : ''}{catLabel}</Text>
             ) : null}
           </View>
-          <View style={[styles.statusBadge, vehicle.isActive ? styles.activeBadge : styles.inactiveBadge]}>
-            <Text style={[styles.statusText, vehicle.isActive ? styles.activeText : styles.inactiveText]}>
-              {vehicle.isActive ? 'Actif' : 'Inactif'}
-            </Text>
+          <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
           </View>
         </View>
 
@@ -158,14 +186,6 @@ export default function MesVehiculesScreen() {
             maxRentalDays={vehicle.maxRentalDays}
             pricePerDay={vehicle.pricePerDay}
           />
-
-          <View style={styles.servicesRow}>
-            {vehicle.availableForRental && (
-              <View style={styles.serviceBadge}>
-                <Text style={styles.serviceBadgeText}>Location</Text>
-              </View>
-            )}
-          </View>
 
           <View style={styles.cardActions}>
             <TouchableOpacity
@@ -285,6 +305,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  coverWrap: {
+    width: '100%',
+    backgroundColor: '#F3F4F6',
+  },
+  coverImage: { width: '100%', height: '100%' },
+  coverPlaceholder: {
+    width: '100%', height: 120,
+    backgroundColor: '#E8F8F0',
+    alignItems: 'center', justifyContent: 'center',
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,33 +322,21 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
     gap: 14,
   },
-  cardIconBox: {
-    width: 56, height: 56, borderRadius: 14,
-    backgroundColor: '#E8F8F0',
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  cardThumb: {
-    width: 56, height: 56, borderRadius: 14,
-  },
   photoCountBadge: {
-    position: 'absolute', right: 2, bottom: 2,
-    minWidth: 18, height: 18, borderRadius: 9,
+    position: 'absolute', right: 10, bottom: 10,
+    flexDirection: 'row', gap: 4,
+    height: 24, borderRadius: 12,
     backgroundColor: 'rgba(26,26,26,0.75)',
-    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8,
   },
   photoCountText: {
-    color: '#fff', fontSize: 10, fontWeight: '700',
+    color: '#fff', fontSize: 12, fontWeight: '700',
   },
   statusBadge: {
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: 8,
   },
-  activeBadge: { backgroundColor: '#ECFDF5' },
-  inactiveBadge: { backgroundColor: '#FEF2F2' },
   statusText: { fontSize: 12, fontWeight: '700' },
-  activeText: { color: '#059669' },
-  inactiveText: { color: '#EF4444' },
   cardContent: { padding: 16 },
   cardTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a1a', marginBottom: 2 },
   cardPlate: { fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10 },
@@ -328,14 +346,7 @@ const styles = StyleSheet.create({
   cardPriceRow: { flexDirection: 'row', gap: 24, marginBottom: 12 },
   priceLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   priceValue: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
-  servicesRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  serviceBadge: {
-    backgroundColor: '#FEF9E7',
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 8,
-  },
-  serviceBadgeText: { fontSize: 11, fontWeight: '700', color: '#D97706' },
-  cardActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 10 },
+  cardActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 14 },
   editBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, height: 38, borderRadius: 10,
