@@ -1127,6 +1127,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#4ECC8B', borderRadius: 999,
     paddingHorizontal: 12, paddingVertical: 6,
+    transform: [{ translateY: 4 }],
   },
   dashboardBtnText: { fontSize: 12, fontWeight: '800', color: '#121212' },
   earningsLabel: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
