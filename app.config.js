@@ -9,7 +9,7 @@ module.exports = {
     version: "1.0.0",
     orientation: "portrait",
     // Icône non-taxi (remplace TAXI (12).png)
-    icon: "./assets/images/logo.png",
+    icon: "./assets/images/rave-loueur-app-icon.png",
     userInterfaceStyle: "light",
     ios: {
       bundleIdentifier: "com.rave.loueur",
