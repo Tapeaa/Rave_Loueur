@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
@@ -55,6 +55,8 @@ export default function ChauffeurCoursesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<'booked' | 'history'>('booked');
+  const [focusTick, setFocusTick] = useState(0);
+  const autoTabPendingRef = useRef(true);
   const [decidingOrder, setDecidingOrder] = useState<{ id: string; kind: 'approve' | 'reject' } | null>(null);
   const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
 
@@ -85,6 +87,8 @@ export default function ChauffeurCoursesScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      autoTabPendingRef.current = true;
+      setFocusTick((t) => t + 1);
       if (sessionId) {
         void refetch();
         void refetchIncoming();
@@ -218,6 +222,12 @@ export default function ChauffeurCoursesScreen() {
       if (ra !== rb) return ra - rb;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+
+  useEffect(() => {
+    if (!autoTabPendingRef.current || !orders) return;
+    autoTabPendingRef.current = false;
+    setSelectedTab(bookedOrders.length > 0 ? 'booked' : 'history');
+  }, [focusTick, orders, bookedOrders.length]);
 
   const cancelRequestCount = bookedOrders.filter(hasPendingCancelRequest).length;
   const refundPendingCount = visibleOrders.filter((o) => (o.rideOption as any)?.refund?.status === 'pending').length;
