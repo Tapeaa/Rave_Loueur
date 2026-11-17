@@ -368,6 +368,7 @@ export default function ChauffeurHomeScreen() {
       agenda,
       upcoming,
       withClientCount: withClient.length,
+      activeCount: upcoming.length + withClient.length,
       reservedCount: upcoming.length + agenda.filter((a) => a.kind === 'handover').length,
       cancelRequestCount: driverOrders.filter(hasPendingCancelRequest).length,
       refundPendingCount: driverOrders.filter((o) => (o.rideOption as any)?.refund?.status === 'pending').length,
@@ -709,8 +710,7 @@ export default function ChauffeurHomeScreen() {
           <View style={s.statsCol}>
             {[
               { key: 'pending', icon: 'time-outline', color: '#FBBF24', value: String(pendingOrders.length), label: 'Demandes', route: null },
-              { key: 'upcoming', icon: 'calendar-outline', color: '#60A5FA', value: String(dashboard.reservedCount), label: 'À venir', route: '/(chauffeur)/courses' },
-              { key: 'active', icon: 'car-sport-outline', color: '#4ECC8B', value: String(dashboard.withClientCount), label: 'En cours', route: '/(chauffeur)/courses' },
+              { key: 'active', icon: 'car-sport-outline', color: '#4ECC8B', value: String(dashboard.activeCount), label: 'En cours', route: '/(chauffeur)/courses' },
             ].map((chip) => (
               <TouchableOpacity
                 key={chip.key}
