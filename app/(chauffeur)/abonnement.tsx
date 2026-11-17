@@ -147,70 +147,66 @@ export default function AbonnementScreen() {
   const renderStatusCard = () => {
     if (!info) return null;
 
-    if (isActive) {
-      return (
-        <View style={[styles.hero, styles.heroActive]}>
-          <View style={styles.heroIconActive}>
-            <Ionicons name="checkmark" size={26} color="#059669" />
-          </View>
-          <Text style={styles.heroTitleLight}>Abonnement actif</Text>
-          <Text style={styles.heroSubLight}>
-            {(info.plan && plans[info.plan]?.label) || 'Formule RAVE'}
-            {info.amount != null ? ` · ${formatXpf(info.amount)}` : ''}
-          </Text>
-          {info.endsAt ? (
-            <View style={styles.heroPill}>
-              <Ionicons name="refresh" size={14} color="#065F46" />
-              <Text style={styles.heroPillText}>Renouvellement automatique le {formatDate(info.endsAt)}</Text>
-            </View>
-          ) : null}
-          <Text style={styles.heroNoteLight}>
-            Vous n’avez rien à faire : vos véhicules sont visibles et vous pouvez accepter des locations.
-          </Text>
-        </View>
-      );
-    }
-
-    const meta =
-      info.waitingFirstVehicle
-        ? { icon: 'car-sport-outline' as const, color: '#B45309', bg: '#FFFBEB', border: '#FDE68A',
+    const meta = isActive
+      ? { icon: 'checkmark-circle' as const, badge: 'Actif', badgeColor: '#16A34A',
+          title: (info.plan && plans[info.plan]?.label) || 'Formule RAVE',
+          text: 'Vos véhicules sont visibles et vous pouvez accepter des locations.' }
+      : info.waitingFirstVehicle
+        ? { icon: 'car-sport' as const, badge: 'En attente', badgeColor: '#D97706',
             title: 'Ajoutez votre premier véhicule',
-            text: 'Votre essai gratuit de 30 jours démarre dès que votre premier véhicule est publié. Vous pouvez aussi vous abonner dès maintenant.' }
+            text: 'Votre essai gratuit de 30 jours démarre dès que votre premier véhicule est publié.' }
         : status === 'trial'
-          ? { icon: 'gift-outline' as const, color: '#047857', bg: '#ECFDF5', border: '#A7F3D0',
+          ? { icon: 'gift' as const, badge: 'Essai gratuit', badgeColor: '#16A34A',
               title: info.daysRemaining != null
-                ? `Essai gratuit · ${info.daysRemaining} jour${info.daysRemaining > 1 ? 's' : ''} restant${info.daysRemaining > 1 ? 's' : ''}`
-                : 'Essai gratuit en cours',
+                ? `${info.daysRemaining} jour${info.daysRemaining > 1 ? 's' : ''} restant${info.daysRemaining > 1 ? 's' : ''}`
+                : 'Essai en cours',
               text: info.endsAt
-                ? `Abonnez-vous avant le ${formatDate(info.endsAt)} pour garder vos véhicules en ligne sans interruption.`
-                : 'Abonnez-vous pour garder vos véhicules en ligne sans interruption.' }
+                ? `Abonnez-vous avant le ${formatDate(info.endsAt)} pour rester en ligne sans interruption.`
+                : 'Abonnez-vous pour rester en ligne sans interruption.' }
           : isPending
-            ? { icon: 'time-outline' as const, color: '#B45309', bg: '#FFFBEB', border: '#FDE68A',
-                title: 'Paiement en attente',
+            ? { icon: 'time' as const, badge: 'Paiement en attente', badgeColor: '#D97706',
+                title: 'Paiement non confirmé',
                 text: info.access
-                  ? 'Votre paiement n’est pas encore confirmé. Votre essai reste actif en attendant.'
-                  : 'Votre paiement n’est pas encore confirmé. Finalisez-le pour réactiver votre compte.' }
+                  ? 'Votre essai reste actif en attendant la confirmation.'
+                  : 'Finalisez le paiement pour réactiver votre compte.' }
             : status === 'grace'
-              ? { icon: 'alert-circle-outline' as const, color: '#B45309', bg: '#FFFBEB', border: '#FDE68A',
-                  title: 'Abonnement expiré — délai de grâce',
+              ? { icon: 'alert-circle' as const, badge: 'Délai de grâce', badgeColor: '#D97706',
+                  title: 'Abonnement expiré',
                   text: info.graceDaysRemaining != null
-                    ? `Vos véhicules restent visibles encore ${info.graceDaysRemaining} jour${info.graceDaysRemaining > 1 ? 's' : ''}. Abonnez-vous pour éviter leur masquage.`
+                    ? `Vos véhicules restent visibles encore ${info.graceDaysRemaining} jour${info.graceDaysRemaining > 1 ? 's' : ''}.`
                     : 'Abonnez-vous pour éviter le masquage de vos véhicules.' }
               : status === 'expired'
-                ? { icon: 'close-circle-outline' as const, color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA',
-                    title: 'Abonnement expiré',
-                    text: 'Vos véhicules sont masqués du catalogue. Abonnez-vous pour les remettre en ligne immédiatement.' }
-                : { icon: 'ribbon-outline' as const, color: '#374151', bg: '#F9FAFB', border: '#E5E7EB',
-                    title: 'Aucun abonnement',
+                ? { icon: 'close-circle' as const, badge: 'Expiré', badgeColor: '#DC2626',
+                    title: 'Véhicules masqués',
+                    text: 'Abonnez-vous pour remettre vos véhicules en ligne immédiatement.' }
+                : { icon: 'ribbon' as const, badge: 'Aucun abonnement', badgeColor: '#374151',
+                    title: 'Passez en ligne',
                     text: 'Choisissez une formule pour publier vos véhicules et recevoir des locations.' };
 
     return (
-      <View style={[styles.hero, { backgroundColor: meta.bg, borderColor: meta.border, borderWidth: 1 }]}>
+      <View style={styles.hero}>
+        <View style={styles.heroBadge}>
+          <View style={[styles.heroBadgeDot, { backgroundColor: meta.badgeColor }]} />
+          <Text style={styles.heroBadgeText}>{meta.badge}</Text>
+        </View>
         <View style={styles.heroRow}>
-          <Ionicons name={meta.icon} size={22} color={meta.color} />
-          <Text style={[styles.heroTitle, { color: meta.color }]}>{meta.title}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle}>{meta.title}</Text>
+            {isActive && info.amount != null ? (
+              <Text style={styles.heroAmount}>{formatXpf(info.amount)}</Text>
+            ) : null}
+          </View>
+          <View style={styles.heroIcon}>
+            <Ionicons name={meta.icon} size={30} color={INK} />
+          </View>
         </View>
         <Text style={styles.heroText}>{meta.text}</Text>
+        {isActive && info.endsAt ? (
+          <View style={styles.heroPill}>
+            <Ionicons name="refresh" size={14} color={INK} />
+            <Text style={styles.heroPillText}>Renouvelé automatiquement le {formatDate(info.endsAt)}</Text>
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -228,24 +224,25 @@ export default function AbonnementScreen() {
         disabled={paying}
         onPress={() => setSelected(key)}
       >
-        <View style={[styles.radio, isSel && styles.radioSelected]}>
-          {isSel ? <View style={styles.radioDot} /> : null}
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={styles.planNameRow}>
-            <Text style={styles.planName}>{def.label}</Text>
-            {key === 'semiannual' && savingsPercent > 0 ? (
-              <View style={styles.saveBadge}>
-                <Text style={styles.saveBadgeText}>-{savingsPercent}%</Text>
-              </View>
-            ) : null}
+        {key === 'semiannual' && savingsPercent > 0 ? (
+          <View style={styles.saveBadge}>
+            <Text style={styles.saveBadgeText}>Économisez {savingsPercent}%</Text>
           </View>
-          <Text style={styles.planDesc}>
-            {key === 'semiannual' ? `Soit ${formatXpf(perMonth)} / mois · ` : ''}
-            {def.days} jours, renouvelé automatiquement
-          </Text>
+        ) : null}
+        <View style={styles.planTop}>
+          <View style={[styles.radio, isSel && styles.radioSelected]}>
+            {isSel ? <Ionicons name="checkmark" size={14} color={INK} /> : null}
+          </View>
+          <Text style={styles.planName}>{def.label}</Text>
         </View>
-        <Text style={styles.planPrice}>{formatXpf(def.amountXpf)}</Text>
+        <View style={styles.planPriceRow}>
+          <Text style={styles.planPrice}>{def.amountXpf.toLocaleString('fr-FR')}</Text>
+          <Text style={styles.planCurrency}> XPF</Text>
+        </View>
+        <Text style={styles.planDesc}>
+          {key === 'semiannual' ? `Soit ${formatXpf(perMonth)} / mois · ` : ''}
+          {def.days} jours, renouvelé automatiquement
+        </Text>
       </TouchableOpacity>
     );
   };
@@ -253,172 +250,213 @@ export default function AbonnementScreen() {
   const showPlans = !!info && !isActive && (monthly || semiannual);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Abonnement RAVE</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={22} color={INK} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Abonnement</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-      {loading && !info ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color="#171717" />
-      ) : (
-        <>
-          <ScrollView
-            contentContainerStyle={[styles.content, showPlans && { paddingBottom: 170 }]}
-            refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load()} />}
-          >
-            {justActivated ? (
-              <View style={styles.thanks}>
-                <Ionicons name="sparkles" size={18} color="#065F46" />
-                <Text style={styles.thanksText}>Merci ! Votre paiement est validé et votre abonnement est actif.</Text>
+        {loading && !info ? (
+          <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+            <ActivityIndicator style={{ marginTop: 40 }} color="#4ECC8B" />
+          </View>
+        ) : (
+          <>
+            <ScrollView
+              style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+              contentContainerStyle={{ flexGrow: 1 }}
+              refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load()} tintColor={INK} />}
+            >
+              <View style={styles.heroOverscroll} />
+              {renderStatusCard()}
+
+              <View style={[styles.sheet, showPlans && { paddingBottom: 190 }]}>
+                {justActivated ? (
+                  <View style={styles.thanks}>
+                    <Ionicons name="sparkles" size={18} color="#166534" />
+                    <Text style={styles.thanksText}>Merci ! Votre paiement est validé et votre abonnement est actif.</Text>
+                  </View>
+                ) : null}
+
+                {showPlans ? (
+                  <>
+                    <Text style={styles.sectionTitle}>Choisissez votre formule</Text>
+                    <View style={styles.plansRow}>
+                      {renderPlan('monthly')}
+                      {renderPlan('semiannual')}
+                    </View>
+                  </>
+                ) : null}
+
+                <Text style={[styles.sectionTitle, { marginTop: showPlans ? 26 : 8 }]}>Inclus dans RAVE</Text>
+                {[
+                  { icon: 'eye-outline' as const, title: 'Visibilité totale', text: 'Vos véhicules visibles par tous les clients RAVE' },
+                  { icon: 'infinite-outline' as const, title: 'Sans limite', text: 'Demandes de location illimitées' },
+                  { icon: 'shield-checkmark-outline' as const, title: 'Sans engagement', text: 'Résiliable à tout moment auprès du support' },
+                ].map((b, index) => (
+                  <View key={b.title} style={[styles.benefitRow, index > 0 && styles.benefitDivider]}>
+                    <View style={styles.benefitIcon}>
+                      <Ionicons name={b.icon} size={18} color="#16A34A" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.benefitTitle}>{b.title}</Text>
+                      <Text style={styles.benefitText}>{b.text}</Text>
+                    </View>
+                  </View>
+                ))}
+
+                {isActive ? (
+                  <TouchableOpacity style={styles.supportLink} onPress={() => router.push('/(chauffeur)/support-chat')}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={18} color="#1a1a1a" />
+                    <Text style={styles.supportLinkText}>Changer de formule ou résilier</Text>
+                    <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                  </TouchableOpacity>
+                ) : null}
+
+                {error && !showPlans ? <Text style={styles.errorText}>{error}</Text> : null}
+              </View>
+            </ScrollView>
+
+            {showPlans && selectedPlan ? (
+              <View style={styles.footer}>
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                <TouchableOpacity
+                  style={[styles.payBtn, paying && { opacity: 0.7 }]}
+                  activeOpacity={0.85}
+                  disabled={paying}
+                  onPress={handlePay}
+                >
+                  {paying ? (
+                    <ActivityIndicator color={INK} />
+                  ) : (
+                    <>
+                      <Ionicons name="lock-closed" size={16} color={INK} />
+                      <Text style={styles.payBtnText}>
+                        {isPending ? 'Reprendre le paiement' : 'Payer'} · {formatXpf(selectedPlan.amountXpf)}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.footerNote}>
+                  Paiement sécurisé par Stripe. Revenez ensuite dans l’app : l’abonnement s’active automatiquement.
+                </Text>
               </View>
             ) : null}
-
-            {renderStatusCard()}
-
-            {showPlans ? (
-              <>
-                <Text style={styles.sectionTitle}>Choisissez votre formule</Text>
-                {renderPlan('monthly')}
-                {renderPlan('semiannual')}
-
-                <View style={styles.benefits}>
-                  {[
-                    'Vos véhicules visibles par tous les clients RAVE',
-                    'Demandes de location illimitées',
-                    'Résiliable à tout moment auprès du support',
-                  ].map((b) => (
-                    <View key={b} style={styles.benefitRow}>
-                      <Ionicons name="checkmark-circle" size={16} color="#4ECC8B" />
-                      <Text style={styles.benefitText}>{b}</Text>
-                    </View>
-                  ))}
-                </View>
-              </>
-            ) : null}
-
-            {isActive ? (
-              <TouchableOpacity style={styles.supportLink} onPress={() => router.push('/(chauffeur)/support-chat')}>
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#6B7280" />
-                <Text style={styles.supportLinkText}>Changer de formule ou résilier : contacter le support</Text>
-              </TouchableOpacity>
-            ) : null}
-
-            {error && !showPlans ? <Text style={styles.errorText}>{error}</Text> : null}
-          </ScrollView>
-
-          {showPlans && selectedPlan ? (
-            <View style={styles.footer}>
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-              <TouchableOpacity
-                style={[styles.payBtn, paying && { opacity: 0.7 }]}
-                activeOpacity={0.85}
-                disabled={paying}
-                onPress={handlePay}
-              >
-                {paying ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="lock-closed" size={16} color="#fff" />
-                    <Text style={styles.payBtnText}>
-                      {isPending ? 'Reprendre le paiement' : 'Payer'} · {formatXpf(selectedPlan.amountXpf)}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.footerNote}>
-                Paiement sécurisé par Stripe. Revenez ensuite dans l’app : votre abonnement s’active automatiquement.
-              </Text>
-            </View>
-          ) : null}
-        </>
-      )}
-    </SafeAreaView>
+          </>
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
+const HERO_BG = '#4ECC8B';
+const INK = '#0B1F14';
+const INK_SOFT = 'rgba(11,31,20,0.65)';
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: HERO_BG },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: HERO_BG,
   },
-  backBtn: { width: 40, height: 40, justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
-  content: { padding: 20, paddingBottom: 40 },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: INK },
+
+  heroOverscroll: { position: 'absolute', top: -1000, left: 0, right: 0, height: 1000, backgroundColor: HERO_BG },
+  hero: { backgroundColor: HERO_BG, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 48 },
+  heroBadge: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  heroBadgeDot: { width: 7, height: 7, borderRadius: 4 },
+  heroBadgeText: { fontSize: 12, fontWeight: '800', color: INK },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14 },
+  heroTitle: { fontSize: 30, fontWeight: '800', color: INK, letterSpacing: -0.6 },
+  heroAmount: { fontSize: 15, fontWeight: '700', color: INK_SOFT, marginTop: 2 },
+  heroIcon: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  heroText: { marginTop: 10, fontSize: 14, lineHeight: 20, color: INK_SOFT, fontWeight: '500' },
+  heroPill: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, marginTop: 14,
+    backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  heroPillText: { fontSize: 12, fontWeight: '700', color: INK },
+
+  sheet: {
+    flexGrow: 1, backgroundColor: '#FFFFFF', marginTop: -24,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 20, paddingTop: 22, paddingBottom: 40,
+  },
 
   thanks: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#D1FAE5', borderRadius: 12, padding: 12, marginBottom: 14,
+    backgroundColor: '#E8F8F0', borderRadius: 14, padding: 12, marginBottom: 18,
   },
-  thanksText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#065F46' },
+  thanksText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#166534' },
 
-  hero: { borderRadius: 18, padding: 18, marginBottom: 24 },
-  heroActive: { backgroundColor: '#059669', alignItems: 'center', paddingVertical: 26 },
-  heroIconActive: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
-  },
-  heroTitleLight: { fontSize: 22, fontWeight: '900', color: '#fff' },
-  heroSubLight: { marginTop: 4, fontSize: 14, color: '#D1FAE5', fontWeight: '600' },
-  heroPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14,
-    backgroundColor: '#D1FAE5', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
-  },
-  heroPillText: { fontSize: 12, fontWeight: '700', color: '#065F46' },
-  heroNoteLight: { marginTop: 14, fontSize: 13, color: '#ECFDF5', textAlign: 'center', lineHeight: 19 },
-  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  heroTitle: { flex: 1, fontSize: 16, fontWeight: '800' },
-  heroText: { marginTop: 8, fontSize: 13, color: '#4B5563', lineHeight: 19 },
-
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#111', marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a1a', letterSpacing: -0.2, marginBottom: 12 },
+  plansRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
   planCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 16,
-    padding: 16, marginBottom: 12, backgroundColor: '#fff',
+    flex: 1, borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 20,
+    padding: 14, paddingTop: 16, backgroundColor: '#FFFFFF',
   },
-  planCardSelected: { borderColor: '#171717', backgroundColor: '#fff' },
+  planCardSelected: { borderColor: '#4ECC8B', backgroundColor: '#F0FBF5' },
+  saveBadge: {
+    position: 'absolute', top: -11, right: 12,
+    backgroundColor: INK, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4,
+  },
+  saveBadgeText: { fontSize: 11, fontWeight: '800', color: '#4ECC8B' },
+  planTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   radio: {
     width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#D1D5DB',
     alignItems: 'center', justifyContent: 'center',
   },
-  radioSelected: { borderColor: '#171717' },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#171717' },
-  planNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  planName: { fontSize: 16, fontWeight: '800', color: '#111' },
-  saveBadge: { backgroundColor: '#4ECC8B', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  saveBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
-  planDesc: { marginTop: 3, fontSize: 12, color: '#6B7280' },
-  planPrice: { fontSize: 16, fontWeight: '800', color: '#111' },
+  radioSelected: { borderColor: '#4ECC8B', backgroundColor: '#4ECC8B' },
+  planName: { flex: 1, fontSize: 15, fontWeight: '800', color: '#1a1a1a' },
+  planPriceRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 14 },
+  planPrice: { fontSize: 24, fontWeight: '800', color: '#1a1a1a', letterSpacing: -0.5 },
+  planCurrency: { fontSize: 13, fontWeight: '700', color: '#6B7280', marginBottom: 3 },
+  planDesc: { marginTop: 6, fontSize: 12, lineHeight: 16, color: '#6B7280' },
 
-  benefits: { marginTop: 8, gap: 8 },
-  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  benefitText: { fontSize: 13, color: '#374151' },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  benefitDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEF0F2' },
+  benefitIcon: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8F8F0',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  benefitTitle: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
+  benefitText: { fontSize: 13, color: '#6B7280', marginTop: 1 },
 
-  supportLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
-  supportLinkText: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
+  supportLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 18,
+    backgroundColor: '#F7F7F8', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 15,
+  },
+  supportLinkText: { flex: 1, fontSize: 14, color: '#1a1a1a', fontWeight: '700' },
 
   errorText: { fontSize: 13, color: '#B91C1C', fontWeight: '600', textAlign: 'center', marginBottom: 10 },
 
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
-    backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 28,
+    backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 28,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E7EB',
   },
   payBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#171717', borderRadius: 14, height: 54,
+    backgroundColor: '#4ECC8B', borderRadius: 16, height: 56,
   },
-  payBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  payBtnText: { color: INK, fontSize: 16, fontWeight: '800' },
   footerNote: { marginTop: 10, fontSize: 11, color: '#9CA3AF', textAlign: 'center', lineHeight: 16 },
 });
