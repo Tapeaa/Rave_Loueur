@@ -33,7 +33,10 @@ import {
   secureStorage,
   getMyVehicles,
   type LoueurVehicle,
+  API_URL,
 } from '@/lib/api';
+
+const LOUEUR_DASHBOARD_URL = `${(API_URL || 'https://backend-rave.onrender.com/api').replace(/\/api\/?$/, '')}/prestataire`;
 import { getRentalLifecyclePhase, isRentalOrderLike } from '@/lib/rental-lifecycle';
 import { hasPendingCancelRequest, isClosedOrderStatus } from '@/lib/order-status';
 import { logoutDriver } from '@/lib/logout';
@@ -679,17 +682,29 @@ export default function ChauffeurHomeScreen() {
               Bonjour, {driverName.split(' ')[0] || driverName}
             </Text>
 
-            <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.8}>
-              <Text style={s.earningsLabel}>Gains du mois</Text>
-              <View style={s.earningsValueRow}>
-                <Text style={s.earningsValue} numberOfLines={1}>
-                  {monthEarnings === null ? '–' : formatCompactXpf(monthEarnings)}
-                </Text>
-                <View style={s.earningsArrow}>
-                  <Ionicons name="arrow-forward" size={16} color="#121212" />
+            <View style={s.earningsRow}>
+              <TouchableOpacity style={s.earningsBox} onPress={() => router.push('/(chauffeur)/gains')} activeOpacity={0.8}>
+                <Text style={s.earningsLabel}>Gains du mois</Text>
+                <View style={s.earningsValueRow}>
+                  <Text style={s.earningsValue} numberOfLines={1}>
+                    {monthEarnings === null ? '–' : formatCompactXpf(monthEarnings)}
+                  </Text>
+                  <View style={s.earningsArrow}>
+                    <Ionicons name="arrow-forward" size={16} color="#121212" />
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.dashboardBtn}
+                onPress={() => Linking.openURL(LOUEUR_DASHBOARD_URL)}
+                activeOpacity={0.8}
+                accessibilityRole="link"
+                accessibilityLabel="Accès dashboard loueur"
+              >
+                <Ionicons name="desktop-outline" size={16} color="#121212" />
+                <Text style={s.dashboardBtnText}>Accès{'\n'}dashboard</Text>
+              </TouchableOpacity>
+            </View>
 
           <View style={s.statsRow}>
             {[
@@ -1106,7 +1121,14 @@ const s = StyleSheet.create({
   connGreen: { backgroundColor: '#4ECC8B' },
   connRed: { backgroundColor: '#EF4444' },
   connText: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
-  earningsBox: { marginTop: 22 },
+  earningsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: 22 },
+  earningsBox: { flex: 1 },
+  dashboardBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#4ECC8B', borderRadius: 14,
+    paddingHorizontal: 12, paddingVertical: 9, marginBottom: 4,
+  },
+  dashboardBtnText: { fontSize: 12, fontWeight: '800', color: '#121212', lineHeight: 14 },
   earningsLabel: { fontSize: 13, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
   earningsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
   earningsValue: { flexShrink: 1, fontSize: 40, fontWeight: '800', color: '#4ECC8B', letterSpacing: -1 },
