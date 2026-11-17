@@ -185,8 +185,17 @@ export async function joinDriverSessionAsync(sessionId: string): Promise<boolean
   }
 }
 
+export function clearDriverSessionCallbacks(): void {
+  Array.from(reconnectCallbacks.keys()).forEach((k) => {
+    if (k.startsWith('driver-session-')) {
+      reconnectCallbacks.delete(k);
+    }
+  });
+}
+
 export function joinDriverSession(sessionId: string): void {
   const s = getSocket();
+  clearDriverSessionCallbacks();
   
   const joinSession = () => {
     if (s.connected) {
@@ -338,6 +347,25 @@ export interface CancelRequestData {
   totalPrice: number;
   pickupLocation: string;
   scheduledTime: string | null;
+  requestedAt?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  days?: number | null;
+  paymentMethod?: string;
+  paid?: boolean;
+}
+
+export function onRentalOrderCancelRejected(callback: (data: { orderId: string }) => void): () => void {
+  const s = getSocket();
+  s.on('rental-order:cancel-rejected', callback);
+  return () => s.off('rental-order:cancel-rejected', callback);
+}
+
+/** Appelé à chaque (re)connexion socket — utile pour resynchroniser l'état après une coupure. */
+export function onSocketConnected(callback: () => void): () => void {
+  const s = getSocket();
+  s.on('connect', callback);
+  return () => s.off('connect', callback);
 }
 
 export function onRentalOrderCancelRequest(callback: (data: CancelRequestData) => void): () => void {

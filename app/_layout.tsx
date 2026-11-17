@@ -209,28 +209,21 @@ export default function RootLayout() {
           console.log('[App] OneSignal initialization error:', error);
         }
 
-        const initSocketAndSession = async () => {
-          try {
-            const sessionId = await getDriverSessionId();
-            if (sessionId) {
-              connectSocket();
-              joinDriverSession(sessionId);
-              console.log('[App] Socket connected and driver session joined');
-            }
-          } catch (error) {
-            console.log('[App] Socket initialization error:', error);
-          }
-        };
-        await initSocketAndSession();
-
-        getDriverProfile()
-          .then((driver) => {
+        try {
+          const sessionId = await getDriverSessionId();
+          if (sessionId) {
+            const driver = await getDriverProfile();
             if (driver?.id) {
               setDriverExternalId(driver.id);
               secureStorage.setItem('driverExternalId', driver.id).catch(() => {});
+              connectSocket();
+              joinDriverSession(sessionId);
+              console.log('[App] Socket connected and valid driver session joined');
             }
-          })
-          .catch(() => {});
+          }
+        } catch {
+          // Session expirée déjà nettoyée par getDriverProfile -> l'accueil redirigera vers /login
+        }
 
         secureStorage.getItem('driverExternalId')
           .then((storedId) => {

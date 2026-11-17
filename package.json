@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "dev:ios": "expo start --dev-client --scheme rave-loueur --port 8083",
+    "dev:ios:tunnel": "expo start --dev-client --scheme rave-loueur --port 8083 --tunnel",
     "server": "tsx server/index.ts",
     "dev": "npm start",
     "dev:mock": "concurrently \"npm run server\" \"npm start\" --names \"API,EXPO\" --prefix-colors \"blue,green\"",

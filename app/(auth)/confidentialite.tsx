@@ -103,7 +103,7 @@ export default function ConfidentialiteScreen() {
             Nos prestataires techniques certifiés (sous-traitants) :
           </Text>
           <Text variant="body" style={styles.listItem}>
-            • Yousign : opérateur européen certifié de signature électronique (pour la signature sécurisée des contrats de location et états des lieux).
+            • Signature électronique des contrats : réalisée directement dans RAVE. Pour la preuve de la signature, nous conservons avec le contrat signé la signature tracée, la date et l'heure, l'adresse IP, l'appareil utilisé et l'empreinte numérique du contrat.
           </Text>
           <Text variant="body" style={styles.listItem}>
             • PayZen / OSB : opérateur monétique en Polynésie française (lorsque vous réglez en ligne auprès d'un Loueur équipé).
@@ -156,7 +156,7 @@ export default function ConfidentialiteScreen() {
           </Text>
           <Text variant="body" style={styles.listItem}>• Chiffrement des communications et transferts de données (protocole HTTPS / TLS)</Text>
           <Text variant="body" style={styles.listItem}>• Stockage sécurisé à accès restreint pour les pièces justificatives (permis de conduire)</Text>
-          <Text variant="body" style={styles.listItem}>• Authentification sécurisée des comptes et recours à des prestataires certifiés (Yousign, OSB)</Text>
+          <Text variant="body" style={styles.listItem}>• Authentification sécurisée des comptes et recours à des prestataires certifiés (OSB / PayZen)</Text>
         </View>
 
         <View style={styles.section}>

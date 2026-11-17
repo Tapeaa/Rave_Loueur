@@ -1,65 +1,175 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { View, TouchableOpacity, Modal, StyleSheet, Linking, Alert, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, Modal, StyleSheet, Linking, Alert, ActivityIndicator, AppState } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { Text } from '@/components/ui/Text';
-import { onRentalOrderCancelRequest, type CancelRequestData } from '@/lib/socket';
-import { approveCancelRequest, rejectCancelRequest, getDriverSessionId } from '@/lib/api';
+import {
+  onRentalOrderCancelRequest,
+  onRentalOrderCancelled,
+  onRentalOrderCancelRejected,
+  onSocketConnected,
+  type CancelRequestData,
+} from '@/lib/socket';
+import {
+  approveCancelRequest,
+  rejectCancelRequest,
+  getDriverSessionId,
+  fetchPendingCancelRequests,
+} from '@/lib/api';
+
+const RESYNC_INTERVAL_MS = 45000;
+
+function formatShortDate(value?: string | null) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Pacific/Tahiti' });
+}
 
 export default function ChauffeurLayout() {
   const router = useRouter();
-  const [cancelRequest, setCancelRequest] = useState<CancelRequestData | null>(null);
-  const [showCancelPopup, setShowCancelPopup] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  const queryClient = useQueryClient();
+  const [queue, setQueue] = useState<CancelRequestData[]>([]);
+  const [processing, setProcessing] = useState<'approve' | 'reject' | null>(null);
+  const dismissedRef = useRef<Set<string>>(new Set());
+  const cancelRequest = queue[0] ?? null;
+
+  const refreshOrderLists = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['driver-orders'] });
+    queryClient.invalidateQueries({ queryKey: ['driver-cancel-requests'] });
+  }, [queryClient]);
+
+  const removeFromQueue = useCallback((orderId: string) => {
+    setQueue((prev) => prev.filter((r) => r.orderId !== orderId));
+  }, []);
+
+  const resync = useCallback(async () => {
+    let sessionId = '';
+    try {
+      sessionId = (await getDriverSessionId()) || '';
+    } catch {
+      return;
+    }
+    if (!sessionId) return;
+    try {
+      const pending = await fetchPendingCancelRequests(sessionId);
+      const pendingIds = new Set(pending.map((p) => p.orderId));
+      setQueue((prev) => {
+        const kept = prev.filter((r) => pendingIds.has(r.orderId));
+        const keptIds = new Set(kept.map((r) => r.orderId));
+        const fresh = pending.filter((p) => !keptIds.has(p.orderId) && !dismissedRef.current.has(p.orderId));
+        return [...kept, ...fresh];
+      });
+      queryClient.setQueryData(['driver-cancel-requests'], pending);
+    } catch (e) {
+      console.warn('[Layout] cancel requests resync failed:', (e as Error)?.message || e);
+    }
+  }, [queryClient]);
 
   useEffect(() => {
-    const unsub = onRentalOrderCancelRequest((data) => {
-      console.log('[Layout] Cancel request popup triggered for order:', data.orderId);
-      setCancelRequest(data);
-      setShowCancelPopup(true);
+    void resync();
+    const unsubRequest = onRentalOrderCancelRequest((data) => {
+      dismissedRef.current.delete(data.orderId);
+      setQueue((prev) => (prev.some((r) => r.orderId === data.orderId) ? prev : [...prev, data]));
+      refreshOrderLists();
     });
-    return () => { unsub(); };
-  }, []);
+    const unsubCancelled = onRentalOrderCancelled((data) => {
+      removeFromQueue(data.orderId);
+      refreshOrderLists();
+      const info = data as any;
+      if (info?.expired) {
+        const refundLine = info.refund
+          ? `\n\nLe client avait payé par carte : remboursez-lui ${Math.round(info.refund.amount || 0).toLocaleString('fr-FR')} XPF puis confirmez-le dans Réservations.`
+          : '';
+        Alert.alert(
+          'Demande expirée',
+          `La demande de ${info.clientName || 'votre client'} pour ${info.vehicleTitle || 'votre véhicule'} a expiré sans réponse.${refundLine}`,
+          info.refund
+            ? [
+                { text: 'Plus tard', style: 'cancel' },
+                { text: 'Voir Réservations', onPress: () => router.push('/(chauffeur)/courses') },
+              ]
+            : [{ text: 'OK' }]
+        );
+      }
+    });
+    const unsubRejected = onRentalOrderCancelRejected((data) => {
+      removeFromQueue(data.orderId);
+      refreshOrderLists();
+    });
+    const unsubConnect = onSocketConnected(() => { void resync(); });
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void resync();
+    });
+    const interval = setInterval(() => { void resync(); }, RESYNC_INTERVAL_MS);
+    return () => {
+      unsubRequest();
+      unsubCancelled();
+      unsubRejected();
+      unsubConnect();
+      appStateSub.remove();
+      clearInterval(interval);
+    };
+  }, [resync, refreshOrderLists, removeFromQueue, router]);
 
-  const getSessionId = useCallback(async () => {
+  const runDecision = useCallback(async (kind: 'approve' | 'reject') => {
+    if (!cancelRequest || processing) return;
+    setProcessing(kind);
     try {
-      return await getDriverSessionId() || '';
-    } catch { return ''; }
-  }, []);
-
-  const handleApprove = useCallback(async () => {
-    if (!cancelRequest) return;
-    setProcessing(true);
-    try {
-      const sessionId = await getSessionId();
-      await approveCancelRequest(cancelRequest.orderId, sessionId);
-      setShowCancelPopup(false);
-      setCancelRequest(null);
-      Alert.alert('Annulation validée', 'La commande a été annulée.');
-    } catch (err) {
-      console.error('[Layout] Error approving cancel:', err);
-      Alert.alert('Erreur', 'Impossible de valider l\'annulation.');
+      const sessionId = (await getDriverSessionId()) || '';
+      if (kind === 'approve') {
+        await approveCancelRequest(cancelRequest.orderId, sessionId);
+      } else {
+        await rejectCancelRequest(cancelRequest.orderId, sessionId);
+      }
+      removeFromQueue(cancelRequest.orderId);
+      refreshOrderLists();
+      if (kind === 'approve' && cancelRequest.paid) {
+        Alert.alert(
+          'Annulation validée',
+          `La location est annulée et le client a été prévenu.\n\nRemboursez-lui ${(cancelRequest.totalPrice || 0).toLocaleString('fr-FR')} XPF, puis appuyez sur « J'ai remboursé » dans Réservations.`,
+          [
+            { text: 'Plus tard', style: 'cancel' },
+            { text: 'Voir Réservations', onPress: () => router.push('/(chauffeur)/courses') },
+          ]
+        );
+        return;
+      }
+      Alert.alert(
+        kind === 'approve' ? 'Annulation validée' : 'Annulation refusée',
+        kind === 'approve'
+          ? 'La location est annulée. Le client a été prévenu.'
+          : 'La location est maintenue. Le client a été prévenu.'
+      );
+    } catch (err: any) {
+      const msg = String(err?.message || '');
+      if (msg.includes('409') || msg.includes('déjà')) {
+        removeFromQueue(cancelRequest.orderId);
+        refreshOrderLists();
+        Alert.alert('Déjà traitée', 'Cette location est déjà annulée ou terminée.');
+      } else {
+        console.warn('[Layout] cancel decision failed:', msg);
+        Alert.alert('Erreur', 'Impossible d\'enregistrer votre décision. Vérifiez votre connexion et réessayez.');
+      }
     } finally {
-      setProcessing(false);
+      setProcessing(null);
     }
-  }, [cancelRequest, getSessionId]);
+  }, [cancelRequest, processing, removeFromQueue, refreshOrderLists, router]);
 
-  const handleReject = useCallback(async () => {
+  const handleLater = useCallback(() => {
     if (!cancelRequest) return;
-    setProcessing(true);
-    try {
-      const sessionId = await getSessionId();
-      await rejectCancelRequest(cancelRequest.orderId, sessionId);
-      setShowCancelPopup(false);
-      setCancelRequest(null);
-      Alert.alert('Annulation refusée', 'Le client a été notifié que sa demande est refusée.');
-    } catch (err) {
-      console.error('[Layout] Error rejecting cancel:', err);
-      Alert.alert('Erreur', 'Impossible de refuser l\'annulation.');
-    } finally {
-      setProcessing(false);
-    }
-  }, [cancelRequest, getSessionId]);
+    dismissedRef.current.add(cancelRequest.orderId);
+    removeFromQueue(cancelRequest.orderId);
+  }, [cancelRequest, removeFromQueue]);
+
+  const handleOpenOrder = useCallback(() => {
+    if (!cancelRequest) return;
+    const id = cancelRequest.orderId;
+    dismissedRef.current.add(id);
+    removeFromQueue(id);
+    router.push(`/(chauffeur)/course-details/${id}`);
+  }, [cancelRequest, removeFromQueue, router]);
 
   const handleCall = useCallback(() => {
     if (!cancelRequest?.clientPhone) {
@@ -70,9 +180,19 @@ export default function ChauffeurLayout() {
   }, [cancelRequest]);
 
   const handleMessage = useCallback(() => {
-    setShowCancelPopup(false);
+    if (cancelRequest) dismissedRef.current.add(cancelRequest.orderId);
+    if (cancelRequest) removeFromQueue(cancelRequest.orderId);
     router.push('/(chauffeur)/messages');
-  }, [router]);
+  }, [cancelRequest, removeFromQueue, router]);
+
+  const period = cancelRequest
+    ? [formatShortDate(cancelRequest.startDate), formatShortDate(cancelRequest.endDate)].filter(Boolean).join(' → ')
+    : '';
+  const paymentLabel = cancelRequest?.paid
+    ? 'Payée par carte — à rembourser si vous validez'
+    : cancelRequest?.paymentMethod === 'card'
+      ? 'Carte (paiement non confirmé)'
+      : 'À encaisser sur place';
 
   return (
     <>
@@ -102,14 +222,19 @@ export default function ChauffeurLayout() {
         <Stack.Screen name="modifier-vehicule" />
       </Stack>
 
-      <Modal visible={showCancelPopup} transparent animationType="slide" onRequestClose={() => setShowCancelPopup(false)}>
+      <Modal visible={!!cancelRequest} transparent animationType="slide" onRequestClose={handleLater}>
         <View style={s.overlay}>
           <View style={s.popup}>
             <View style={s.iconWrap}>
               <Ionicons name="alert-circle" size={44} color="#F59E0B" />
             </View>
             <Text style={s.title}>Demande d'annulation</Text>
-            <Text style={s.subtitle}>Un client souhaite annuler sa réservation</Text>
+            <Text style={s.subtitle}>
+              {cancelRequest?.clientName || 'Un client'} souhaite annuler sa location. Votre réponse lui sera envoyée immédiatement.
+            </Text>
+            {queue.length > 1 ? (
+              <Text style={s.queueHint}>{queue.length - 1} autre{queue.length > 2 ? 's' : ''} demande{queue.length > 2 ? 's' : ''} en attente</Text>
+            ) : null}
 
             <View style={s.detailCard}>
               <View style={s.detailRow}>
@@ -123,19 +248,29 @@ export default function ChauffeurLayout() {
                 <Text style={s.detailLabel}>Véhicule</Text>
                 <Text style={s.detailValue}>{cancelRequest?.vehicleTitle || '-'}</Text>
               </View>
+              {period ? (
+                <>
+                  <View style={s.divider} />
+                  <View style={s.detailRow}>
+                    <Ionicons name="calendar" size={16} color="#6B7280" />
+                    <Text style={s.detailLabel}>Période</Text>
+                    <Text style={s.detailValue}>{period}</Text>
+                  </View>
+                </>
+              ) : null}
               <View style={s.divider} />
               <View style={s.detailRow}>
                 <Ionicons name="cash" size={16} color="#6B7280" />
                 <Text style={s.detailLabel}>Montant</Text>
-                <Text style={[s.detailValue, { color: '#EF4444', fontWeight: '800' }]}>
-                  {cancelRequest?.totalPrice ? `${cancelRequest.totalPrice.toLocaleString()} XPF` : '-'}
+                <Text style={[s.detailValue, { fontWeight: '800' }]}>
+                  {cancelRequest?.totalPrice ? `${cancelRequest.totalPrice.toLocaleString('fr-FR')} XPF` : '-'}
                 </Text>
               </View>
               <View style={s.divider} />
               <View style={s.detailRow}>
-                <Ionicons name="location" size={16} color="#6B7280" />
-                <Text style={s.detailLabel}>Lieu</Text>
-                <Text style={s.detailValue} numberOfLines={1}>{cancelRequest?.pickupLocation || '-'}</Text>
+                <Ionicons name="card" size={16} color="#6B7280" />
+                <Text style={s.detailLabel}>Paiement</Text>
+                <Text style={s.detailValue} numberOfLines={2}>{paymentLabel}</Text>
               </View>
               {cancelRequest?.reason ? (
                 <>
@@ -162,11 +297,11 @@ export default function ChauffeurLayout() {
 
             <View style={s.actionRow}>
               <TouchableOpacity
-                style={[s.actionBtn, s.rejectBtn]}
-                onPress={handleReject}
-                disabled={processing}
+                style={[s.actionBtn, s.rejectBtn, processing && s.btnDisabled]}
+                onPress={() => runDecision('reject')}
+                disabled={!!processing}
               >
-                {processing ? <ActivityIndicator color="#FFF" size="small" /> : (
+                {processing === 'reject' ? <ActivityIndicator color="#FFF" size="small" /> : (
                   <>
                     <Ionicons name="close" size={18} color="#FFF" />
                     <Text style={s.actionBtnText}>Refuser</Text>
@@ -174,16 +309,26 @@ export default function ChauffeurLayout() {
                 )}
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.actionBtn, s.approveBtn]}
-                onPress={handleApprove}
-                disabled={processing}
+                style={[s.actionBtn, s.approveBtn, processing && s.btnDisabled]}
+                onPress={() => runDecision('approve')}
+                disabled={!!processing}
               >
-                {processing ? <ActivityIndicator color="#FFF" size="small" /> : (
+                {processing === 'approve' ? <ActivityIndicator color="#FFF" size="small" /> : (
                   <>
                     <Ionicons name="checkmark" size={18} color="#FFF" />
-                    <Text style={s.actionBtnText}>Valider</Text>
+                    <Text style={s.actionBtnText}>Accepter l'annulation</Text>
                   </>
                 )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.secondaryRow}>
+              <TouchableOpacity onPress={handleOpenOrder} disabled={!!processing} style={s.secondaryBtn}>
+                <Text style={s.secondaryText}>Voir la location</Text>
+              </TouchableOpacity>
+              <Text style={s.secondarySep}>·</Text>
+              <TouchableOpacity onPress={handleLater} disabled={!!processing} style={s.secondaryBtn}>
+                <Text style={s.secondaryText}>Décider plus tard</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -229,13 +374,21 @@ const s = StyleSheet.create({
   },
   contactBtnText: { fontSize: 14, fontWeight: '700', color: '#22C55E' },
   actionRow: {
-    flexDirection: 'row', gap: 12, marginTop: 12, width: '100%',
+    flexDirection: 'column-reverse', gap: 10, marginTop: 12, width: '100%',
   },
   actionBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 14, borderRadius: 12,
+    width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12,
   },
   rejectBtn: { backgroundColor: '#EF4444' },
   approveBtn: { backgroundColor: '#22C55E' },
+  btnDisabled: { opacity: 0.6 },
   actionBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  queueHint: { fontSize: 12, fontWeight: '700', color: '#B45309', marginBottom: 10 },
+  secondaryRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14, gap: 6,
+  },
+  secondaryBtn: { paddingVertical: 6, paddingHorizontal: 8 },
+  secondaryText: { fontSize: 14, fontWeight: '600', color: '#6B7280', textDecorationLine: 'underline' },
+  secondarySep: { color: '#9CA3AF' },
 });

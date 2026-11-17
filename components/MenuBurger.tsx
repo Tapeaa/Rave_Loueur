@@ -4,7 +4,8 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
-import { removeDriverSessionId, getDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
+import { getDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
+import { logoutDriver } from '@/lib/logout';
 
 const { width } = Dimensions.get('window');
 
@@ -48,7 +49,7 @@ export default function MenuBurger() {
         setDriverProfile(profile);
       } catch (error) {
         if (error instanceof SessionExpiredError) {
-          await removeDriverSessionId();
+          await logoutDriver();
           router.replace('/(chauffeur)/login');
           return;
         }
@@ -114,7 +115,7 @@ export default function MenuBurger() {
 
   const handleLogout = async () => {
     closeMenu();
-    await removeDriverSessionId();
+    await logoutDriver();
     router.replace('/(chauffeur)/login');
   };
 

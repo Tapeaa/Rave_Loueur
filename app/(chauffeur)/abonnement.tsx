@@ -20,9 +20,9 @@ import {
   getDriverSubscription,
   subscribeLoueurPlan,
   SessionExpiredError,
-  removeDriverSessionId,
   type LoueurSubscriptionInfo,
 } from '@/lib/api';
+import { logoutDriver } from '@/lib/logout';
 
 type PlanKey = 'monthly' | 'semiannual';
 
@@ -64,7 +64,7 @@ export default function AbonnementScreen() {
       if (data.status === 'active') stopPoll();
     } catch (e) {
       if (e instanceof SessionExpiredError) {
-        await removeDriverSessionId();
+        await logoutDriver();
         router.replace('/(chauffeur)/login');
         return;
       }
@@ -147,7 +147,7 @@ export default function AbonnementScreen() {
   const status = info?.status || 'none';
   const waitingFirstVehicle = !!info?.waitingFirstVehicle;
   const statusLabel = waitingFirstVehicle
-    ? "Veuillez créer votre premier véhicule pour activer votre période d'essai, ou payer l'abonnement Tape'ā"
+    ? "Veuillez créer votre premier véhicule pour activer votre période d'essai, ou payer l'abonnement RAVE"
     : status === 'trial'
       ? info?.daysRemaining != null
         ? `Période d'essai lancée · ${info.daysRemaining} jour${info.daysRemaining > 1 ? 's' : ''} restant${info.daysRemaining > 1 ? 's' : ''}`
@@ -252,7 +252,7 @@ export default function AbonnementScreen() {
           <Text style={styles.sectionTitle}>Choisir une formule</Text>
           <Text style={styles.hint}>
             L’essai 30 jours démarre dès que vous publiez votre premier véhicule visible sur
-            l’app client. Vous pouvez aussi payer l’abonnement Tape'ā tout de suite. Après
+            l’app client. Vous pouvez aussi payer l’abonnement RAVE tout de suite. Après
             expiration : 5 jours de grâce, puis masquage du catalogue.
           </Text>
 

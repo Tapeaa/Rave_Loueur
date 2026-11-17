@@ -1,8 +1,17 @@
-import { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, Image, Platform } from 'react-native';
+import { useState, useRef, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+  Keyboard,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { apiPost, setDriverSessionId, secureStorage } from '@/lib/api';
@@ -14,28 +23,29 @@ export default function ChauffeurLoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const submittingRef = useRef(false);
 
   const handleCodeChange = (value: string, index: number) => {
-    if (value.length > 1) {
-      const digits = value.split('').slice(0, 6);
-      const newCode = [...code];
-      digits.forEach((digit, i) => {
-        if (index + i < 6) {
-          newCode[index + i] = digit;
-        }
-      });
-      setCode(newCode);
-      const nextIndex = Math.min(index + digits.length, 5);
-      inputRefs.current[nextIndex]?.focus();
-    } else {
-      const newCode = [...code];
-      newCode[index] = value;
-      setCode(newCode);
-
-      if (value && index < 5) {
-        inputRefs.current[index + 1]?.focus();
+    const digits = value.replace(/\D/g, '');
+    setCode((prev) => {
+      const next = [...prev];
+      if (digits.length > 1) {
+        digits.slice(0, 6 - index).split('').forEach((d, i) => {
+          next[index + i] = d;
+        });
+      } else {
+        next[index] = digits.slice(0, 1);
       }
+      return next;
+    });
+
+    if (digits.length > 1) {
+      const nextIndex = Math.min(index + digits.length, 5);
+      requestAnimationFrame(() => inputRefs.current[nextIndex]?.focus());
+    } else if (digits && index < 5) {
+      requestAnimationFrame(() => inputRefs.current[index + 1]?.focus());
     }
+    if (error) setError('');
   };
 
   const handleKeyPress = (key: string, index: number) => {
@@ -44,12 +54,14 @@ export default function ChauffeurLoginScreen() {
     }
   };
 
-  const handleLogin = async () => {
-    const fullCode = code.join('');
+  const handleLogin = useCallback(async (overrideCode?: string) => {
+    const fullCode = (overrideCode ?? code.join('')).replace(/\D/g, '');
     if (fullCode.length !== 6) {
       setError('Veuillez entrer le code à 6 chiffres');
       return;
     }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
 
     setIsLoading(true);
     setError('');
@@ -160,83 +172,102 @@ export default function ChauffeurLoginScreen() {
         setError('Code invalide ou erreur serveur');
       }
     } finally {
+      submittingRef.current = false;
       setIsLoading(false);
     }
-  };
+  }, [code, router]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('@/assets/images/logolandingchauffeur.png')}
-              style={styles.logo}
-              resizeMode="contain"
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={8}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+          showsVerticalScrollIndicator={false}
+        >
+          <View>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('@/assets/images/logolandingchauffeur.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+
+            <View style={styles.header}>
+              <Text variant="h1">Accès Loueur</Text>
+              <Text variant="body" style={styles.subtitle}>
+                Entrez le code d’accès à 6 chiffres fourni par RAVE.
+              </Text>
+              <Text variant="caption" style={styles.hint}>
+                Les comptes loueur sont créés uniquement par l’équipe RAVE. Vous ne pouvez pas vous inscrire seul.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.form}>
+            <View style={styles.codeContainer}>
+              {code.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => { inputRefs.current[index] = ref; }}
+                  style={[
+                    styles.codeInput,
+                    digit ? styles.codeInputFilled : null,
+                    error ? styles.codeInputError : null,
+                  ]}
+                  value={digit}
+                  onChangeText={(value) => handleCodeChange(value, index)}
+                  onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
+                  keyboardType="number-pad"
+                  maxLength={index === 0 ? 6 : 1}
+                  selectTextOnFocus
+                  textContentType="oneTimeCode"
+                  autoComplete="sms-otp"
+                  caretHidden={false}
+                />
+              ))}
+            </View>
+
+            {error ? (
+              <Text variant="caption" style={styles.errorText}>
+                {error}
+              </Text>
+            ) : null}
+
+            <Button
+              title="Se connecter"
+              onPress={() => {
+                Keyboard.dismiss();
+                handleLogin();
+              }}
+              loading={isLoading}
+              disabled={isLoading}
+              fullWidth
+              style={styles.loginButton}
+              accessibilityLabel="Se connecter avec votre code à 6 chiffres"
+              accessibilityRole="button"
+              accessibilityHint="Connecte le loueur à son compte après avoir entré le code d'accès"
             />
           </View>
 
-          <View style={styles.header}>
-            <Text variant="h1">Accès Loueur</Text>
-            <Text variant="body" style={styles.subtitle}>
-              Entrez le code d’accès à 6 chiffres fourni par RAVE.
-            </Text>
-            <Text variant="caption" style={styles.hint}>
-              Les comptes loueur sont créés uniquement par l’équipe RAVE. Vous ne pouvez pas vous inscrire seul.
-            </Text>
+          <View style={styles.legalRow}>
+            <TouchableOpacity onPress={() => router.push('/(auth)/cgu')}>
+              <Text style={styles.legalText}>CGS Pro</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalSep}>·</Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/confidentialite')}>
+              <Text style={styles.legalText}>Confidentialité</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.codeContainer}>
-            {code.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
-                style={[
-                  styles.codeInput,
-                  digit ? styles.codeInputFilled : null,
-                  error ? styles.codeInputError : null,
-                ]}
-                value={digit}
-                onChangeText={(value) => handleCodeChange(value, index)}
-                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-                keyboardType="number-pad"
-                maxLength={6}
-                selectTextOnFocus
-              />
-            ))}
-          </View>
-
-          {error ? (
-            <Text variant="caption" style={styles.errorText}>
-              {error}
-            </Text>
-          ) : null}
-
-          <Button
-            title="Se connecter"
-            onPress={handleLogin}
-            loading={isLoading}
-            disabled={isLoading || code.some((d) => !d)}
-            fullWidth
-            style={styles.loginButton}
-            accessibilityLabel="Se connecter avec votre code à 6 chiffres"
-            accessibilityRole="button"
-            accessibilityHint="Connecte le loueur à son compte après avoir entré le code d'accès"
-          />
-        </View>
-
-        <View style={styles.legalRow}>
-          <TouchableOpacity onPress={() => router.push('/(auth)/cgu')}>
-            <Text style={styles.legalText}>CGS Pro</Text>
-          </TouchableOpacity>
-          <Text style={styles.legalSep}>·</Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/confidentialite')}>
-            <Text style={styles.legalText}>Confidentialité</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -247,10 +278,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 24,
     justifyContent: 'space-between',
   },
   logoContainer: {

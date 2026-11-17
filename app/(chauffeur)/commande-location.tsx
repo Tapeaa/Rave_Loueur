@@ -50,6 +50,10 @@ export default function CommandeLocationScreen() {
     supplements: string;
     createdAt: string;
     ownerName: string;
+    paymentMethod?: string;
+    payzenStatus?: string;
+    payzenCardLast4?: string;
+    payzenTransactionUuid?: string;
   }>();
 
   const [isAccepting, setIsAccepting] = useState(false);
@@ -60,6 +64,17 @@ export default function CommandeLocationScreen() {
   const [contractLoading, setContractLoading] = useState(false);
   const [contractSigned, setContractSigned] = useState(false);
   const [contractSignedVia, setContractSignedVia] = useState<string | null>(null);
+  const [payment, setPayment] = useState<{
+    method: string | null;
+    payzenStatus: string | null;
+    cardLast4?: string | null;
+    transactionUuid?: string | null;
+  }>(() => ({
+    method: params.paymentMethod || null,
+    payzenStatus: params.payzenStatus || null,
+    cardLast4: params.payzenCardLast4 || null,
+    transactionUuid: params.payzenTransactionUuid || null,
+  }));
 
   const orderId = params.orderId || '';
   const sessionId = params.sessionId || '';
@@ -117,9 +132,21 @@ export default function CommandeLocationScreen() {
         html?: string;
         signed?: boolean;
         signedVia?: string | null;
+        paymentMethod?: string | null;
+        payzenStatus?: string | null;
+        payzenCardLast4?: string | null;
+        payzenTransactionUuid?: string | null;
       }>(`/api/orders/${orderId}/contract`, {
         headers: { 'X-Driver-Session': sessionId },
       });
+      if (data) {
+        setPayment((prev) => ({
+          method: data.paymentMethod ?? prev.method,
+          payzenStatus: data.payzenStatus ?? prev.payzenStatus,
+          cardLast4: data.payzenCardLast4 ?? prev.cardLast4,
+          transactionUuid: data.payzenTransactionUuid ?? prev.transactionUuid,
+        }));
+      }
       if (data?.html) {
         setContractHtml(data.html);
         setContractSigned(!!data.signed);
@@ -163,23 +190,59 @@ export default function CommandeLocationScreen() {
     }
   };
 
-  const handleAccept = async () => {
+  const readSavedSignature = async (): Promise<string | null> => {
+    try {
+      const sigFile = `${FileSystem.documentDirectory}loueur_signature.txt`;
+      const info = await FileSystem.getInfoAsync(sigFile);
+      if (!info.exists) return null;
+      const data = (await FileSystem.readAsStringAsync(sigFile)).trim();
+      return data.startsWith('data:image/') ? data : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const doAccept = async (loueurSig: string | null) => {
     if (!sessionId || !orderId) return;
     setIsAccepting(true);
     try {
-      let loueurSig: string | null = null;
-      try {
-        const sigFile = `${FileSystem.documentDirectory}loueur_signature.txt`;
-        const info = await FileSystem.getInfoAsync(sigFile);
-        if (info.exists) loueurSig = await FileSystem.readAsStringAsync(sigFile);
-      } catch {}
       await acceptRentalOrder(orderId, sessionId, loueurSig);
       setAccepted(true);
     } catch (e: any) {
-      Alert.alert('Erreur', e?.message || "Impossible d'accepter la demande.");
+      const code = e?.data?.code;
+      if (code === 'SUBSCRIPTION_REQUIRED') {
+        Alert.alert('Abonnement requis', e?.message || 'Votre abonnement RAVE est inactif.', [
+          { text: 'Fermer', style: 'cancel' },
+          { text: 'Voir mon abonnement', onPress: () => router.push('/(chauffeur)/abonnement' as any) },
+        ]);
+      } else if (code === 'CANCEL_REQUEST_PENDING') {
+        Alert.alert('Annulation demandée', e?.message || "Le client a demandé l'annulation : répondez d'abord à sa demande.");
+      } else if (code === 'VEHICLE_UNAVAILABLE') {
+        Alert.alert('Véhicule indisponible', e?.message || "Ce véhicule n'est plus disponible sur ces dates.");
+      } else {
+        Alert.alert('Erreur', e?.message || "Impossible d'accepter la demande.");
+      }
     } finally {
       setIsAccepting(false);
     }
+  };
+
+  const handleAccept = async () => {
+    if (!sessionId || !orderId) return;
+    const loueurSig = await readSavedSignature();
+    if (loueurSig) {
+      await doAccept(loueurSig);
+      return;
+    }
+    Alert.alert(
+      'Signature manquante',
+      "Vous n'avez pas encore enregistré votre signature. Elle sera apposée sur le contrat de location.",
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Accepter sans signer', onPress: () => doAccept(null) },
+        { text: 'Créer ma signature', onPress: () => router.push('/(chauffeur)/profil' as any) },
+      ]
+    );
   };
 
   const handleDecline = () => {
@@ -365,7 +428,28 @@ export default function CommandeLocationScreen() {
               <Text style={styles.totalLabel}>Montant total</Text>
               <Text style={styles.totalValue}>{formatPrice(totalPrice)}</Text>
             </View>
-            <Text style={styles.paymentNote}>Paiement directement auprès du loueur lors de la prise en charge</Text>
+            {payment?.payzenStatus === 'paid' ? (
+              <View style={[styles.paymentBadge, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
+                <Ionicons name="checkmark-circle" size={20} color="#166534" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.paymentBadgeText, { color: '#166534', flex: 0 }]}>
+                    Déjà payée par carte{payment.cardLast4 ? ` (•••• ${payment.cardLast4})` : ''}
+                  </Text>
+                  {payment.transactionUuid ? (
+                    <Text style={{ fontSize: 11, color: '#15803D', marginTop: 2 }}>
+                      Réf. transaction : {payment.transactionUuid.slice(0, 12)}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            ) : payment?.method === 'card' ? (
+              <View style={[styles.paymentBadge, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
+                <Ionicons name="alert-circle" size={20} color="#991B1B" />
+                <Text style={[styles.paymentBadgeText, { color: '#991B1B' }]}>Paiement carte non abouti — à encaisser</Text>
+              </View>
+            ) : (
+              <Text style={styles.paymentNote}>Paiement directement auprès du loueur lors de la prise en charge</Text>
+            )}
           </View>
         </View>
 
@@ -376,7 +460,7 @@ export default function CommandeLocationScreen() {
             <View style={styles.signedBadge}>
               <Ionicons name="checkmark-circle" size={18} color="#166534" />
               <Text style={styles.signedBadgeText}>
-                Client a signé{contractSignedVia === 'yousign' ? ' (Yousign)' : ''}
+                Client a signé le contrat{contractSignedVia === 'yousign' ? ' (Yousign)' : ''}
               </Text>
             </View>
           ) : null}
@@ -571,6 +655,11 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
   totalValue: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
   paymentNote: { fontSize: 11, color: '#9CA3AF', marginTop: 6, textAlign: 'center' },
+  paymentBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 10, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 12, marginTop: 10,
+  },
+  paymentBadgeText: { fontSize: 14, fontWeight: '700', flex: 1 },
   contractBtn: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#E8F8F0', borderRadius: 12, padding: 12,

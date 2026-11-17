@@ -175,6 +175,11 @@ export interface Order {
     supplementsTotal?: number;
     subtotal?: number;
     supplements?: { id?: string; name?: string; pricePerDay?: number; total?: number }[];
+    paymentMethod?: 'cash' | 'card';
+    payzenStatus?: string | null;
+    payzenPaidAt?: string | null;
+    payzenTransactionUuid?: string | null;
+    payzenCardLast4?: string | null;
     rentalDispatch?: {
       mode?: 'targeted' | 'broadcast';
       vehicleModelId?: string;

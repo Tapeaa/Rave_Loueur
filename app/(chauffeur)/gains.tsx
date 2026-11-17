@@ -9,10 +9,10 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getDriverProfile,
   getDriverEarnings,
-  removeDriverSessionId,
   SessionExpiredError,
   type DriverEarnings,
 } from '@/lib/api';
+import { logoutDriver } from '@/lib/logout';
 
 export default function ChauffeurGainsScreen() {
   const router = useRouter();
@@ -49,7 +49,7 @@ export default function ChauffeurGainsScreen() {
       }
     } catch (error) {
       if (error instanceof SessionExpiredError) {
-        await removeDriverSessionId();
+        await logoutDriver();
         router.replace('/(chauffeur)/login');
         return;
       }
@@ -121,6 +121,17 @@ export default function ChauffeurGainsScreen() {
                 <Text style={styles.statValue}>{formatPrice(earnings.month)}</Text>
               </Card>
             </View>
+
+            {(earnings.upcoming ?? 0) > 0 && (
+              <Card style={styles.upcomingCard}>
+                <Ionicons name="time-outline" size={20} color="#b45309" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.upcomingLabel}>À venir (réservations confirmées)</Text>
+                  <Text style={styles.upcomingHint}>Comptabilisé une fois le véhicule rendu</Text>
+                </View>
+                <Text style={styles.upcomingValue}>{formatPrice(earnings.upcoming ?? 0)}</Text>
+              </Card>
+            )}
 
             <Card style={styles.totalEarningsCard}>
               <View style={styles.totalEarningsRow}>
@@ -272,6 +283,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1a1a1a',
+  },
+  upcomingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+  },
+  upcomingLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  upcomingHint: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  upcomingValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#b45309',
   },
   totalEarningsCard: {
     padding: 16,

@@ -57,6 +57,12 @@ export interface RentalOrderApi {
   isAdvanceBooking?: boolean;
   createdAt?: string;
   expiresAt?: string;
+  paymentMethod?: 'cash' | 'card' | string | null;
+  payzenStatus?: string | null;
+  payzenPaidAt?: string | null;
+  payzenTransactionUuid?: string | null;
+  payzenCardLast4?: string | null;
+  cancelRequest?: { status?: string; reason?: string; requestedAt?: string } | null;
   /** Routage backend : targeted (une annonce) vs broadcast (même modèle, contrat app) */
   rentalDispatch?: {
     mode?: 'targeted' | 'broadcast';
@@ -133,10 +139,15 @@ export function rentalOrderToDriverOrder(r: RentalOrderApi): Order {
       description: r.vehicle?.categoryLabel,
       isRentalOrder: true,
       type: 'rental',
-    },
+      ...(r.payzenStatus ? { payzenStatus: r.payzenStatus } : {}),
+      ...(r.payzenPaidAt ? { payzenPaidAt: r.payzenPaidAt } : {}),
+      ...(r.payzenTransactionUuid ? { payzenTransactionUuid: r.payzenTransactionUuid } : {}),
+      ...(r.payzenCardLast4 ? { payzenCardLast4: r.payzenCardLast4 } : {}),
+      ...(r.cancelRequest ? { cancelRequest: r.cancelRequest } : {}),
+    } as any,
     passengers: 1,
     supplements,
-    paymentMethod: 'cash',
+    paymentMethod: r.paymentMethod === 'card' ? 'card' : 'cash',
     totalPrice: grandTotal,
     driverEarnings: grandTotal,
     scheduledTime: r.rental?.startDate ?? r.scheduledTime ?? null,
@@ -164,6 +175,11 @@ export function rentalOrderToDriverOrder(r: RentalOrderApi): Order {
       supplements: r.supplements?.map(s => ({
         id: s.id, name: s.name, pricePerDay: s.pricePerDay, total: s.total,
       })),
+      paymentMethod: r.paymentMethod === 'card' ? 'card' : 'cash',
+      payzenStatus: r.payzenStatus ?? null,
+      payzenPaidAt: r.payzenPaidAt ?? null,
+      payzenTransactionUuid: r.payzenTransactionUuid ?? null,
+      payzenCardLast4: r.payzenCardLast4 ?? null,
       rentalDispatch: r.rentalDispatch,
     },
   };

@@ -2,25 +2,23 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   View, 
   StyleSheet, 
-  Switch, 
   TouchableOpacity, 
   ScrollView,
   Image,
   Dimensions,
   RefreshControl,
   Platform,
-  Modal,
   Alert,
   Animated,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import MenuBurger from '@/components/MenuBurger';
 import {
+  getDriverEarnings,
   getDriverSessionId,
-  removeDriverSessionId,
   apiFetch,
   apiPatch,
   getDriverProfile,
@@ -28,12 +26,11 @@ import {
   setSupportLastSeenId,
   SessionExpiredError,
   getPendingRentalOrders,
-  acceptRentalOrder,
   declineRentalOrder,
   secureStorage,
 } from '@/lib/api';
+import { logoutDriver } from '@/lib/logout';
 import { setDriverExternalId, addDriverTag, addDriverTags } from '@/lib/onesignal';
-import * as FileSystem from 'expo-file-system/legacy';
 import {
   connectSocket,
   joinDriverSession,
@@ -44,10 +41,15 @@ import {
   onRentalOrderTaken,
   onRentalOrderExpired,
   onRentalOrderCancelled,
-  disconnectSocket,
   isSocketConnected,
 } from '@/lib/socket';
 import type { Order } from '@/lib/types';
+
+function formatCompactXpf(amount: number): string {
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1).replace('.0', '')}M`;
+  if (amount >= 10_000) return `${Math.round(amount / 1000)}k`;
+  return amount.toLocaleString('fr-FR');
+}
 
 interface SupportMessage {
   id: string;
@@ -90,11 +92,23 @@ export default function ChauffeurHomeScreen() {
   const [driverName, setDriverName] = useState('Loueur');
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [acceptingOrderId, setAcceptingOrderId] = useState<string | null>(null);
   const [decliningOrderId, setDecliningOrderId] = useState<string | null>(null);
   const [declinedOrderIds, setDeclinedOrderIds] = useState<Set<string>>(new Set());
+  const declinedRef = useRef<Set<string>>(new Set());
+  const [monthEarnings, setMonthEarnings] = useState<number | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getDriverEarnings()
+        .then((data) => {
+          if (active && data) setMonthEarnings(data.earnings.month || 0);
+        })
+        .catch(() => {});
+      return () => { active = false; };
+    }, [])
+  );
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const [bookingConfirmedOrder, setBookingConfirmedOrder] = useState<Order | null>(null);
   const [acceptedCount, setAcceptedCount] = useState<number>(0);
 
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
@@ -102,7 +116,6 @@ export default function ChauffeurHomeScreen() {
   const [lastSeenSupportId, setLastSeenSupportId] = useState<string | null>(null);
 
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const acceptTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Pulse animation for the online indicator
@@ -161,7 +174,7 @@ export default function ChauffeurHomeScreen() {
         }
       } catch (error) {
         if (error instanceof SessionExpiredError) {
-          await removeDriverSessionId();
+          await logoutDriver();
           router.replace('/(chauffeur)/login');
           return;
         }
@@ -197,18 +210,6 @@ export default function ChauffeurHomeScreen() {
             wasOnline = true;
           }
         }
-        
-        try {
-          const activeOrderResult = await apiFetch<{ hasActiveOrder: boolean; order?: any }>(`/api/orders/active/driver?sessionId=${sid}`);
-          if (activeOrderResult.hasActiveOrder && activeOrderResult.order) {
-            const activeRo = activeOrderResult.order.rideOption as any;
-            if (activeRo?.type === 'rental' || activeRo?.isRentalOrder) {
-              // push (pas replace) pour garder un historique et éviter l'erreur GO_BACK
-              router.push({ pathname: '/(chauffeur)/course-details/[id]' as any, params: { id: activeOrderResult.order.id } });
-              return;
-            }
-          }
-        } catch {}
       } else {
         setIsOnline(false);
       }
@@ -234,7 +235,6 @@ export default function ChauffeurHomeScreen() {
       }
     };
     init();
-    return () => { disconnectSocket(); };
   }, []);
 
   useEffect(() => {
@@ -319,10 +319,15 @@ export default function ChauffeurHomeScreen() {
 
   // ═══ SOCKET LISTENERS (locations : toujours actifs si session, hors isOnline taxi) ═══
   useEffect(() => {
+    declinedRef.current = declinedOrderIds;
+  }, [declinedOrderIds]);
+
+  useEffect(() => {
     if (!sessionId) return;
+    const isDeclined = (id: string) => declinedRef.current.has(id);
 
     const unsubNew = onNewRentalOrder((order) => {
-      if (declinedOrderIds.has(order.id) || order.status !== 'pending') return;
+      if (isDeclined(order.id) || order.status !== 'pending') return;
       if (!shouldShowRentalSocketOrder(order, prestataireId, driverId)) return;
       setPendingOrders((prev) => {
         if (prev.some((o) => o.id === order.id)) return prev;
@@ -330,10 +335,10 @@ export default function ChauffeurHomeScreen() {
       });
     });
     const unsubPending = onRentalOrdersPending((orders) => {
-      const filtered = orders.filter((o) => !declinedOrderIds.has(o.id) && o.status === 'pending');
+      const filtered = orders.filter((o) => !isDeclined(o.id) && o.status === 'pending');
       setPendingOrders((prev) => {
         const newIds = new Set(filtered.map((o) => o.id));
-        const existingValid = prev.filter((o) => !declinedOrderIds.has(o.id) && !newIds.has(o.id) && o.status === 'pending' && o.orderSource === 'rental');
+        const existingValid = prev.filter((o) => !isDeclined(o.id) && !newIds.has(o.id) && o.status === 'pending' && o.orderSource === 'rental');
         const merged = [...existingValid, ...filtered];
         return Array.from(new Map(merged.map((o) => [o.id, o])).values());
       });
@@ -350,7 +355,7 @@ export default function ChauffeurHomeScreen() {
       setPendingOrders((prev) => prev.filter((o) => o.id !== data.orderId));
     });
     return () => { unsubNew(); unsubPending(); unsubTaken(); unsubExpired(); unsubCancelled(); };
-  }, [sessionId, declinedOrderIds, prestataireId, driverId]);
+  }, [sessionId, prestataireId, driverId]);
 
   // ═══ POLLING demandes location (toujours si session) ═══
   useEffect(() => {
@@ -361,10 +366,11 @@ export default function ChauffeurHomeScreen() {
     const poll = async () => {
       try {
         const list = await getPendingRentalOrders(sessionId);
-        const filtered = list.filter((o) => !declinedOrderIds.has(o.id));
+        const declined = declinedRef.current;
+        const filtered = list.filter((o) => !declined.has(o.id));
         setPendingOrders((prev) => {
           const newIds = new Set(filtered.map((o) => o.id));
-          const kept = prev.filter((o) => !declinedOrderIds.has(o.id) && !newIds.has(o.id) && o.orderSource === 'rental' && o.status === 'pending');
+          const kept = prev.filter((o) => !declined.has(o.id) && !newIds.has(o.id) && o.orderSource === 'rental' && o.status === 'pending');
           return Array.from(new Map([...filtered, ...kept].map((o) => [o.id, o])).values());
         });
       } catch {}
@@ -372,7 +378,7 @@ export default function ChauffeurHomeScreen() {
     poll();
     pollingIntervalRef.current = setInterval(poll, 10000);
     return () => { if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current); };
-  }, [sessionId, declinedOrderIds]);
+  }, [sessionId]);
 
   // ═══ SOCKET CONNECTION MONITOR ═══
   useEffect(() => {
@@ -397,47 +403,32 @@ export default function ChauffeurHomeScreen() {
     // Ne plus vider les demandes location en passant « hors ligne » (legacy taxi)
   };
 
-  const handleAcceptOrder = async (orderId: string) => {
-    if (!sessionId || acceptingOrderId) return;
-    const localOrder = pendingOrders.find((o) => o.id === orderId);
-    setAcceptingOrderId(orderId);
-    acceptTimeoutRef.current = setTimeout(() => setAcceptingOrderId(null), 15000);
-    try {
-      let loueurSig: string | null = null;
-      try {
-        const sigFile = `${FileSystem.documentDirectory}loueur_signature.txt`;
-        console.log('[ACCEPT] Checking signature file:', sigFile);
-        const info = await FileSystem.getInfoAsync(sigFile);
-        console.log('[ACCEPT] Signature file exists:', info.exists);
-        if (info.exists) {
-          loueurSig = await FileSystem.readAsStringAsync(sigFile);
-          console.log('[ACCEPT] Signature loaded, length:', loueurSig?.length || 0);
-        }
-      } catch (e) {
-        console.log('[ACCEPT] Error reading signature:', e);
-      }
-      console.log('[ACCEPT] Sending accept with signature:', !!loueurSig);
-      await acceptRentalOrder(orderId, sessionId, loueurSig);
-      if (acceptTimeoutRef.current) { clearTimeout(acceptTimeoutRef.current); acceptTimeoutRef.current = null; }
-      setAcceptingOrderId(null);
-      setPendingOrders((prev) => prev.filter((o) => o.id !== orderId));
-      if (localOrder) setBookingConfirmedOrder(localOrder);
-      setAcceptedCount(prev => prev + 1);
-    } catch {
-      if (acceptTimeoutRef.current) { clearTimeout(acceptTimeoutRef.current); acceptTimeoutRef.current = null; }
-      setAcceptingOrderId(null);
-      Alert.alert('Erreur', "Impossible d'accepter la demande.");
-    }
-  };
-
-  const handleDeclineOrder = async (orderId: string) => {
-    setDecliningOrderId(orderId);
-    try { if (sessionId) await declineRentalOrder(orderId, sessionId); } catch {}
-    setTimeout(() => {
-      setDeclinedOrderIds((prev) => new Set(prev).add(orderId));
-      setPendingOrders((prev) => prev.filter((o) => o.id !== orderId));
-      setDecliningOrderId(null);
-    }, 200);
+  const handleDeclineOrder = (orderId: string) => {
+    const target = pendingOrders.find((o) => o.id === orderId);
+    const paid = (target?.rideOption as any)?.payzenStatus === 'paid';
+    const message = paid
+      ? `Le client sera prévenu. Il a déjà payé par carte : vous devrez lui rembourser ${(target?.totalPrice || 0).toLocaleString('fr-FR')} XPF puis le confirmer dans Réservations.`
+      : 'Le client sera prévenu que vous refusez sa location.';
+    Alert.alert('Refuser la demande ?', message, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Refuser',
+        style: 'destructive',
+        onPress: async () => {
+          if (!sessionId) return;
+          setDecliningOrderId(orderId);
+          try {
+            await declineRentalOrder(orderId, sessionId);
+            setDeclinedOrderIds((prev) => new Set(prev).add(orderId));
+            setPendingOrders((prev) => prev.filter((o) => o.id !== orderId));
+          } catch (error: any) {
+            Alert.alert('Erreur', error?.message || 'Impossible de refuser la demande. Réessayez.');
+          } finally {
+            setDecliningOrderId(null);
+          }
+        },
+      },
+    ]);
   };
 
   const handleRefresh = async () => {
@@ -452,6 +443,11 @@ export default function ChauffeurHomeScreen() {
 
   const navigateToOrderDetail = (order: Order) => {
     const raw = order.rentalRawData;
+    const ro = (order.rideOption || {}) as any;
+    const payMethod = order.paymentMethod || raw?.paymentMethod || 'cash';
+    const pzStatus = ro?.payzenStatus || raw?.payzenStatus || '';
+    const pzLast4 = ro?.payzenCardLast4 || raw?.payzenCardLast4 || '';
+    const pzTxUuid = ro?.payzenTransactionUuid || raw?.payzenTransactionUuid || '';
     router.push({
       pathname: '/(chauffeur)/commande-location',
       params: {
@@ -478,6 +474,10 @@ export default function ChauffeurHomeScreen() {
         supplements: JSON.stringify(raw?.supplements || []),
         createdAt: order.createdAt || '',
         ownerName: raw?.ownerName || 'Loueur RAVE',
+        paymentMethod: payMethod,
+        payzenStatus: pzStatus,
+        payzenCardLast4: pzLast4,
+        payzenTransactionUuid: pzTxUuid,
       },
     });
   };
@@ -513,22 +513,6 @@ export default function ChauffeurHomeScreen() {
                 </Text>
               </View>
             </View>
-            <View style={s.statusRight}>
-              <Animated.View style={[s.statusIndicator, isOnline ? s.statusOn : s.statusOff, { transform: [{ scale: pulseAnim }] }]}>
-                <Ionicons name="power" size={28} color={isOnline ? '#22C55E' : '#9CA3AF'} />
-              </Animated.View>
-              <Switch
-                value={isOnline}
-                onValueChange={handleToggleOnline}
-                trackColor={{ false: '#E5E7EB', true: '#86EFAC' }}
-                thumbColor={isOnline ? '#22C55E' : '#9CA3AF'}
-                ios_backgroundColor="#E5E7EB"
-                style={{ marginTop: 8 }}
-              />
-              <Text style={[s.statusLabel, isOnline ? { color: '#22C55E' } : { color: '#9CA3AF' }]}>
-                {isOnline ? 'EN LIGNE' : 'HORS LIGNE'}
-              </Text>
-            </View>
           </View>
 
           {/* Stats Row */}
@@ -551,8 +535,10 @@ export default function ChauffeurHomeScreen() {
               <View style={[s.statIcon, { backgroundColor: '#EDE9FE' }]}>
                 <Ionicons name="wallet-outline" size={20} color="#4ECC8B" />
               </View>
-              <Text style={s.statNumber}>-</Text>
-              <Text style={s.statLabel}>Gains</Text>
+              <Text style={s.statNumber}>
+                {monthEarnings === null ? '-' : formatCompactXpf(monthEarnings)}
+              </Text>
+              <Text style={s.statLabel}>Gains du mois</Text>
             </TouchableOpacity>
           </View>
 
@@ -579,8 +565,11 @@ export default function ChauffeurHomeScreen() {
               >
                 {pendingOrders.map((order) => {
                   const pickup = order.addresses?.find((a) => a.type === 'pickup');
-                  const isAccepting = acceptingOrderId === order.id;
                   const isDeclining = decliningOrderId === order.id;
+                  const ro = (order.rideOption || {}) as any;
+                  const isPaidOnline = ro?.payzenStatus === 'paid' || order.rentalRawData?.payzenStatus === 'paid';
+                  const isCardUnpaid = !isPaidOnline && (order.paymentMethod === 'card' || order.rentalRawData?.paymentMethod === 'card');
+                  const cancelRequested = ro?.cancelRequest?.status === 'pending';
 
                   return (
                     <TouchableOpacity
@@ -595,6 +584,35 @@ export default function ChauffeurHomeScreen() {
                           <Text style={s.orderTypeText}>{order.rideOption?.title || 'Location'}</Text>
                         </View>
                         <Text style={s.orderPrice}>{formatPrice(order.totalPrice || 0)}</Text>
+                      </View>
+
+                      <View
+                        style={[
+                          s.orderPaymentBadge,
+                          isPaidOnline
+                            ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                            : isCardUnpaid
+                              ? { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }
+                              : { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' },
+                        ]}
+                      >
+                        <Ionicons
+                          name={isPaidOnline ? 'checkmark-circle' : isCardUnpaid ? 'alert-circle' : 'cash-outline'}
+                          size={14}
+                          color={isPaidOnline ? '#166534' : isCardUnpaid ? '#991B1B' : '#92400E'}
+                        />
+                        <Text
+                          style={[
+                            s.orderPaymentBadgeText,
+                            { color: isPaidOnline ? '#166534' : isCardUnpaid ? '#991B1B' : '#92400E' },
+                          ]}
+                        >
+                          {isPaidOnline
+                            ? 'Déjà payée par carte'
+                            : isCardUnpaid
+                              ? 'Paiement carte non abouti — à encaisser'
+                              : 'À encaisser sur place'}
+                        </Text>
                       </View>
 
                       <View style={s.orderClientRow}>
@@ -616,28 +634,30 @@ export default function ChauffeurHomeScreen() {
                         </View>
                       )}
 
+                      {cancelRequested && (
+                        <View style={s.cancelRequestBanner}>
+                          <Ionicons name="alert-circle" size={14} color="#B45309" />
+                          <Text style={s.cancelRequestText}>
+                            Annulation demandée par le client — répondez à sa demande
+                          </Text>
+                        </View>
+                      )}
+
                       <View style={s.orderActions}>
                         <TouchableOpacity
                           style={[s.declineBtn, isDeclining && s.btnDisabled]}
                           onPress={(e) => { e.stopPropagation(); handleDeclineOrder(order.id); }}
-                          disabled={isDeclining || isAccepting}
+                          disabled={isDeclining}
                         >
                           <Ionicons name="close" size={18} color="#EF4444" />
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={s.detailsBtn}
+                          style={[s.acceptBtn, (isDeclining || cancelRequested) && s.btnDisabled]}
                           onPress={(e) => { e.stopPropagation(); navigateToOrderDetail(order); }}
+                          disabled={isDeclining || cancelRequested}
                         >
-                          <Ionicons name="eye-outline" size={16} color="#4ECC8B" />
-                          <Text style={s.detailsBtnText}>Détails</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[s.acceptBtn, isAccepting && s.btnDisabled]}
-                          onPress={(e) => { e.stopPropagation(); handleAcceptOrder(order.id); }}
-                          disabled={isAccepting || isDeclining}
-                        >
-                          <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                          <Text style={s.acceptBtnText}>{isAccepting ? '...' : 'Accepter'}</Text>
+                          <Ionicons name="eye-outline" size={18} color="#FFFFFF" />
+                          <Text style={s.acceptBtnText}>Examiner</Text>
                         </TouchableOpacity>
                       </View>
                     </TouchableOpacity>
@@ -666,7 +686,7 @@ export default function ChauffeurHomeScreen() {
                 <View style={[s.actionIcon, { backgroundColor: '#D1F2E3' }]}>
                   <Ionicons name="receipt-outline" size={22} color="#F59E0B" />
                 </View>
-                <Text style={s.actionLabel}>Mes locations</Text>
+                <Text style={s.actionLabel}>Réservations</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(chauffeur)/messages')}>
                 <View style={[s.actionIcon, { backgroundColor: '#DBEAFE' }]}>
@@ -712,47 +732,7 @@ export default function ChauffeurHomeScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Booking Confirmed Modal */}
-      <Modal visible={!!bookingConfirmedOrder} transparent animationType="slide" onRequestClose={() => setBookingConfirmedOrder(null)}>
-        <View style={s.modalOverlay}>
-          <View style={s.modalContent}>
-            <View style={s.modalSuccessIcon}>
-              <Ionicons name="checkmark-circle" size={56} color="#22C55E" />
-            </View>
-            <Text style={s.modalTitle}>Réservation acceptée !</Text>
-            <Text style={s.modalSubtitle}>La demande de location a été enregistrée sur votre compte</Text>
-            
-            {bookingConfirmedOrder && (
-              <View style={s.modalInfoCard}>
-                <View style={s.modalInfoRow}>
-                  <Ionicons name="person" size={16} color="#6B7280" />
-                  <Text style={s.modalInfoText}>{bookingConfirmedOrder.clientName}</Text>
-                </View>
-                <View style={s.modalInfoRow}>
-                  <Ionicons name="location" size={16} color="#22C55E" />
-                  <Text style={s.modalInfoText} numberOfLines={1}>
-                    {bookingConfirmedOrder.addresses?.find(a => a.type === 'pickup')?.value || 'Lieu de prise en charge'}
-                  </Text>
-                </View>
-                <View style={s.modalPriceRow}>
-                  <Text style={s.modalPriceLabel}>Total</Text>
-                  <Text style={s.modalPriceValue}>{formatPrice(bookingConfirmedOrder.totalPrice || 0)}</Text>
-                </View>
-              </View>
-            )}
 
-            <View style={s.modalButtons}>
-              <TouchableOpacity style={s.modalBtnSecondary} onPress={() => setBookingConfirmedOrder(null)}>
-                <Text style={s.modalBtnSecondaryText}>Fermer</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.modalBtnPrimary} onPress={() => { setBookingConfirmedOrder(null); router.push('/(chauffeur)/courses'); }}>
-                <Ionicons name="list" size={18} color="#FFFFFF" />
-                <Text style={s.modalBtnPrimaryText}>Mes locations</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -842,23 +822,27 @@ const s = StyleSheet.create({
   },
   orderTypeText: { fontSize: 12, fontWeight: '700', color: '#4ECC8B' },
   orderPrice: { fontSize: 17, fontWeight: '800', color: '#1a1a1a' },
+  orderPaymentBadge: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, borderWidth: 1, marginBottom: 10,
+  },
+  orderPaymentBadgeText: { fontSize: 12, fontWeight: '700' },
   orderClientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   orderClientName: { fontSize: 14, fontWeight: '600', color: '#374151', flex: 1 },
   orderLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   orderLocationText: { fontSize: 13, color: '#6B7280', flex: 1 },
   orderDateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   orderDateText: { fontSize: 13, color: '#4ECC8B', fontWeight: '600' },
+  cancelRequestBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8,
+    backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6,
+  },
+  cancelRequestText: { flex: 1, fontSize: 12, fontWeight: '700', color: '#B45309' },
   orderActions: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 12 },
   declineBtn: {
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center',
   },
-  detailsBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, height: 38, borderRadius: 12,
-    backgroundColor: '#D1F2E3',
-  },
-  detailsBtnText: { fontSize: 12, fontWeight: '700', color: '#166534' },
   acceptBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     height: 38, borderRadius: 12, backgroundColor: '#22C55E',
@@ -921,36 +905,4 @@ const s = StyleSheet.create({
   supportBadgeText: { fontSize: 9, fontWeight: '700', color: '#FFFFFF' },
   supportTitle: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
   supportPreview: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: {
-    backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 24, paddingTop: 32, paddingBottom: 40, alignItems: 'center',
-  },
-  modalSuccessIcon: { marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1a1a1a', marginBottom: 6 },
-  modalSubtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 20 },
-  modalInfoCard: {
-    width: '100%', backgroundColor: '#F9FAFB', borderRadius: 14, padding: 16, gap: 10, marginBottom: 24,
-  },
-  modalInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  modalInfoText: { fontSize: 14, color: '#374151', flex: 1 },
-  modalPriceRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#1a1a1a', borderRadius: 10, padding: 12, marginTop: 4,
-  },
-  modalPriceLabel: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  modalPriceValue: { fontSize: 18, fontWeight: '800', color: '#4ECC8B' },
-  modalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
-  modalBtnSecondary: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#F3F4F6', paddingVertical: 14, borderRadius: 14,
-  },
-  modalBtnSecondaryText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
-  modalBtnPrimary: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#1a1a1a', paddingVertical: 14, borderRadius: 14,
-  },
-  modalBtnPrimaryText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });

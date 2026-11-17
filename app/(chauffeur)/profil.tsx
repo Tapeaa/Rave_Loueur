@@ -6,10 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
-import { removeDriverSessionId, getDriverProfile, updateDriverProfile, SessionExpiredError, type DriverProfile, secureStorage } from '@/lib/api';
-import { removeExternalId, addDriverTag } from '@/lib/onesignal';
+import { getDriverProfile, updateDriverProfile, SessionExpiredError, type DriverProfile } from '@/lib/api';
 import * as FileSystem from 'expo-file-system/legacy';
-import { disconnectSocket } from '@/lib/socket';
+import { logoutDriver } from '@/lib/logout';
 import { useState, useEffect, useRef } from 'react';
 import { BRAND } from '@/constants/brand';
 
@@ -108,7 +107,7 @@ export default function ChauffeurProfilScreen() {
       }
     } catch (error) {
       if (error instanceof SessionExpiredError) {
-        await removeDriverSessionId();
+        await logoutDriver();
         router.replace('/(chauffeur)/login');
         return;
       }
@@ -177,7 +176,7 @@ export default function ChauffeurProfilScreen() {
       }
     } catch (error: any) {
       if (error instanceof SessionExpiredError) {
-        await removeDriverSessionId();
+        await logoutDriver();
         router.replace('/(chauffeur)/login');
         return;
       }
@@ -188,11 +187,7 @@ export default function ChauffeurProfilScreen() {
   };
 
   const handleLogout = async () => {
-    addDriverTag('status', 'offline');
-    removeExternalId();
-    await secureStorage.deleteItem('driverExternalId');
-    await removeDriverSessionId();
-    disconnectSocket();
+    await logoutDriver();
     router.replace('/(chauffeur)/login');
   };
 

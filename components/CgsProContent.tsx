@@ -53,7 +53,7 @@ export function CgsProContent() {
       </View>
 
       <View style={styles.section}>
-        <Text variant="h2" style={styles.sectionTitle}>3. Fonctionnement des outils techniques (contrats, Yousign et OSB)</Text>
+        <Text variant="h2" style={styles.sectionTitle}>3. Fonctionnement des outils techniques (contrats, signature électronique et OSB)</Text>
         <Text variant="body" style={styles.subTitle}>3.1 Élaboration des contrats de location via le Dashboard</Text>
         <Text variant="body" style={styles.text}>
           Le Dashboard RAVE fournit au Loueur un éditeur technique lui permettant de créer, personnaliser et générer ses propres contrats de location et états des lieux au format PDF.
@@ -70,12 +70,12 @@ export function CgsProContent() {
           </Text>
         </Text>
 
-        <Text variant="body" style={styles.subTitle}>3.2 Signature électronique via Yousign</Text>
+        <Text variant="body" style={styles.subTitle}>3.2 Signature électronique RAVE</Text>
         <Text variant="body" style={styles.text}>
-          Les contrats et états des lieux générés sur RAVE sont signés électroniquement via l'opérateur tiers certifié Yousign, garantissant l'intégrité du document et l'identification du signataire.
+          Les contrats générés sur RAVE sont signés électroniquement dans l'application : le Locataire lit le contrat, accepte la mention « lu et approuvé » et trace sa signature à l'écran. RAVE enregistre l'horodatage serveur, l'adresse IP, l'appareil et l'empreinte numérique (SHA-256) du contrat, afin de garantir l'intégrité du document et l'identification du signataire. La signature du Loueur, enregistrée dans son profil, est apposée sur le contrat lorsqu'il accepte la réservation.
         </Text>
         <Text variant="body" style={styles.text}>
-          Le Loueur mandate techniquement RAVE pour transmettre les documents de réservation à l'API Yousign afin de recueillir la signature du Locataire. L'archivage probant et la conservation des contrats signés sur le long terme restent sous la responsabilité du Loueur, qui doit télécharger et sauvegarder ses copies.
+          Le Loueur mandate techniquement RAVE pour recueillir la signature du Locataire sur les documents de réservation. L'archivage probant et la conservation des contrats signés sur le long terme restent sous la responsabilité du Loueur, qui doit télécharger et sauvegarder ses copies.
         </Text>
 
         <Text variant="body" style={styles.subTitle}>3.3 Intégration bancaire indépendante (PayZen / OSB)</Text>
@@ -149,7 +149,7 @@ export function CgsProContent() {
         </Text>
         <Text variant="body" style={styles.text}>
           <Text style={styles.bold}>2. Exclusions : </Text>
-          RAVE ne pourra jamais être tenue responsable des pertes de chiffre d'affaires, vols de véhicules, dégradations, accidents corporels ou matériels, impayés de clients, ou pannes des services tiers (serveurs cloud, API Yousign, passerelle PayZen/OSB).
+          RAVE ne pourra jamais être tenue responsable des pertes de chiffre d'affaires, vols de véhicules, dégradations, accidents corporels ou matériels, impayés de clients, ou pannes des services tiers (serveurs cloud, passerelle PayZen/OSB).
         </Text>
         <Text variant="body" style={styles.text}>
           <Text style={styles.bold}>3. Garantie d'indemnisation : </Text>

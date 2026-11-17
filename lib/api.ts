@@ -100,6 +100,10 @@ export async function setDriverSessionId(sessionId: string): Promise<void> {
 }
 
 export async function removeDriverSessionId(): Promise<void> {
+  try {
+    const { clearDriverSessionCallbacks } = await import('./socket');
+    clearDriverSessionCallbacks();
+  } catch {}
   return secureDelete(DRIVER_SESSION_KEY);
 }
 
@@ -144,13 +148,15 @@ export class ApiError extends Error {
   status: number;
   isNetworkError: boolean;
   isServerError: boolean;
+  data?: any;
 
-  constructor(message: string, status: number = 0, isNetworkError: boolean = false) {
+  constructor(message: string, status: number = 0, isNetworkError: boolean = false, data?: any) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.isNetworkError = isNetworkError;
     this.isServerError = status >= 500;
+    this.data = data;
   }
 }
 
@@ -322,7 +328,12 @@ export async function apiFetch<T = unknown>(
 
     if (!response.ok) {
       if (__DEV__) {
-        console.error(`[API] Error ${response.status} on ${endpoint}:`, data || 'No JSON response');
+        // 401 = session expirée gérée par redirection login (éviter console.error qui déclenche la boîte rouge Metro)
+        if (response.status === 401) {
+          console.warn(`[API] Session expirée (401) sur ${endpoint}`);
+        } else {
+          console.warn(`[API] Error ${response.status} on ${endpoint}:`, data || 'No JSON response');
+        }
       }
       
       // Utiliser le message d'erreur du serveur si disponible
@@ -361,7 +372,7 @@ export async function apiFetch<T = unknown>(
         }
       }
       
-      throw new ApiError(errorMessage, response.status, response.status === 0);
+      throw new ApiError(errorMessage, response.status, response.status === 0, data);
     }
 
     return data as T;
@@ -628,9 +639,10 @@ export async function getDriverProfile(): Promise<DriverProfile | null> {
     
     return null;
   } catch (error) {
-    // Si c'est une erreur 401, c'est une session expirée - on lance une erreur spécifique
+    // Si c'est une erreur 401, c'est une session expirée - nettoyer tout de suite le trousseau iOS
     if (error instanceof ApiError && error.status === 401) {
-      console.warn('[API] Session expired or invalid (401)');
+      console.warn('[API] Session expired or invalid (401) — clearing stored driverSessionId');
+      await removeDriverSessionId();
       throw new SessionExpiredError();
     }
     console.warn('[API] Failed to fetch driver profile:', error);
@@ -685,6 +697,7 @@ export interface DriverEarnings {
   week: number;
   month: number;
   total: number;
+  upcoming?: number;
 }
 
 export interface DriverStats {
@@ -905,11 +918,42 @@ export async function approveCancelRequest(orderId: string, sessionId: string, r
   });
 }
 
+export interface PendingCancelRequest {
+  orderId: string;
+  reason: string;
+  requestedAt: string | null;
+  clientName: string;
+  clientPhone: string;
+  vehicleTitle: string;
+  totalPrice: number;
+  pickupLocation: string;
+  scheduledTime: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  days?: number | null;
+  paymentMethod?: string;
+  paid?: boolean;
+}
+
+export async function fetchPendingCancelRequests(sessionId: string): Promise<PendingCancelRequest[]> {
+  const res = await apiFetch<{ success?: boolean; requests?: PendingCancelRequest[] }>(
+    '/api/rental-orders/cancel-requests',
+    { headers: { 'X-Driver-Session': sessionId } }
+  );
+  return Array.isArray(res?.requests) ? res.requests : [];
+}
+
 export async function rejectCancelRequest(orderId: string, sessionId: string, reason?: string): Promise<void> {
   await apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/cancel-reject`, {
     sessionId,
     reason: reason || 'Le loueur a refusé l\'annulation',
   }, {
+    headers: { 'X-Driver-Session': sessionId },
+  });
+}
+
+export async function markRefundDone(orderId: string, sessionId: string): Promise<void> {
+  await apiPost(`/api/rental-orders/${encodeURIComponent(orderId)}/refund-done`, { sessionId }, {
     headers: { 'X-Driver-Session': sessionId },
   });
 }

@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { apiPatch, getDriverSessionId, getDriverProfile, removeDriverSessionId, SessionExpiredError, secureStorage } from '@/lib/api';
+import { apiPatch, getDriverSessionId, getDriverProfile, SessionExpiredError, secureStorage } from '@/lib/api';
+import { logoutDriver } from '@/lib/logout';
 import type { Driver } from '@/lib/types';
 
 // Composant Checkbox simple
@@ -53,19 +54,19 @@ export default function LegalScreen() {
         } else {
           // Si le profil ne peut pas être chargé, rediriger vers login
           console.log('[LEGAL] Could not load driver profile, redirecting to login');
-          await removeDriverSessionId();
+          await logoutDriver();
           router.replace('/(chauffeur)/login');
         }
       } catch (error) {
         // Si la session est expirée, rediriger vers login
         if (error instanceof SessionExpiredError) {
           console.log('[LEGAL] Session expired, redirecting to login');
-          await removeDriverSessionId();
+          await logoutDriver();
           router.replace('/(chauffeur)/login');
         } else {
           console.error('[LEGAL] Error loading driver profile:', error);
           // En cas d'autre erreur, aussi rediriger vers login pour éviter d'être coincé
-          await removeDriverSessionId();
+          await logoutDriver();
           router.replace('/(chauffeur)/login');
         }
       }

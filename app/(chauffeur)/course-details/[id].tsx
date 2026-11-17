@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -20,14 +20,28 @@ import { WebView } from 'react-native-webview';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import * as FileSystem from 'expo-file-system/legacy';
-import { apiFetch, getDriverSessionId, postRentalOrderLifecycle, setRentalMeetingPoint } from '@/lib/api';
+import {
+  apiFetch,
+  getDriverSessionId,
+  postRentalOrderLifecycle,
+  setRentalMeetingPoint,
+  approveCancelRequest,
+  rejectCancelRequest,
+  markRefundDone,
+} from '@/lib/api';
 import {
   getRentalLifecyclePhase,
   getRentalStepperState,
   isRentalOrderLike,
 } from '@/lib/rental-lifecycle';
 import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
-import { joinRentalOrderRoom, onRentalLifecycleChanged } from '@/lib/socket';
+import {
+  joinRentalOrderRoom,
+  onRentalLifecycleChanged,
+  onRentalOrderCancelRequest,
+  onRentalOrderCancelled,
+  onRentalOrderCancelRejected,
+} from '@/lib/socket';
 import type { Order } from '@/lib/types';
 import { isUsableMediaUri, shareHtmlAsPdf, shareImage } from '@/lib/share-media';
 
@@ -57,6 +71,8 @@ export default function CourseDetailsScreen() {
   const [loueurSignature, setLoueurSignature] = useState<string | null>(null);
   const [meetingDraft, setMeetingDraft] = useState('');
   const [meetingBusy, setMeetingBusy] = useState(false);
+  const [cancelDecisionBusy, setCancelDecisionBusy] = useState<'approve' | 'reject' | null>(null);
+  const [refundBusy, setRefundBusy] = useState(false);
 
   useEffect(() => {
     const sigFile = `${FileSystem.documentDirectory}loueur_signature.txt`;
@@ -72,34 +88,36 @@ export default function CourseDetailsScreen() {
     }).catch((e) => { console.log('[CONTRACT] Error loading signature:', e); });
   }, []);
 
-  useEffect(() => {
-    const loadOrder = async () => {
-      if (!id) {
-        setError('ID de location manquant');
-        setLoading(false);
-        return;
-      }
+  const loadOrder = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!id) {
+      setError('ID de location manquant');
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const sessionId = await getDriverSessionId();
-        const orderData = await apiFetch<Order>(`/api/orders/${id}`, {
-          headers: {
-            'X-Driver-Session': sessionId || '',
-          },
-        });
-        setOrder(orderData);
+    try {
+      const sessionId = await getDriverSessionId();
+      const orderData = await apiFetch<Order>(`/api/orders/${id}`, {
+        headers: {
+          'X-Driver-Session': sessionId || '',
+        },
+      });
+      setOrder(orderData);
+      if (!opts?.silent) {
         const mp = (orderData.rideOption as any)?.meetingPoint;
         if (typeof mp === 'string') setMeetingDraft(mp);
-      } catch (err) {
-        console.error('[CourseDetails] Error loading order:', err);
-        setError('Impossible de charger les détails de la location');
-      } finally {
-        setLoading(false);
       }
-    };
-
-    loadOrder();
+    } catch (err) {
+      console.error('[CourseDetails] Error loading order:', err);
+      if (!opts?.silent) setError('Impossible de charger les détails de la location');
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    loadOrder();
+  }, [loadOrder]);
 
   useEffect(() => {
     if (!id || !order || !isRentalOrderLike(order)) return;
@@ -111,6 +129,87 @@ export default function CourseDetailsScreen() {
     });
     return unsub;
   }, [id, order?.status]);
+
+  useEffect(() => {
+    if (!id) return;
+    const refreshIfMine = (data: { orderId: string }) => {
+      if (data.orderId === id) void loadOrder({ silent: true });
+    };
+    const unsubs = [
+      onRentalOrderCancelRequest(refreshIfMine),
+      onRentalOrderCancelled(refreshIfMine),
+      onRentalOrderCancelRejected(refreshIfMine),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [id, loadOrder]);
+
+  const decideCancelRequest = (kind: 'approve' | 'reject') => {
+    if (!order) return;
+    const run = async () => {
+      const sessionId = await getDriverSessionId();
+      if (!sessionId) {
+        Alert.alert('Erreur', 'Session loueur introuvable.');
+        return;
+      }
+      setCancelDecisionBusy(kind);
+      try {
+        if (kind === 'approve') await approveCancelRequest(order.id, sessionId);
+        else await rejectCancelRequest(order.id, sessionId);
+        await loadOrder({ silent: true });
+        Alert.alert(
+          kind === 'approve' ? 'Annulation validée' : 'Annulation refusée',
+          kind === 'approve'
+            ? (order.rideOption as any)?.payzenStatus === 'paid'
+              ? "La location est annulée et le client a été prévenu. Remboursez-le, puis appuyez sur « J'ai remboursé »."
+              : 'La location est annulée. Le client a été prévenu.'
+            : 'La location est maintenue. Le client a été prévenu.'
+        );
+      } catch (err: any) {
+        await loadOrder({ silent: true });
+        Alert.alert('Erreur', String(err?.message || '').includes('409')
+          ? 'Cette location est déjà annulée ou terminée.'
+          : 'Impossible d\'enregistrer votre décision. Réessayez.');
+      } finally {
+        setCancelDecisionBusy(null);
+      }
+    };
+    Alert.alert(
+      kind === 'approve' ? 'Accepter l\'annulation ?' : 'Refuser l\'annulation ?',
+      kind === 'approve' ? 'La location sera annulée.' : 'La location sera maintenue.',
+      [
+        { text: 'Retour', style: 'cancel' },
+        { text: kind === 'approve' ? 'Accepter' : 'Refuser', style: kind === 'approve' ? 'destructive' : 'default', onPress: run },
+      ]
+    );
+  };
+
+  const confirmRefundDone = () => {
+    if (!order) return;
+    const amount = (order.rideOption as any)?.refund?.amount ?? order.totalPrice ?? 0;
+    Alert.alert(
+      'Confirmer le remboursement',
+      `Confirmez-vous avoir remboursé ${formatPrice(amount)} à ${order.clientName || 'votre client'} ? Le client sera prévenu.`,
+      [
+        { text: 'Retour', style: 'cancel' },
+        {
+          text: "J'ai remboursé",
+          onPress: async () => {
+            const sessionId = await getDriverSessionId();
+            if (!sessionId) return;
+            setRefundBusy(true);
+            try {
+              await markRefundDone(order.id, sessionId);
+              await loadOrder({ silent: true });
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message || "Impossible d'enregistrer le remboursement. Réessayez.");
+            } finally {
+              setRefundBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -301,9 +400,33 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
       pricePerDay: (s.price || 0) / Math.max(1, rideOpt?.days || 1),
     })) || [],
   } : null);
-  const hasClientSignature = !!rideOpt?.clientSignatureSvg;
+  const hasClientSignature = !!(
+    rideOpt?.clientSignatureSvg ||
+    rideOpt?.clientSignedAt ||
+    rideOpt?.yousignSignatureRequestId ||
+    rideOpt?.signedVia === 'yousign' ||
+    rideOpt?.signedVia === 'drawn'
+  );
   const rentalPhase = getRentalLifecyclePhase(order);
   const rentalStepperState = getRentalStepperState(order);
+  const isClosed = ['completed', 'payment_confirmed', 'cancelled', 'declined', 'expired', 'payment_failed'].includes(order.status);
+  const cancelRequest = rideOpt?.cancelRequest as
+    | { status?: string; reason?: string; requestedAt?: string; resolvedAt?: string }
+    | undefined;
+  const cancelPending = cancelRequest?.status === 'pending' && !isClosed;
+  const cancellation = rideOpt?.cancellation as { by?: string; approvedByDriver?: boolean; reason?: string; at?: string } | undefined;
+  const statusTitle = cancelPending
+    ? 'Annulation demandée'
+    : order.status === 'cancelled'
+      ? cancellation?.by === 'driver'
+        ? 'Annulée par vous'
+        : cancellation?.by === 'client'
+          ? cancellation.approvedByDriver ? 'Annulée (demande du client acceptée)' : 'Annulée par le client'
+          : 'Annulée'
+      : !isClosed && hasClientSignature
+        ? 'Contrat signé'
+        : status.label;
+  const statusColor = cancelPending ? '#D97706' : status.color;
 
   const saveMeetingPoint = async () => {
     const value = meetingDraft.trim();
@@ -375,21 +498,115 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Statut et Date */}
         <Card style={styles.statusCard}>
-          <View style={[styles.statusBadge, { backgroundColor: status.color + '15' }]}>
-            <Ionicons name="key" size={24} color={status.color} />
-            <Text style={[styles.statusText, { color: status.color }]}>
-              {hasClientSignature ? 'Contrat signé' : status.label}
+          <View style={[styles.statusBadge, { backgroundColor: statusColor + '15' }]}>
+            <Ionicons name={cancelPending ? 'alert-circle' : 'key'} size={24} color={statusColor} />
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {statusTitle}
             </Text>
           </View>
           <Text style={styles.dateText}>{formatDate(order.createdAt)}</Text>
           <Text style={styles.timeText}>à {formatTime(order.createdAt)}</Text>
         </Card>
 
+        {cancelPending && (
+          <Card style={styles.cancelCard}>
+            <View style={styles.cancelCardHeader}>
+              <Ionicons name="alert-circle" size={22} color="#B45309" />
+              <Text style={styles.cancelCardTitle}>Le client demande l'annulation</Text>
+            </View>
+            {cancelRequest?.reason ? (
+              <Text style={styles.cancelCardReason}>« {cancelRequest.reason} »</Text>
+            ) : null}
+            {cancelRequest?.requestedAt ? (
+              <Text style={styles.cancelCardMeta}>
+                Demandée le {formatDate(cancelRequest.requestedAt)} à {formatTime(cancelRequest.requestedAt)}
+              </Text>
+            ) : null}
+            {rideOpt?.payzenStatus === 'paid' ? (
+              <Text style={styles.cancelCardMeta}>Payée par carte : en cas d'acceptation, le remboursement est à traiter.</Text>
+            ) : null}
+            <View style={styles.cancelCardActions}>
+              <TouchableOpacity
+                style={[styles.cancelCardBtn, styles.cancelCardReject]}
+                onPress={() => decideCancelRequest('reject')}
+                disabled={!!cancelDecisionBusy}
+              >
+                {cancelDecisionBusy === 'reject'
+                  ? <ActivityIndicator color="#1a1a1a" />
+                  : <Text style={styles.cancelCardRejectText}>Refuser</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.cancelCardBtn, styles.cancelCardApprove]}
+                onPress={() => decideCancelRequest('approve')}
+                disabled={!!cancelDecisionBusy}
+              >
+                {cancelDecisionBusy === 'approve'
+                  ? <ActivityIndicator color="#FFFFFF" />
+                  : <Text style={styles.cancelCardApproveText}>Accepter l'annulation</Text>}
+              </TouchableOpacity>
+            </View>
+          </Card>
+        )}
+
+        {rideOpt?.refund ? (
+          <Card style={[styles.cancelCard, rideOpt.refund.status === 'done' && { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+            <View style={styles.cancelCardHeader}>
+              <Ionicons
+                name={rideOpt.refund.status === 'done' ? 'checkmark-circle' : 'cash-outline'}
+                size={22}
+                color={rideOpt.refund.status === 'done' ? '#166534' : '#B45309'}
+              />
+              <Text style={[styles.cancelCardTitle, rideOpt.refund.status === 'done' && { color: '#166534' }]}>
+                {rideOpt.refund.status === 'done'
+                  ? `Remboursé : ${formatPrice(rideOpt.refund.amount)}`
+                  : `Remboursement à effectuer : ${formatPrice(rideOpt.refund.amount)}`}
+              </Text>
+            </View>
+            {rideOpt.refund.status === 'done' ? (
+              rideOpt.refund.doneAt ? (
+                <Text style={styles.cancelCardMeta}>
+                  Confirmé le {formatDate(rideOpt.refund.doneAt)} à {formatTime(rideOpt.refund.doneAt)}
+                </Text>
+              ) : null
+            ) : (
+              <>
+                <Text style={styles.cancelCardMeta}>
+                  Le client a payé par carte et la location n'aura pas lieu. Remboursez-le, puis confirmez ici : il sera prévenu.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.cancelCardBtn, styles.cancelCardApprove, { marginTop: 10 }]}
+                  onPress={confirmRefundDone}
+                  disabled={refundBusy}
+                >
+                  {refundBusy
+                    ? <ActivityIndicator color="#FFFFFF" />
+                    : <Text style={styles.cancelCardApproveText}>J'ai remboursé</Text>}
+                </TouchableOpacity>
+              </>
+            )}
+          </Card>
+        ) : null}
+
+        {order.status === 'cancelled' && cancellation?.reason ? (
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>Motif d'annulation</Text>
+            <Text style={styles.cancelCardReasonMuted}>{cancellation.reason}</Text>
+          </Card>
+        ) : null}
+
+        {cancelRequest?.status === 'rejected' && !isClosed ? (
+          <View style={styles.cancelRejectedNote}>
+            <Ionicons name="information-circle" size={16} color="#6B7280" />
+            <Text style={styles.cancelRejectedText}>Vous avez refusé une demande d'annulation : la location est maintenue.</Text>
+          </View>
+        ) : null}
+
         {rentalLike && (
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Suivi de la location</Text>
             <RentalLifecycleStepper state={rentalStepperState} variant="loueur" />
             {rentalPhase === 'vehicle_ready' &&
+              !cancelPending &&
               (order.status === 'accepted' || order.status === 'booked') && (
                 <TouchableOpacity
                   style={styles.lifecycleButton}
@@ -626,16 +843,27 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
               <Card style={styles.section}>
                 <Text style={styles.sectionTitle}>Paiement</Text>
                 <View style={styles.infoRow}>
-                  <Ionicons name="card-outline" size={20} color="#6B7280" />
+                  <Ionicons
+                    name={(order.rideOption as any)?.payzenStatus === 'paid' ? 'checkmark-circle' : order.paymentMethod === 'card' ? 'alert-circle' : 'card-outline'}
+                    size={20}
+                    color={(order.rideOption as any)?.payzenStatus === 'paid' ? '#16A34A' : order.paymentMethod === 'card' ? '#DC2626' : '#6B7280'}
+                  />
                   <View style={styles.infoContent}>
                     <Text style={styles.infoLabel}>Moyen de paiement</Text>
-                    <Text style={styles.infoValue}>
-                      {((order.rideOption as any)?.payzenStatus === 'paid' || order.status === 'payment_confirmed')
-                        ? 'Payé en ligne (PayZen / OSB)'
-                        : (order.rideOption as any)?.payzenStatus === 'pending' || (order.rideOption as any)?.payzenStatus === 'waiting'
-                          ? 'Paiement en ligne en attente (PayZen / OSB)'
+                    <Text
+                      style={[
+                        styles.infoValue,
+                        (order.rideOption as any)?.payzenStatus === 'paid'
+                          ? { color: '#16A34A', fontWeight: '700' }
+                          : order.paymentMethod === 'card'
+                            ? { color: '#DC2626', fontWeight: '700' }
+                            : null,
+                      ]}
+                    >
+                      {(order.rideOption as any)?.payzenStatus === 'paid'
+                        ? 'Déjà payée par carte en ligne'
                         : order.paymentMethod === 'card'
-                          ? 'Carte en ligne — en attente de validation PayZen / OSB'
+                          ? 'Paiement carte non abouti — à encaisser'
                           : order.paymentMethod === 'cash'
                             ? 'À encaisser chez le loueur'
                             : order.paymentMethod === 'virement'
@@ -681,6 +909,12 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                         </View>
                       </>
                     )}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 13, color: '#6B7280' }}>Votre signature</Text>
+                      <Text style={{ fontSize: 13, color: rideOpt.loueurSignatureSvg ? '#15803D' : '#92400E', fontWeight: '500' }}>
+                        {rideOpt.loueurSignatureSvg ? 'Apposée' : 'Non apposée'}
+                      </Text>
+                    </View>
                   </View>
 
                   {rideOpt.clientSignatureSvg && (
@@ -865,6 +1099,42 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
 }
 
 const styles = StyleSheet.create({
+  cancelCard: {
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+  },
+  cancelCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cancelCardTitle: { fontSize: 16, fontWeight: '800', color: '#92400E', flex: 1 },
+  cancelCardReason: { fontSize: 14, color: '#78350F', marginTop: 8, fontStyle: 'italic' },
+  cancelCardReasonMuted: { fontSize: 14, color: '#374151' },
+  cancelCardMeta: { fontSize: 12, color: '#B45309', marginTop: 6 },
+  cancelCardActions: { flexDirection: 'column-reverse', gap: 10, marginTop: 14 },
+  cancelCardBtn: {
+    width: '100%',
+    minHeight: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  cancelCardReject: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E5E7EB' },
+  cancelCardRejectText: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
+  cancelCardApprove: { backgroundColor: '#EF4444' },
+  cancelCardApproveText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  cancelRejectedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+  },
+  cancelRejectedText: { fontSize: 13, color: '#4B5563', flex: 1 },
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',

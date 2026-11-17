@@ -1,20 +1,28 @@
-import { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Modal, Alert, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { safeBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
-import { apiFetch, getDriverSessionId, cancelRentalOrder } from '@/lib/api';
+import {
+  apiFetch,
+  getDriverSessionId,
+  cancelRentalOrder,
+  approveCancelRequest,
+  rejectCancelRequest,
+  getPendingRentalOrders,
+  markRefundDone,
+} from '@/lib/api';
 import type { Order } from '@/lib/types';
-import { getRentalStepperState, isRentalOrderLike } from '@/lib/rental-lifecycle';
+import { getRentalStepperState, isRentalOrderLike, getRentalLifecyclePhase } from '@/lib/rental-lifecycle';
 import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
-  pending: { label: 'En attente', color: '#F59E0B' },
-  accepted: { label: 'Acceptée', color: '#3B82F6' },
+  pending: { label: 'À valider', color: '#F59E0B' },
+  accepted: { label: 'Validée', color: '#3B82F6' },
   booked: { label: 'Réservée', color: '#4ECC8B' },
   in_progress: { label: 'En cours', color: '#10B981' },
   completed: { label: 'Terminée', color: '#22C55E' },
@@ -23,16 +31,68 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   expired: { label: 'Expirée', color: '#6B7280' },
   payment_pending: { label: 'En attente', color: '#F59E0B' },
   payment_confirmed: { label: 'Confirmée', color: '#22C55E' },
-  payment_failed: { label: 'Échec', color: '#EF4444' },
+  payment_failed: { label: 'Échec paiement', color: '#EF4444' },
 };
+
+const CLOSED_STATUSES = ['completed', 'payment_confirmed', 'cancelled', 'declined', 'expired', 'payment_failed'];
+
+function hasPendingCancelRequest(order: Order): boolean {
+  return (order.rideOption as any)?.cancelRequest?.status === 'pending' && !CLOSED_STATUSES.includes(order.status);
+}
+
+function getOrderStatusDisplay(order: Order): { label: string; color: string } {
+  const ro = order.rideOption as any;
+  if (hasPendingCancelRequest(order)) return { label: 'Annulation demandée', color: '#D97706' };
+  if (order.status === 'cancelled') {
+    const by = ro?.cancellation?.by;
+    if (by === 'client') return { label: ro?.cancellation?.approvedByDriver ? 'Annulée (demande client)' : 'Annulée par le client', color: '#EF4444' };
+    if (by === 'driver') return { label: 'Annulée par vous', color: '#EF4444' };
+    return statusLabels.cancelled;
+  }
+  if (isRentalOrderLike(order) && !CLOSED_STATUSES.includes(order.status)) {
+    const phase = getRentalLifecyclePhase(order);
+    if (phase === 'awaiting_validation') return { label: 'À valider', color: '#F59E0B' };
+    if (phase === 'vehicle_ready') return { label: 'À remettre au client', color: '#3B82F6' };
+    if (phase === 'with_client') return { label: 'Chez le client', color: '#10B981' };
+  }
+  return statusLabels[order.status] || { label: order.status, color: '#6B7280' };
+}
+
+function activePriority(order: Order): number {
+  if (hasPendingCancelRequest(order)) return 0;
+  const phase = isRentalOrderLike(order) ? getRentalLifecyclePhase(order) : null;
+  if (phase === 'with_client') return 1;
+  return 2;
+}
+
+function orderStartTime(order: Order): number {
+  const ro = order.rideOption as any;
+  const raw = ro?.startDate || order.scheduledTime || order.createdAt;
+  const t = raw ? new Date(raw).getTime() : 0;
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function RentalPaymentChip({ order }: { order: Order }) {
+  const paid = (order.rideOption as any)?.payzenStatus === 'paid';
+  const cardUnpaid = !paid && order.paymentMethod === 'card';
+  const color = paid ? '#166534' : cardUnpaid ? '#991B1B' : '#92400E';
+  return (
+    <View style={[styles.paymentChip, { backgroundColor: paid ? '#DCFCE7' : cardUnpaid ? '#FEE2E2' : '#FEF3C7' }]}>
+      <Ionicons name={paid ? 'checkmark-circle' : cardUnpaid ? 'alert-circle' : 'cash-outline'} size={13} color={color} />
+      <Text style={[styles.paymentChipText, { color }]}>
+        {paid ? 'Payée par carte' : cardUnpaid ? 'Paiement carte non abouti' : 'À encaisser'}
+      </Text>
+    </View>
+  );
+}
 
 export default function ChauffeurCoursesScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState<'booked' | 'history'>('history');
-  const [startingBookingId, setStartingBookingId] = useState<string | null>(null);
-  const [confirmStartModal, setConfirmStartModal] = useState<Order | null>(null);
+  const [selectedTab, setSelectedTab] = useState<'booked' | 'history'>('booked');
+  const [decidingOrder, setDecidingOrder] = useState<{ id: string; kind: 'approve' | 'reject' } | null>(null);
+  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
 
   // Récupérer le sessionId au chargement
   useEffect(() => {
@@ -48,7 +108,100 @@ export default function ChauffeurCoursesScreen() {
       return apiFetch<Order[]>(`/api/driver/orders/${sessionId}`);
     },
     enabled: !!sessionId,
+    refetchInterval: 30000,
   });
+
+  const { data: incomingOrders, refetch: refetchIncoming } = useQuery({
+    queryKey: ['driver-incoming-orders', sessionId],
+    queryFn: async () => (sessionId ? getPendingRentalOrders(sessionId) : []),
+    enabled: !!sessionId,
+    refetchInterval: 30000,
+  });
+  const incomingCount = (incomingOrders || []).filter((o) => o.status === 'pending').length;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (sessionId) {
+        void refetch();
+        void refetchIncoming();
+      }
+    }, [sessionId, refetch, refetchIncoming])
+  );
+
+  const handleCancelDecision = (order: Order, kind: 'approve' | 'reject') => {
+    const run = async () => {
+      if (!sessionId) return;
+      setDecidingOrder({ id: order.id, kind });
+      try {
+        if (kind === 'approve') await approveCancelRequest(order.id, sessionId);
+        else await rejectCancelRequest(order.id, sessionId);
+        await refetch();
+        Alert.alert(
+          kind === 'approve' ? 'Annulation validée' : 'Annulation refusée',
+          kind === 'approve'
+            ? (order.rideOption as any)?.payzenStatus === 'paid'
+              ? "La location est annulée et le client a été prévenu. Remboursez-le, puis appuyez sur « J'ai remboursé » dans l'onglet Passées."
+              : 'La location est annulée. Le client a été prévenu.'
+            : 'La location est maintenue. Le client a été prévenu.'
+        );
+      } catch (err: any) {
+        await refetch();
+        Alert.alert('Erreur', String(err?.message || '').includes('409')
+          ? 'Cette location est déjà annulée ou terminée.'
+          : 'Impossible d\'enregistrer votre décision. Réessayez.');
+      } finally {
+        setDecidingOrder(null);
+      }
+    };
+    Alert.alert(
+      kind === 'approve' ? 'Accepter l\'annulation ?' : 'Refuser l\'annulation ?',
+      kind === 'approve'
+        ? `La location de ${order.clientName} sera annulée.`
+        : `La location de ${order.clientName} sera maintenue.`,
+      [
+        { text: 'Retour', style: 'cancel' },
+        { text: kind === 'approve' ? 'Accepter' : 'Refuser', style: kind === 'approve' ? 'destructive' : 'default', onPress: run },
+      ]
+    );
+  };
+
+  const renderCancelRequestBanner = (order: Order) => {
+    if (!hasPendingCancelRequest(order)) return null;
+    const req = (order.rideOption as any)?.cancelRequest || {};
+    const busy = decidingOrder?.id === order.id;
+    return (
+      <View style={styles.cancelBanner}>
+        <View style={styles.cancelBannerHeader}>
+          <Ionicons name="alert-circle" size={18} color="#B45309" />
+          <Text style={styles.cancelBannerTitle}>Le client demande l'annulation</Text>
+        </View>
+        {req.reason ? <Text style={styles.cancelBannerReason} numberOfLines={2}>« {req.reason} »</Text> : null}
+        {req.requestedAt ? (
+          <Text style={styles.cancelBannerMeta}>Demandée le {formatDate(req.requestedAt)}</Text>
+        ) : null}
+        <View style={styles.cancelBannerActions}>
+          <TouchableOpacity
+            style={[styles.cancelBannerBtn, styles.cancelBannerReject, busy && styles.cancelBookingButtonDisabled]}
+            disabled={busy}
+            onPress={(e) => { e.stopPropagation(); handleCancelDecision(order, 'reject'); }}
+          >
+            {busy && decidingOrder?.kind === 'reject'
+              ? <ActivityIndicator size="small" color="#1a1a1a" />
+              : <Text style={styles.cancelBannerRejectText}>Refuser</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.cancelBannerBtn, styles.cancelBannerApprove, busy && styles.cancelBookingButtonDisabled]}
+            disabled={busy}
+            onPress={(e) => { e.stopPropagation(); handleCancelDecision(order, 'approve'); }}
+          >
+            {busy && decidingOrder?.kind === 'approve'
+              ? <ActivityIndicator size="small" color="#FFFFFF" />
+              : <Text style={styles.cancelBannerApproveText}>Accepter l'annulation</Text>}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -69,95 +222,100 @@ export default function ChauffeurCoursesScreen() {
     });
   };
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RÉSERVATION À L'AVANCE: Formatage de la date de réservation
-  // ═══════════════════════════════════════════════════════════════════════════
-  const formatScheduledDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      timeZone: 'Pacific/Tahiti',
-    });
-  };
-
-  const formatScheduledTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Pacific/Tahiti',
-    });
-  };
-
-  const getTimeUntil = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = date.getTime() - now.getTime();
-    const diffMins = Math.round(diffMs / 60000);
-    
-    if (diffMins < 0) return 'Maintenant';
-    if (diffMins < 60) return `Dans ${diffMins} min`;
-    if (diffMins < 1440) {
-      const hours = Math.floor(diffMins / 60);
-      return `Dans ${hours}h`;
-    }
-    const days = Math.floor(diffMins / 1440);
-    return `Dans ${days} jour${days > 1 ? 's' : ''}`;
-  };
-
   const formatPrice = (price: number) => {
     return `${price.toLocaleString('fr-FR')} XPF`;
   };
 
-  // ═══ RÉSERVATION À L'AVANCE: Filtrer les courses réservées ═══
-  const isScheduledOrder = (order: Order) => Boolean(order.scheduledTime) || order.status === 'booked' || order.status === 'accepted';
+  // Une demande n'entre dans les réservations qu'une fois acceptée par le loueur
+  const visibleOrders = (orders || []).filter((o) => {
+    if (!isRentalOrderLike(o)) return false;
+    if ((o.rideOption as any)?.refund) return true;
+    const s = o.status as string;
+    if (s === 'pending' || s === 'awaiting_payment' || s === 'payment_failed') return false;
+    if (s === 'declined' || s === 'expired') return false;
+    if (s === 'cancelled' && (o.rideOption as any)?.cancellation?.beforeAcceptance) return false;
+    return true;
+  });
 
-  const bookedOrders = (orders || [])
-    .filter((order) => isScheduledOrder(order))
+  const bookedOrders = visibleOrders
+    .filter((order) => !CLOSED_STATUSES.includes(order.status))
     .sort((a, b) => {
-      const getPriority = (status: string) => {
-        if (status === 'accepted') return 0;
-        if (status === 'booked') return 0;
-        if (status === 'payment_confirmed' || status === 'completed') return 1;
-        return 2;
-      };
-      
-      const priorityA = getPriority(a.status);
-      const priorityB = getPriority(b.status);
-      
-      if (priorityA !== priorityB) return priorityA - priorityB;
-      
-      // Si même priorité, trier par date (plus proche/récent en premier)
-      const timeA = a.scheduledTime ? new Date(a.scheduledTime).getTime() : 0;
-      const timeB = b.scheduledTime ? new Date(b.scheduledTime).getTime() : 0;
-      return timeA - timeB;
+      const pa = activePriority(a);
+      const pb = activePriority(b);
+      if (pa !== pb) return pa - pb;
+      return orderStartTime(a) - orderStartTime(b);
     });
 
-  // Filtrer pour ne montrer que les courses terminées ou annulées
-  const completedOrCancelledOrders = (orders || []).filter(
-    (order) =>
-      !isScheduledOrder(order) &&
-      (
-        order.status === 'completed' ||
-        order.status === 'payment_confirmed' ||
-        order.status === 'cancelled' ||
-        order.status === 'expired' ||
-        order.status === 'payment_failed'
-      )
-  );
+  const sortedOrders = visibleOrders
+    .filter((order) => CLOSED_STATUSES.includes(order.status))
+    .sort((a, b) => {
+      const ra = (a.rideOption as any)?.refund?.status === 'pending' ? 0 : 1;
+      const rb = (b.rideOption as any)?.refund?.status === 'pending' ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
-  // Trier par date (plus récentes en premier)
-  const sortedOrders = [...completedOrCancelledOrders].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const cancelRequestCount = bookedOrders.filter(hasPendingCancelRequest).length;
+  const refundPendingCount = visibleOrders.filter((o) => (o.rideOption as any)?.refund?.status === 'pending').length;
 
-  // ═══ RÉSERVATION À L'AVANCE: Démarrer une réservation ═══
-  const handleStartBooking = async (order: Order) => {
-    if (!sessionId || startingBookingId) return;
-    router.push({ pathname: '/(chauffeur)/course-details/[id]' as any, params: { id: order.id } });
-    setConfirmStartModal(null);
+  const handleRefundDone = (order: Order) => {
+    const amount = (order.rideOption as any)?.refund?.amount ?? order.totalPrice ?? 0;
+    Alert.alert(
+      'Confirmer le remboursement',
+      `Confirmez-vous avoir remboursé ${formatPrice(amount)} à ${order.clientName || 'votre client'} ? Le client sera prévenu.`,
+      [
+        { text: 'Retour', style: 'cancel' },
+        {
+          text: "J'ai remboursé",
+          onPress: async () => {
+            if (!sessionId) return;
+            setRefundingOrderId(order.id);
+            try {
+              await markRefundDone(order.id, sessionId);
+              await refetch();
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message || "Impossible d'enregistrer le remboursement. Réessayez.");
+            } finally {
+              setRefundingOrderId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderRefundCard = (order: Order) => {
+    const refund = (order.rideOption as any)?.refund;
+    if (!refund) return null;
+    if (refund.status === 'done') {
+      return (
+        <View style={[styles.refundCard, styles.refundCardDone]}>
+          <Ionicons name="checkmark-circle" size={16} color="#166534" />
+          <Text style={[styles.refundTitle, { color: '#166534' }]}>
+            Remboursé : {formatPrice(refund.amount || 0)}
+          </Text>
+        </View>
+      );
+    }
+    const busy = refundingOrderId === order.id;
+    return (
+      <View style={styles.refundCard}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="cash-outline" size={16} color="#B45309" />
+          <Text style={styles.refundTitle}>Remboursement à effectuer : {formatPrice(refund.amount || 0)}</Text>
+        </View>
+        <Text style={styles.refundHint}>
+          Le client a payé par carte. Remboursez-le, puis confirmez ici.
+        </Text>
+        <TouchableOpacity
+          style={[styles.refundBtn, busy && styles.cancelBookingButtonDisabled]}
+          disabled={busy}
+          onPress={(e) => { e.stopPropagation(); handleRefundDone(order); }}
+        >
+          {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.refundBtnText}>J'ai remboursé</Text>}
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   // ═══ RÉSERVATION À L'AVANCE: Annuler une réservation ═══
@@ -176,28 +334,12 @@ export default function ChauffeurCoursesScreen() {
             if (!sessionId) return;
             setCancellingOrderId(orderId);
             try {
-              // Try rental-order cancel first, fallback to generic cancel
-              try {
-                await cancelRentalOrder(orderId, sessionId, 'Annulation par le loueur');
-              } catch {
-                await apiFetch(`/api/orders/${orderId}/cancel`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-Driver-Session': sessionId,
-                  },
-                  body: JSON.stringify({ 
-                    reason: 'Annulation par le loueur', 
-                    role: 'driver',
-                    driverSessionId: sessionId
-                  }),
-                });
-              }
+              await cancelRentalOrder(orderId, sessionId, 'Annulation par le loueur');
               await refetch();
               Alert.alert('Location annulée', 'La location a été annulée avec succès.');
-            } catch (error) {
-              console.error('[Courses] Error cancelling booking:', error);
-              Alert.alert('Erreur', 'Impossible d\'annuler la location. Veuillez réessayer.');
+            } catch (error: any) {
+              console.warn('[Courses] Error cancelling booking:', error);
+              Alert.alert('Erreur', error?.message || 'Impossible d\'annuler la location. Veuillez réessayer.');
             } finally {
               setCancellingOrderId(null);
             }
@@ -209,11 +351,8 @@ export default function ChauffeurCoursesScreen() {
 
   // ═══ Rendu d'une course de l'historique ═══
   const renderHistoryOrder = ({ item: order }: { item: Order }) => {
-    const status = statusLabels[order.status] || { label: order.status, color: '#6B7280' };
-    const pickup = order.addresses.find((a) => a.type === 'pickup');
-    const destination = order.addresses.find((a) => a.type === 'destination');
+    const status = getOrderStatusDisplay(order);
     const ro = order.rideOption as any;
-    const isRental = ro?.type === 'rental' || ro?.isRentalOrder;
 
     return (
       <TouchableOpacity
@@ -232,55 +371,39 @@ export default function ChauffeurCoursesScreen() {
             </View>
           </View>
 
-          {isRental ? (
-            <View style={styles.addressContainer}>
-              <View style={styles.addressRow}>
-                <Ionicons name="car-sport" size={16} color="#4ECC8B" />
-                <Text variant="body" numberOfLines={1} style={styles.addressText}>
-                  {ro?.title || 'Véhicule'}
-                </Text>
-              </View>
-              {ro?.days && (
-                <Text variant="caption" style={{ color: '#6B7280', marginLeft: 24 }}>
-                  {ro.days} jour{ro.days > 1 ? 's' : ''} — {ro?.startDate ? new Date(ro.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''} → {ro?.endDate ? new Date(ro.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
-                </Text>
-              )}
+          <View style={styles.addressContainer}>
+            <View style={styles.addressRow}>
+              <Ionicons name="car-sport" size={16} color="#4ECC8B" />
+              <Text variant="body" numberOfLines={1} style={styles.addressText}>
+                {ro?.title || 'Véhicule'}
+              </Text>
             </View>
-          ) : (
-            <View style={styles.addressContainer}>
-              <View style={styles.addressRow}>
-                <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
-                <Text variant="body" numberOfLines={1} style={styles.addressText}>
-                  {pickup?.value || 'Adresse de départ'}
-                </Text>
-              </View>
-              <View style={styles.addressLine} />
-              <View style={styles.addressRow}>
-                <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
-                <Text variant="body" numberOfLines={1} style={styles.addressText}>
-                  {destination?.value || 'Adresse d\'arrivée'}
-                </Text>
-              </View>
-            </View>
-          )}
+            {ro?.days && (
+              <Text variant="caption" style={{ color: '#6B7280', marginLeft: 24 }}>
+                {ro.days} jour{ro.days > 1 ? 's' : ''} — {ro?.startDate ? new Date(ro.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''} → {ro?.endDate ? new Date(ro.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+              </Text>
+            )}
+          </View>
 
           <View style={styles.orderFooter}>
             <View>
-              <Text variant="label">{isRental ? 'Location' : order.rideOption.title}</Text>
+              <Text variant="label">Location</Text>
               <Text variant="caption" style={styles.clientName}>
                 {order.clientName}
               </Text>
+              {!ro?.refund && <RentalPaymentChip order={order} />}
             </View>
             <View style={styles.priceContainer}>
               <Text variant="h3" style={styles.price}>
-                {formatPrice(order.driverEarnings)}
+                {formatPrice(order.totalPrice)}
               </Text>
               <Text variant="caption" style={styles.earningsLabel}>
-                Vos gains
+                Montant location
               </Text>
             </View>
           </View>
-          {isRentalOrderLike(order) && (
+          {renderRefundCard(order)}
+          {isRentalOrderLike(order) && !ro?.refund && (
             <RentalLifecycleStepper
               state={getRentalStepperState(order)}
               variant="loueur"
@@ -296,79 +419,42 @@ export default function ChauffeurCoursesScreen() {
   // RÉSERVATION À L'AVANCE: Rendu d'une course réservée
   // ═══════════════════════════════════════════════════════════════════════════
   const renderBookedOrder = ({ item: order }: { item: Order }) => {
-    const pickup = order.addresses.find((a) => a.type === 'pickup');
-    const destination = order.addresses.find((a) => a.type === 'destination');
     const ro = order.rideOption as any;
-    const isRental = ro?.type === 'rental' || ro?.isRentalOrder;
-    const status = statusLabels[order.status] || { label: order.status, color: '#6B7280' };
-    const isStarting = startingBookingId === order.id;
-    const canCancel = order.status === 'booked' || order.status === 'accepted' || order.status === 'pending';
-    const canStart = order.status === 'booked';
+    const status = getOrderStatusDisplay(order);
+    const cancelRequested = hasPendingCancelRequest(order);
+    const phase = getRentalLifecyclePhase(order);
+    const canCancel =
+      !cancelRequested &&
+      phase !== 'with_client' &&
+      (order.status === 'booked' || order.status === 'accepted');
 
     return (
       <TouchableOpacity
         onPress={() => router.push(`/(chauffeur)/course-details/${order.id}`)}
         activeOpacity={0.8}
       >
-        <Card style={styles.bookedCard}>
+        <Card style={[styles.bookedCard, cancelRequested && styles.bookedCardAlert]}>
         <View style={styles.bookedHeader}>
           <View style={styles.bookedDateContainer}>
-            <Ionicons name={isRental ? "car-sport" : "calendar"} size={20} color="#4ECC8B" />
+            <Ionicons name="car-sport" size={20} color="#4ECC8B" />
             <View style={styles.bookedDateText}>
-              {isRental ? (
-                <>
-                  <Text style={styles.bookedDateLabel} numberOfLines={1}>{ro?.title || 'Véhicule'}</Text>
-                  <Text style={styles.bookedTimeLabel} numberOfLines={1}>
-                    {ro?.days || 0} jour{(ro?.days || 0) > 1 ? 's' : ''} — {ro?.startDate ? new Date(ro.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''} → {ro?.endDate ? new Date(ro.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.bookedDateLabel} numberOfLines={1}>
-                    {order.scheduledTime ? formatScheduledDate(order.scheduledTime) : 'Date non définie'}
-                  </Text>
-                  <Text style={styles.bookedTimeLabel} numberOfLines={1}>
-                    à {order.scheduledTime ? formatScheduledTime(order.scheduledTime) : '--:--'}
-                  </Text>
-                </>
-              )}
+              <Text style={styles.bookedDateLabel} numberOfLines={1}>{ro?.title || 'Véhicule'}</Text>
+              <Text style={styles.bookedTimeLabel} numberOfLines={1}>
+                {ro?.days || 0} jour{(ro?.days || 0) > 1 ? 's' : ''} — {ro?.startDate ? new Date(ro.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''} → {ro?.endDate ? new Date(ro.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}
+              </Text>
             </View>
           </View>
-          {canStart ? (
-            <View style={styles.bookedCountdown}>
-              <Text style={styles.bookedCountdownText} numberOfLines={1}>
-                {order.scheduledTime ? getTimeUntil(order.scheduledTime) : (isRental ? 'En attente' : '')}
-              </Text>
-            </View>
-          ) : (
-            <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-              <Text variant="caption" style={[styles.statusText, { color: status.color }]} numberOfLines={1}>
-                {status.label}
-              </Text>
-            </View>
-          )}
+          <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
+            <Text variant="caption" style={[styles.statusText, { color: status.color }]} numberOfLines={1}>
+              {status.label}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.bookedContent}>
           <Text style={styles.bookedClientName}>{order.clientName}</Text>
-          
-          {!isRental && (
-          <View style={styles.bookedAddresses}>
-            <View style={styles.addressRow}>
-              <View style={[styles.dot, { backgroundColor: '#22C55E' }]} />
-              <Text variant="body" numberOfLines={1} style={styles.addressText}>
-                {pickup?.value || 'Adresse de départ'}
-              </Text>
-            </View>
-            <View style={styles.addressLine} />
-            <View style={styles.addressRow}>
-              <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
-              <Text variant="body" numberOfLines={1} style={styles.addressText}>
-                {destination?.value || 'Adresse d\'arrivée'}
-              </Text>
-            </View>
-          </View>
-          )}
+          <RentalPaymentChip order={order} />
+          {renderCancelRequestBanner(order)}
           {isRentalOrderLike(order) && (
             <RentalLifecycleStepper
               state={getRentalStepperState(order)}
@@ -395,22 +481,6 @@ export default function ChauffeurCoursesScreen() {
               >
                 <Ionicons name="close-circle" size={16} color="#EF4444" />
               </TouchableOpacity>
-              
-              {canStart && (
-                <TouchableOpacity
-                  style={[styles.startBookingButton, isStarting && styles.startBookingButtonDisabled]}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    setConfirmStartModal(order);
-                  }}
-                  disabled={isStarting}
-                >
-                  <Ionicons name="car" size={18} color="#FFFFFF" />
-                  <Text style={styles.startBookingButtonText}>
-                    {isStarting ? 'Démarrage...' : 'Commencer'}
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           )}
         </View>
@@ -425,7 +495,7 @@ export default function ChauffeurCoursesScreen() {
         <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        <Text variant="h1" style={styles.headerTitle}>Mes locations</Text>
+        <Text variant="h1" style={styles.headerTitle}>Réservations</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -441,8 +511,13 @@ export default function ChauffeurCoursesScreen() {
             color={selectedTab === 'booked' ? '#4ECC8B' : '#6B7280'} 
           />
           <Text style={[styles.tabText, selectedTab === 'booked' && styles.tabTextActive]}>
-            Réservées ({bookedOrders.length})
+            En cours ({bookedOrders.length})
           </Text>
+          {cancelRequestCount > 0 ? (
+            <View style={styles.tabAlertBadge}>
+              <Text style={styles.tabAlertBadgeText}>{cancelRequestCount}</Text>
+            </View>
+          ) : null}
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -455,10 +530,35 @@ export default function ChauffeurCoursesScreen() {
             color={selectedTab === 'history' ? '#4ECC8B' : '#6B7280'} 
           />
           <Text style={[styles.tabText, selectedTab === 'history' && styles.tabTextActive]}>
-            Historique ({sortedOrders.length})
+            Passées ({sortedOrders.length})
           </Text>
+          {refundPendingCount > 0 ? (
+            <View style={styles.tabAlertBadge}>
+              <Text style={styles.tabAlertBadgeText}>{refundPendingCount}</Text>
+            </View>
+          ) : null}
         </TouchableOpacity>
       </View>
+
+      {refundPendingCount > 0 ? (
+        <TouchableOpacity style={styles.refundBanner} onPress={() => setSelectedTab('history')} activeOpacity={0.85}>
+          <Ionicons name="cash-outline" size={18} color="#B45309" />
+          <Text style={styles.refundBannerText}>
+            {refundPendingCount} remboursement{refundPendingCount > 1 ? 's' : ''} à effectuer
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color="#B45309" />
+        </TouchableOpacity>
+      ) : null}
+
+      {incomingCount > 0 ? (
+        <TouchableOpacity style={styles.incomingBanner} onPress={() => router.replace('/(chauffeur)')} activeOpacity={0.85}>
+          <Ionicons name="notifications" size={18} color="#1D4ED8" />
+          <Text style={styles.incomingBannerText}>
+            {incomingCount} demande{incomingCount > 1 ? 's' : ''} à accepter ou refuser sur l'accueil
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color="#1D4ED8" />
+        </TouchableOpacity>
+      ) : null}
 
       {/* ═══ Contenu selon l'onglet sélectionné ═══ */}
       {selectedTab === 'booked' ? (
@@ -477,10 +577,10 @@ export default function ChauffeurCoursesScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={64} color="#e5e7eb" />
             <Text variant="h3" style={styles.emptyTitle}>
-              Aucune réservation
+              {isLoading ? 'Chargement…' : 'Aucune réservation en cours'}
             </Text>
             <Text variant="body" style={styles.emptyText}>
-              Vos locations réservées apparaîtront ici
+              Les locations que vous avez acceptées apparaîtront ici jusqu'au retour du véhicule.
             </Text>
           </View>
         )
@@ -500,62 +600,105 @@ export default function ChauffeurCoursesScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="car-outline" size={64} color="#e5e7eb" />
             <Text variant="h3" style={styles.emptyTitle}>
-              Aucune location
+              Aucune réservation passée
             </Text>
             <Text variant="body" style={styles.emptyText}>
-              Vos locations terminées et annulées apparaîtront ici
+              Vos locations terminées ou annulées apparaîtront ici
             </Text>
           </View>
         )
       )}
 
-      {/* ═══ RÉSERVATION À L'AVANCE: Modal de confirmation ═══ */}
-      <Modal
-        visible={!!confirmStartModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setConfirmStartModal(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.confirmModalContent}>
-            <Ionicons name="help-circle" size={48} color="#4ECC8B" style={{ marginBottom: 16 }} />
-            <Text style={styles.confirmModalTitle}>Commencer cette location ?</Text>
-            <Text style={styles.confirmModalSubtitle}>
-              Vous allez ouvrir les détails de la location pour {confirmStartModal?.clientName}
-            </Text>
-            
-            {confirmStartModal?.scheduledTime && (
-              <View style={styles.confirmModalInfo}>
-                <Text style={styles.confirmModalInfoText}>
-                  Réservée pour le {formatScheduledDate(confirmStartModal.scheduledTime)} à {formatScheduledTime(confirmStartModal.scheduledTime)}
-                </Text>
-              </View>
-            )}
-            
-            <View style={styles.confirmModalButtons}>
-              <TouchableOpacity
-                style={styles.confirmModalButtonCancel}
-                onPress={() => setConfirmStartModal(null)}
-              >
-                <Text style={styles.confirmModalButtonCancelText}>Annuler</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.confirmModalButtonConfirm}
-                onPress={() => confirmStartModal && handleStartBooking(confirmStartModal)}
-              >
-                <Ionicons name="car" size={18} color="#FFFFFF" />
-                <Text style={styles.confirmModalButtonConfirmText}>Commencer</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  incomingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  incomingBannerText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1E3A8A' },
+  bookedCardAlert: {
+    borderColor: '#F59E0B',
+  },
+  refundBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 16, marginBottom: 8, padding: 12,
+    backgroundColor: '#FEF3C7', borderRadius: 12, borderWidth: 1, borderColor: '#FDE68A',
+  },
+  refundBannerText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#B45309' },
+  refundCard: {
+    marginTop: 10, padding: 12, borderRadius: 12,
+    backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', gap: 6,
+  },
+  refundCardDone: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#F0FDF4', borderColor: '#BBF7D0',
+  },
+  refundTitle: { fontSize: 13, fontWeight: '800', color: '#B45309', flexShrink: 1 },
+  refundHint: { fontSize: 12, color: '#92400E' },
+  refundBtn: {
+    marginTop: 4, backgroundColor: '#16A34A', borderRadius: 10,
+    paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+  },
+  refundBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  cancelBanner: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  cancelBannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cancelBannerTitle: { fontSize: 14, fontWeight: '700', color: '#92400E', flex: 1 },
+  cancelBannerReason: { fontSize: 13, color: '#78350F', marginTop: 6, fontStyle: 'italic' },
+  cancelBannerMeta: { fontSize: 12, color: '#B45309', marginTop: 4 },
+  cancelBannerActions: { flexDirection: 'column-reverse', gap: 8, marginTop: 10 },
+  cancelBannerBtn: {
+    width: '100%',
+    minHeight: 42,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  cancelBannerReject: { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E5E7EB' },
+  cancelBannerRejectText: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
+  cancelBannerApprove: { backgroundColor: '#EF4444' },
+  cancelBannerApproveText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  tabAlertBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabAlertBadgeText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+  paymentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 6,
+  },
+  paymentChipText: { fontSize: 11, fontWeight: '700' },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -619,18 +762,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  addressLine: {
-    width: 2,
-    height: 20,
-    backgroundColor: '#e5e7eb',
-    marginLeft: 4,
-    marginVertical: 2,
   },
   addressText: {
     flex: 1,
@@ -740,19 +871,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#4ECC8B',
   },
-  bookedCountdown: {
-    backgroundColor: '#22C55E',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    flexShrink: 0,
-    maxWidth: '42%',
-  },
-  bookedCountdownText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
   bookedContent: {
     padding: 16,
   },
@@ -761,9 +879,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 12,
-  },
-  bookedAddresses: {
-    marginBottom: 0,
   },
   bookedFooter: {
     flexDirection: 'row',
@@ -801,93 +916,5 @@ const styles = StyleSheet.create({
   },
   cancelBookingButtonDisabled: {
     opacity: 0.6,
-  },
-  startBookingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#22C55E',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 16,
-    gap: 8,
-  },
-  startBookingButtonDisabled: {
-    opacity: 0.6,
-  },
-  startBookingButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  confirmModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 40,
-    alignItems: 'center',
-  },
-  confirmModalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  confirmModalSubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  confirmModalInfo: {
-    backgroundColor: '#F5F3FF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 24,
-  },
-  confirmModalInfoText: {
-    fontSize: 14,
-    color: '#4ECC8B',
-    textAlign: 'center',
-  },
-  confirmModalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  confirmModalButtonCancel: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
-  confirmModalButtonCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  confirmModalButtonConfirm: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#22C55E',
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 8,
-  },
-  confirmModalButtonConfirmText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
 });

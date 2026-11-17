@@ -18,12 +18,20 @@ export function Text({
 }: TextProps) {
   return (
     <RNText
-      style={[styles[variant], color && { color }, style]}
+      style={[styles[variant], color && { color }, lineHeightFor(variant, style), style]}
       numberOfLines={numberOfLines}
     >
       {children}
     </RNText>
   );
+}
+
+// La lineHeight du variant est calée sur sa propre taille : une taille personnalisée sans lineHeight
+// (ex. chiffre de 11 px dans une pastille de 20 px) serait décalée vers le bas et rognée.
+function lineHeightFor(variant: keyof typeof styles, style: StyleProp<TextStyle>): TextStyle | null {
+  const flat = StyleSheet.flatten(style);
+  if (!flat?.fontSize || flat.lineHeight != null || flat.fontSize === styles[variant].fontSize) return null;
+  return { lineHeight: Math.round(flat.fontSize * 1.3) };
 }
 
 const styles = StyleSheet.create({

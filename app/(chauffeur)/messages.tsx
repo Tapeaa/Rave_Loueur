@@ -180,13 +180,14 @@ export default function DriverMessagesScreen() {
   // Obtenir le badge de statut
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; color: string; bgColor: string }> = {
-      pending: { label: 'En attente', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.2)' },
-      accepted: { label: 'Acceptée', color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.2)' },
-      driver_enroute: { label: 'En route', color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.2)' },
-      driver_arrived: { label: 'Arrivé', color: '#4ECC8B', bgColor: 'rgba(78, 204, 139, 0.2)' },
+      pending: { label: 'Demande', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.2)' },
+      accepted: { label: 'Confirmée', color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.2)' },
+      booked: { label: 'Confirmée', color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.2)' },
       in_progress: { label: 'En cours', color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.2)' },
       completed: { label: 'Terminée', color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.2)' },
       cancelled: { label: 'Annulée', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.2)' },
+      declined: { label: 'Refusée', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.2)' },
+      expired: { label: 'Expirée', color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.2)' },
     };
     return statusMap[status] || { label: status, color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.2)' };
   };
