@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   Animated,
+  Linking,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +29,11 @@ import {
   getPendingRentalOrders,
   declineRentalOrder,
   secureStorage,
+  getMyVehicles,
+  type LoueurVehicle,
 } from '@/lib/api';
+import { getRentalLifecyclePhase, isRentalOrderLike } from '@/lib/rental-lifecycle';
+import { hasPendingCancelRequest, isClosedOrderStatus } from '@/lib/order-status';
 import { logoutDriver } from '@/lib/logout';
 import { setDriverExternalId, addDriverTag, addDriverTags } from '@/lib/onesignal';
 import {
@@ -64,6 +69,40 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.78;
 
 const formatPrice = (price: number) => `${price.toLocaleString('fr-FR')} XPF`;
+
+const TAHITI_TZ = 'Pacific/Tahiti';
+
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  const d = new Date(value as string);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Jour calendaire à Tahiti (YYYY-MM-DD), pour comparer « aujourd'hui » quel que soit le fuseau du téléphone. */
+function tahitiYmd(d: Date): string {
+  return d.toLocaleDateString('en-CA', { timeZone: TAHITI_TZ });
+}
+
+function rentalStart(order: Order): Date | null {
+  return toDate((order.rideOption as any)?.startDate || order.scheduledTime);
+}
+
+function rentalEnd(order: Order): Date | null {
+  return toDate((order.rideOption as any)?.endDate || order.rentalRawData?.endDate);
+}
+
+function formatHour(d: Date): string {
+  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: TAHITI_TZ });
+}
+
+function formatTodayLabel(): string {
+  const label = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', timeZone: TAHITI_TZ,
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+type AgendaKind = 'handover' | 'return' | 'late';
 
 /** Filtre socket : annonces ciblées (mauvais prestataire) + refus en diffusion */
 function shouldShowRentalSocketOrder(
@@ -109,7 +148,9 @@ export default function ChauffeurHomeScreen() {
     }, [])
   );
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const [acceptedCount, setAcceptedCount] = useState<number>(0);
+  const [driverOrders, setDriverOrders] = useState<Order[]>([]);
+  const [vehicles, setVehicles] = useState<LoueurVehicle[] | null>(null);
+  const [unreadClientMessages, setUnreadClientMessages] = useState(0);
 
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [isLoadingSupport, setIsLoadingSupport] = useState(false);
@@ -241,20 +282,100 @@ export default function ChauffeurHomeScreen() {
     addDriverTag('status', isOnline ? 'online' : 'offline');
   }, [isOnline]);
 
-  // ═══ ACCEPTED ORDERS COUNT ═══
+  // ═══ RÉSERVATIONS, FLOTTE, MESSAGES CLIENTS ═══
+  const loadDriverOrders = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const orders = await apiFetch<Order[]>(`/api/driver/orders/${sessionId}`);
+      setDriverOrders(Array.isArray(orders) ? orders : []);
+    } catch {}
+  }, [sessionId]);
+
+  const loadVehicles = useCallback(async () => {
+    try {
+      setVehicles(await getMyVehicles());
+    } catch {}
+  }, []);
+
+  const loadUnreadClientMessages = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const convs = await apiFetch<{ unreadCount?: number }[]>('/api/messages/conversations/driver', {
+        headers: { 'X-Driver-Session': sessionId },
+      });
+      setUnreadClientMessages(
+        Array.isArray(convs) ? convs.reduce((sum, c) => sum + (c.unreadCount || 0), 0) : 0
+      );
+    } catch {}
+  }, [sessionId]);
+
   useEffect(() => {
     if (!sessionId) return;
-    const loadAccepted = async () => {
-      try {
-        const orders = await apiFetch<Order[]>(`/api/driver/orders/${sessionId}`);
-        const accepted = (orders || []).filter(o => o.status === 'accepted' || o.status === 'booked');
-        setAcceptedCount(accepted.length);
-      } catch {}
-    };
-    loadAccepted();
-    const interval = setInterval(loadAccepted, 30000);
+    loadDriverOrders();
+    loadUnreadClientMessages();
+    const interval = setInterval(() => {
+      loadDriverOrders();
+      loadUnreadClientMessages();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [sessionId]);
+  }, [sessionId, loadDriverOrders, loadUnreadClientMessages]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadVehicles();
+      loadDriverOrders();
+      loadUnreadClientMessages();
+    }, [loadVehicles, loadDriverOrders, loadUnreadClientMessages])
+  );
+
+  const dashboard = useMemo(() => {
+    const today = tahitiYmd(new Date());
+    const upcoming: Order[] = [];
+    const withClient: Order[] = [];
+    const agenda: { kind: AgendaKind; order: Order; at: Date | null }[] = [];
+
+    for (const order of driverOrders) {
+      if (!isRentalOrderLike(order) || isClosedOrderStatus(order.status)) continue;
+      const phase = getRentalLifecyclePhase(order);
+      if (phase === 'vehicle_ready') {
+        const start = rentalStart(order);
+        if (start && tahitiYmd(start) <= today) agenda.push({ kind: 'handover', order, at: start });
+        else upcoming.push(order);
+      } else if (phase === 'with_client') {
+        withClient.push(order);
+        const end = rentalEnd(order);
+        if (end) {
+          const endYmd = tahitiYmd(end);
+          if (endYmd < today) agenda.push({ kind: 'late', order, at: end });
+          else if (endYmd === today) agenda.push({ kind: 'return', order, at: end });
+        }
+      }
+    }
+
+    const kindRank: Record<AgendaKind, number> = { late: 0, handover: 1, return: 2 };
+    agenda.sort((a, b) =>
+      kindRank[a.kind] - kindRank[b.kind] || (a.at?.getTime() ?? 0) - (b.at?.getTime() ?? 0)
+    );
+    upcoming.sort((a, b) => (rentalStart(a)?.getTime() ?? 0) - (rentalStart(b)?.getTime() ?? 0));
+
+    return {
+      agenda,
+      upcoming,
+      withClientCount: withClient.length,
+      reservedCount: upcoming.length + agenda.filter((a) => a.kind === 'handover').length,
+      cancelRequestCount: driverOrders.filter(hasPendingCancelRequest).length,
+      refundPendingCount: driverOrders.filter((o) => (o.rideOption as any)?.refund?.status === 'pending').length,
+    };
+  }, [driverOrders]);
+
+  const fleet = useMemo(() => {
+    if (!vehicles) return null;
+    const active = vehicles.filter((v) => v.isActive !== false);
+    return {
+      total: active.length,
+      available: active.filter((v) => v.availableForRental).length,
+    };
+  }, [vehicles]);
 
   // ═══ SUPPORT MESSAGES ═══
   const loadSupportMessages = useCallback(async () => {
@@ -434,12 +555,30 @@ export default function ChauffeurHomeScreen() {
   const handleRefresh = async () => {
     if (!sessionId) return;
     setRefreshing(true);
-    try {
-      const list = await getPendingRentalOrders(sessionId);
-      setPendingOrders(list.filter((o) => !declinedOrderIds.has(o.id)));
-    } catch {}
+    const loadPending = async () => {
+      try {
+        const list = await getPendingRentalOrders(sessionId);
+        setPendingOrders(list.filter((o) => !declinedOrderIds.has(o.id)));
+      } catch {}
+    };
+    const loadEarnings = async () => {
+      try {
+        const data = await getDriverEarnings();
+        if (data) setMonthEarnings(data.earnings.month || 0);
+      } catch {}
+    };
+    await Promise.all([
+      loadPending(),
+      loadDriverOrders(),
+      loadVehicles(),
+      loadUnreadClientMessages(),
+      loadSupportMessages(),
+      loadEarnings(),
+    ]);
     setRefreshing(false);
   };
+
+  const openOrderDetails = (orderId: string) => router.push(`/(chauffeur)/course-details/${orderId}`);
 
   const navigateToOrderDetail = (order: Order) => {
     const raw = order.rentalRawData;
@@ -504,43 +643,102 @@ export default function ChauffeurHomeScreen() {
           {/* Welcome + Status Card */}
           <View style={s.statusCard}>
             <View style={s.statusLeft}>
-              <Text style={s.welcomeText}>Bonjour,</Text>
-              <Text style={s.driverNameText}>{driverName}</Text>
+              <Text style={s.welcomeText}>{formatTodayLabel()}</Text>
+              <Text style={s.driverNameText}>Bonjour, {driverName.split(' ')[0] || driverName}</Text>
               <View style={s.connectionRow}>
                 <View style={[s.connDot, connectionStatus === 'connected' ? s.connGreen : s.connRed]} />
                 <Text style={s.connText}>
-                  {connectionStatus === 'connected' ? 'Connecté' : connectionStatus === 'connecting' ? 'Connexion...' : 'Déconnecté'}
+                  {connectionStatus === 'connected'
+                    ? 'Connecté — demandes reçues en temps réel'
+                    : connectionStatus === 'connecting' ? 'Connexion...' : 'Déconnecté — reconnexion en cours'}
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* Stats Row */}
-          <View style={s.statsRow}>
+          {/* Stats 2×2 */}
+          <View style={s.statsGrid}>
             <View style={s.statCard}>
-              <View style={[s.statIcon, { backgroundColor: '#D1F2E3' }]}>
-                <Ionicons name="time-outline" size={20} color="#F59E0B" />
+              <View style={[s.statIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="time-outline" size={18} color="#F59E0B" />
               </View>
-              <Text style={s.statNumber}>{pendingOrders.length}</Text>
-              <Text style={s.statLabel}>En attente</Text>
+              <View style={s.statTextWrap}>
+                <Text style={s.statNumber}>{pendingOrders.length}</Text>
+                <Text style={s.statLabel}>Demandes</Text>
+              </View>
             </View>
             <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/courses')}>
-              <View style={[s.statIcon, { backgroundColor: '#DCFCE7' }]}>
-                <Ionicons name="checkmark-circle-outline" size={20} color="#22C55E" />
+              <View style={[s.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="calendar-outline" size={18} color="#3B82F6" />
               </View>
-              <Text style={s.statNumber}>{acceptedCount}</Text>
-              <Text style={s.statLabel}>Acceptées</Text>
+              <View style={s.statTextWrap}>
+                <Text style={s.statNumber}>{dashboard.reservedCount}</Text>
+                <Text style={s.statLabel}>À remettre</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/courses')}>
+              <View style={[s.statIcon, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="car-sport-outline" size={18} color="#22C55E" />
+              </View>
+              <View style={s.statTextWrap}>
+                <Text style={s.statNumber}>{dashboard.withClientCount}</Text>
+                <Text style={s.statLabel}>Chez les clients</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={s.statCard} onPress={() => router.push('/(chauffeur)/gains')}>
-              <View style={[s.statIcon, { backgroundColor: '#EDE9FE' }]}>
-                <Ionicons name="wallet-outline" size={20} color="#4ECC8B" />
+              <View style={[s.statIcon, { backgroundColor: '#D1F2E3' }]}>
+                <Ionicons name="wallet-outline" size={18} color="#4ECC8B" />
               </View>
-              <Text style={s.statNumber}>
-                {monthEarnings === null ? '-' : formatCompactXpf(monthEarnings)}
-              </Text>
-              <Text style={s.statLabel}>Gains du mois</Text>
+              <View style={s.statTextWrap}>
+                <Text style={s.statNumber}>
+                  {monthEarnings === null ? '-' : formatCompactXpf(monthEarnings)}
+                </Text>
+                <Text style={s.statLabel}>Gains du mois</Text>
+              </View>
             </TouchableOpacity>
           </View>
+
+          {/* À traiter */}
+          {(dashboard.cancelRequestCount > 0 || dashboard.refundPendingCount > 0 || unreadClientMessages > 0 || fleet?.total === 0) && (
+            <View style={s.todoSection}>
+              {dashboard.cancelRequestCount > 0 && (
+                <TouchableOpacity style={[s.todoRow, s.todoWarn]} onPress={() => router.push('/(chauffeur)/courses')}>
+                  <Ionicons name="alert-circle" size={20} color="#B45309" />
+                  <Text style={[s.todoText, { color: '#92400E' }]}>
+                    {dashboard.cancelRequestCount} demande{dashboard.cancelRequestCount > 1 ? 's' : ''} d'annulation à traiter
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#B45309" />
+                </TouchableOpacity>
+              )}
+              {dashboard.refundPendingCount > 0 && (
+                <TouchableOpacity style={[s.todoRow, s.todoDanger]} onPress={() => router.push('/(chauffeur)/courses')}>
+                  <Ionicons name="return-down-back" size={20} color="#B91C1C" />
+                  <Text style={[s.todoText, { color: '#991B1B' }]}>
+                    {dashboard.refundPendingCount} remboursement{dashboard.refundPendingCount > 1 ? 's' : ''} à effectuer
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#B91C1C" />
+                </TouchableOpacity>
+              )}
+              {unreadClientMessages > 0 && (
+                <TouchableOpacity style={[s.todoRow, s.todoInfo]} onPress={() => router.push('/(chauffeur)/messages')}>
+                  <Ionicons name="chatbubble-ellipses" size={20} color="#1D4ED8" />
+                  <Text style={[s.todoText, { color: '#1E3A8A' }]}>
+                    {unreadClientMessages} message{unreadClientMessages > 1 ? 's' : ''} client non lu{unreadClientMessages > 1 ? 's' : ''}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#1D4ED8" />
+                </TouchableOpacity>
+              )}
+              {fleet?.total === 0 && (
+                <TouchableOpacity style={[s.todoRow, s.todoInfo]} onPress={() => router.push('/(chauffeur)/ajouter-vehicule')}>
+                  <Ionicons name="add-circle" size={20} color="#1D4ED8" />
+                  <Text style={[s.todoText, { color: '#1E3A8A' }]}>
+                    Ajoutez votre premier véhicule pour recevoir des demandes
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#1D4ED8" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Incoming Orders Band — visible même hors ligne taxi */}
           {pendingOrders.length > 0 && (
@@ -678,34 +876,152 @@ export default function ChauffeurHomeScreen() {
             </View>
           )}
 
+          {/* Aujourd'hui */}
+          <View style={s.blockSection}>
+            <View style={s.blockHeader}>
+              <Text style={s.sectionTitle}>Aujourd'hui</Text>
+              {dashboard.agenda.length > 0 && (
+                <Text style={s.blockCount}>{dashboard.agenda.length}</Text>
+              )}
+            </View>
+            {dashboard.agenda.length === 0 ? (
+              <View style={s.blockEmpty}>
+                <Ionicons name="sunny-outline" size={18} color="#9CA3AF" />
+                <Text style={s.blockEmptyText}>Aucune remise ni retour prévu aujourd'hui</Text>
+              </View>
+            ) : (
+              dashboard.agenda.map(({ kind, order, at }) => {
+                const meta = kind === 'late'
+                  ? { icon: 'warning' as const, color: '#DC2626', bg: '#FEE2E2', label: 'Retour en retard' }
+                  : kind === 'handover'
+                    ? { icon: 'key' as const, color: '#2563EB', bg: '#DBEAFE', label: 'Remise du véhicule' }
+                    : { icon: 'flag' as const, color: '#16A34A', bg: '#DCFCE7', label: 'Retour prévu' };
+                const when = at
+                  ? kind === 'late'
+                    ? `prévu le ${at.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: TAHITI_TZ })}`
+                    : `à ${formatHour(at)}`
+                  : '';
+                return (
+                  <TouchableOpacity
+                    key={`${kind}-${order.id}`}
+                    style={s.agendaRow}
+                    activeOpacity={0.85}
+                    onPress={() => openOrderDetails(order.id)}
+                  >
+                    <View style={[s.agendaIcon, { backgroundColor: meta.bg }]}>
+                      <Ionicons name={meta.icon} size={18} color={meta.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.agendaKind, { color: meta.color }]}>
+                        {meta.label}{when ? ` · ${when}` : ''}
+                      </Text>
+                      <Text style={s.agendaTitle} numberOfLines={1}>
+                        {order.rideOption?.title || 'Véhicule'} — {order.clientName || 'Client'}
+                      </Text>
+                    </View>
+                    {order.clientPhone ? (
+                      <TouchableOpacity
+                        style={s.agendaCall}
+                        onPress={(e) => { e.stopPropagation(); Linking.openURL(`tel:${order.clientPhone}`); }}
+                      >
+                        <Ionicons name="call" size={16} color="#22C55E" />
+                      </TouchableOpacity>
+                    ) : (
+                      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+
+          {/* Prochaines locations */}
+          {dashboard.upcoming.length > 0 && (
+            <View style={s.blockSection}>
+              <View style={s.blockHeader}>
+                <Text style={s.sectionTitle}>Prochaines locations</Text>
+                <TouchableOpacity onPress={() => router.push('/(chauffeur)/courses')}>
+                  <Text style={s.blockLink}>Tout voir</Text>
+                </TouchableOpacity>
+              </View>
+              {dashboard.upcoming.slice(0, 3).map((order) => {
+                const start = rentalStart(order);
+                const days = (order.rideOption as any)?.days;
+                return (
+                  <TouchableOpacity
+                    key={order.id}
+                    style={s.agendaRow}
+                    activeOpacity={0.85}
+                    onPress={() => openOrderDetails(order.id)}
+                  >
+                    <View style={s.dateChip}>
+                      <Text style={s.dateChipDay}>
+                        {start ? start.toLocaleDateString('fr-FR', { day: 'numeric', timeZone: TAHITI_TZ }) : '–'}
+                      </Text>
+                      <Text style={s.dateChipMonth}>
+                        {start ? start.toLocaleDateString('fr-FR', { month: 'short', timeZone: TAHITI_TZ }).replace('.', '') : ''}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.agendaTitle} numberOfLines={1}>{order.rideOption?.title || 'Véhicule'}</Text>
+                      <Text style={s.agendaSub} numberOfLines={1}>
+                        {order.clientName || 'Client'}
+                        {start ? ` · ${formatHour(start)}` : ''}
+                        {days ? ` · ${days} jour${days > 1 ? 's' : ''}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={s.upcomingPrice}>{formatCompactXpf(order.totalPrice || 0)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Ma flotte */}
+          {fleet && fleet.total > 0 && (
+            <TouchableOpacity style={s.fleetCard} activeOpacity={0.85} onPress={() => router.push('/(chauffeur)/mes-vehicules')}>
+              <View style={[s.agendaIcon, { backgroundColor: '#1a1a1a' }]}>
+                <Ionicons name="car-sport" size={18} color="#4ECC8B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.agendaTitle}>Ma flotte</Text>
+                <Text style={s.agendaSub}>
+                  {fleet.total} véhicule{fleet.total > 1 ? 's' : ''} · {fleet.available} disponible{fleet.available > 1 ? 's' : ''} à la location
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={s.fleetAddBtn}
+                onPress={(e) => { e.stopPropagation(); router.push('/(chauffeur)/ajouter-vehicule'); }}
+              >
+                <Ionicons name="add" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          )}
+
           {/* Quick Actions */}
           <View style={s.actionsSection}>
             <Text style={s.sectionTitle}>Accès rapide</Text>
             <View style={s.actionsGrid}>
-              <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(chauffeur)/courses')}>
-                <View style={[s.actionIcon, { backgroundColor: '#D1F2E3' }]}>
-                  <Ionicons name="receipt-outline" size={22} color="#F59E0B" />
-                </View>
-                <Text style={s.actionLabel}>Réservations</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(chauffeur)/messages')}>
-                <View style={[s.actionIcon, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="chatbubbles-outline" size={22} color="#3B82F6" />
-                </View>
-                <Text style={s.actionLabel}>Messages</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(chauffeur)/gains')}>
-                <View style={[s.actionIcon, { backgroundColor: '#EDE9FE' }]}>
-                  <Ionicons name="wallet-outline" size={22} color="#4ECC8B" />
-                </View>
-                <Text style={s.actionLabel}>Gains</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.actionCard} onPress={() => router.push('/(chauffeur)/profil')}>
-                <View style={[s.actionIcon, { backgroundColor: '#F3F4F6' }]}>
-                  <Ionicons name="person-outline" size={22} color="#6B7280" />
-                </View>
-                <Text style={s.actionLabel}>Profil</Text>
-              </TouchableOpacity>
+              {([
+                { label: 'Réservations', icon: 'receipt-outline', color: '#F59E0B', bg: '#FEF3C7', route: '/(chauffeur)/courses', badge: dashboard.cancelRequestCount + dashboard.refundPendingCount },
+                { label: 'Messages', icon: 'chatbubbles-outline', color: '#3B82F6', bg: '#DBEAFE', route: '/(chauffeur)/messages', badge: unreadClientMessages + unreadSupportCount },
+                { label: 'Véhicules', icon: 'car-sport-outline', color: '#1a1a1a', bg: '#E5E7EB', route: '/(chauffeur)/mes-vehicules', badge: 0 },
+                { label: 'Gains', icon: 'wallet-outline', color: '#4ECC8B', bg: '#D1F2E3', route: '/(chauffeur)/gains', badge: 0 },
+                { label: 'Abonnement', icon: 'ribbon-outline', color: '#8B5CF6', bg: '#EDE9FE', route: '/(chauffeur)/abonnement', badge: 0 },
+                { label: 'Profil', icon: 'person-outline', color: '#6B7280', bg: '#F3F4F6', route: '/(chauffeur)/profil', badge: 0 },
+              ] as const).map((a) => (
+                <TouchableOpacity key={a.label} style={s.actionCard} onPress={() => router.push(a.route as any)}>
+                  <View style={[s.actionIcon, { backgroundColor: a.bg }]}>
+                    <Ionicons name={a.icon} size={22} color={a.color} />
+                    {a.badge > 0 && (
+                      <View style={s.actionBadge}>
+                        <Text style={s.actionBadgeText}>{a.badge > 9 ? '9+' : a.badge}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={s.actionLabel}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
@@ -777,16 +1093,70 @@ const s = StyleSheet.create({
   statusLabel: { fontSize: 10, fontWeight: '800', marginTop: 4, letterSpacing: 1 },
 
   // Stats
-  statsRow: { flexDirection: 'row', marginHorizontal: 16, marginTop: 16, gap: 10 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 16, marginTop: 12, gap: 10 },
   statCard: {
-    flex: 1, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, alignItems: 'center',
+    width: (width - 42) / 2, flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
   statIcon: {
-    width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8,
+    width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
   },
-  statNumber: { fontSize: 20, fontWeight: '800', color: '#1a1a1a' },
-  statLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginTop: 2 },
+  statTextWrap: { flex: 1 },
+  statNumber: { fontSize: 18, fontWeight: '800', color: '#1a1a1a' },
+  statLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500', marginTop: 1 },
+
+  // À traiter
+  todoSection: { marginHorizontal: 16, marginTop: 14, gap: 8 },
+  todoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1,
+  },
+  todoWarn: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
+  todoDanger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  todoInfo: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
+  todoText: { flex: 1, fontSize: 13, fontWeight: '700' },
+
+  // Blocs agenda / prochaines locations / flotte
+  blockSection: {
+    marginHorizontal: 16, marginTop: 20, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+  },
+  blockHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  blockCount: {
+    fontSize: 12, fontWeight: '700', color: '#2563EB',
+    backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
+  },
+  blockLink: { fontSize: 13, fontWeight: '700', color: '#4ECC8B' },
+  blockEmpty: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  blockEmptyText: { fontSize: 13, color: '#9CA3AF' },
+  agendaRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6',
+  },
+  agendaIcon: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  agendaKind: { fontSize: 12, fontWeight: '700' },
+  agendaTitle: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', marginTop: 1 },
+  agendaSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  agendaCall: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#DCFCE7',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  dateChip: {
+    width: 44, paddingVertical: 4, borderRadius: 10, backgroundColor: '#F3F4F6', alignItems: 'center',
+  },
+  dateChipDay: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
+  dateChipMonth: { fontSize: 10, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase' },
+  upcomingPrice: { fontSize: 13, fontWeight: '800', color: '#1a1a1a' },
+  fleetCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: 16, marginTop: 20, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+  },
+  fleetAddBtn: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#4ECC8B',
+    justifyContent: 'center', alignItems: 'center',
+  },
 
   // Incoming Section
   incomingSection: { marginTop: 24 },
@@ -879,14 +1249,20 @@ const s = StyleSheet.create({
   actionsSection: { marginTop: 28, paddingHorizontal: 16 },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   actionCard: {
-    width: (width - 42) / 2, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
+    width: (width - 52) / 3, backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14,
     alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
   actionIcon: {
-    width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+    width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 8,
   },
-  actionLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  actionBadge: {
+    position: 'absolute', top: -5, right: -7,
+    backgroundColor: '#EF4444', borderRadius: 9, minWidth: 18, height: 18,
+    paddingHorizontal: 4, justifyContent: 'center', alignItems: 'center',
+  },
+  actionBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+  actionLabel: { fontSize: 12, fontWeight: '600', color: '#374151' },
 
   // Support
   supportCard: {
