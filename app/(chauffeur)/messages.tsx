@@ -22,6 +22,7 @@ interface Conversation {
   orderId: string;
   otherPartyName: string;
   otherPartyType: 'client' | 'driver';
+  vehicleTitle?: string | null;
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number;
@@ -307,10 +308,9 @@ export default function DriverMessagesScreen() {
 
               <View style={styles.conversationFooter}>
                 <View style={styles.routeInfo}>
-                  <Ionicons name="location" size={12} color="#6B7280" />
+                  <Ionicons name={item.vehicleTitle ? 'car-sport' : 'location'} size={12} color="#6B7280" />
                   <Text style={styles.routeText} numberOfLines={1}>
-                    {item.pickup || 'Véhicule'}
-                    {item.destination ? ` · ${item.destination}` : ''}
+                    {item.vehicleTitle || item.pickup || 'Véhicule'}
                   </Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusBadge.bgColor }]}>

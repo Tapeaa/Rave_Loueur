@@ -143,10 +143,6 @@ export default function ModifierVehiculeScreen() {
       Alert.alert('Erreur', 'Veuillez entrer un prix par jour valide');
       return;
     }
-    if (!availableForRental) {
-      Alert.alert('Erreur', 'Activez la location pour publier ce véhicule');
-      return;
-    }
 
     setSubmitting(true);
     try {
