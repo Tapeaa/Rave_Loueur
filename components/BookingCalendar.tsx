@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 6,
   },
-  title: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
+  title: { fontSize: 18, fontWeight: '800', color: '#1a1a1a', letterSpacing: -0.2 },
   subtitle: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   month: { fontSize: 13, fontWeight: '700', color: '#1a1a1a', minWidth: 92, textAlign: 'center' },
   navBtn: {

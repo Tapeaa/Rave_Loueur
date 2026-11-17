@@ -666,12 +666,12 @@ export default function ChauffeurHomeScreen() {
                 </View>
               </TouchableOpacity>
             </View>
-            <View style={s.connectionRow}>
+            <View style={[s.connectionRow, connectionStatus === 'connected' ? s.connPillOn : s.connPillOff]}>
               <View style={[s.connDot, connectionStatus === 'connected' ? s.connGreen : s.connRed]} />
-              <Text style={s.connText}>
+              <Text style={[s.connText, { color: connectionStatus === 'connected' ? '#15803D' : '#B91C1C' }]}>
                 {connectionStatus === 'connected'
-                  ? 'Connecté — demandes reçues en temps réel'
-                  : connectionStatus === 'connecting' ? 'Connexion...' : 'Déconnecté — reconnexion en cours'}
+                  ? 'En ligne · demandes en temps réel'
+                  : connectionStatus === 'connecting' ? 'Connexion…' : 'Hors ligne · reconnexion…'}
               </Text>
             </View>
           </View>
@@ -892,7 +892,7 @@ export default function ChauffeurHomeScreen() {
                 <Text style={s.blockEmptyText}>Aucune remise ni retour prévu aujourd'hui</Text>
               </View>
             ) : (
-              dashboard.agenda.map(({ kind, order, at }) => {
+              dashboard.agenda.map(({ kind, order, at }, index) => {
                 const meta = kind === 'late'
                   ? { icon: 'warning' as const, color: '#DC2626', bg: '#FEE2E2', label: 'Retour en retard' }
                   : kind === 'handover'
@@ -906,7 +906,7 @@ export default function ChauffeurHomeScreen() {
                 return (
                   <TouchableOpacity
                     key={`${kind}-${order.id}`}
-                    style={s.agendaRow}
+                    style={[s.agendaRow, index > 0 && s.agendaRowDivider]}
                     activeOpacity={0.85}
                     onPress={() => openOrderDetails(order.id)}
                   >
@@ -946,13 +946,13 @@ export default function ChauffeurHomeScreen() {
                   <Text style={s.blockLink}>Tout voir</Text>
                 </TouchableOpacity>
               </View>
-              {dashboard.upcoming.slice(0, 3).map((order) => {
+              {dashboard.upcoming.slice(0, 3).map((order, index) => {
                 const start = rentalStart(order);
                 const days = (order.rideOption as any)?.days;
                 return (
                   <TouchableOpacity
                     key={order.id}
-                    style={s.agendaRow}
+                    style={[s.agendaRow, index > 0 && s.agendaRowDivider]}
                     activeOpacity={0.85}
                     onPress={() => openOrderDetails(order.id)}
                   >
@@ -1078,13 +1078,18 @@ const s = StyleSheet.create({
   earningsLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
   earningsValueRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
   earningsValue: { fontSize: 22, fontWeight: '800', color: '#4ECC8B' },
-  welcomeText: { fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
-  driverNameText: { fontSize: 22, fontWeight: '800', color: '#1a1a1a', marginTop: 2 },
-  connectionRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
-  connDot: { width: 8, height: 8, borderRadius: 4 },
+  welcomeText: { fontSize: 13, color: '#9CA3AF', fontWeight: '600', textTransform: 'capitalize' },
+  driverNameText: { fontSize: 26, fontWeight: '800', color: '#1a1a1a', marginTop: 2, letterSpacing: -0.4 },
+  connectionRow: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+    marginTop: 12, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+  },
+  connPillOn: { backgroundColor: '#F0FDF4' },
+  connPillOff: { backgroundColor: '#FEF2F2' },
+  connDot: { width: 7, height: 7, borderRadius: 4 },
   connGreen: { backgroundColor: '#22C55E' },
   connRed: { backgroundColor: '#EF4444' },
-  connText: { fontSize: 12, color: '#6B7280' },
+  connText: { fontSize: 12, fontWeight: '600' },
   statusRight: { alignItems: 'center' },
   statusIndicator: {
     width: 56, height: 56, borderRadius: 28,
@@ -1114,11 +1119,11 @@ const s = StyleSheet.create({
   todoSection: { marginHorizontal: 20, marginTop: 14, gap: 8 },
   todoRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
   },
-  todoWarn: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
-  todoDanger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-  todoInfo: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
+  todoWarn: { backgroundColor: '#FFFBEB' },
+  todoDanger: { backgroundColor: '#FEF2F2' },
+  todoInfo: { backgroundColor: '#EFF6FF' },
   todoText: { flex: 1, fontSize: 13, fontWeight: '700' },
 
   // Blocs agenda / prochaines locations / flotte
@@ -1126,19 +1131,19 @@ const s = StyleSheet.create({
     marginHorizontal: 20, paddingVertical: 18,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
   },
-  blockHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  blockHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   blockCount: {
-    fontSize: 12, fontWeight: '700', color: '#2563EB',
-    backgroundColor: '#DBEAFE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
+    fontSize: 12, fontWeight: '800', color: '#16A34A',
+    backgroundColor: '#E8F8F0', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, overflow: 'hidden',
   },
   blockLink: { fontSize: 13, fontWeight: '700', color: '#4ECC8B' },
   blockEmpty: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
   blockEmptyText: { fontSize: 13, color: '#9CA3AF' },
   agendaRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6',
+    flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11,
   },
-  agendaIcon: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  agendaRowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEF0F2' },
+  agendaIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   agendaKind: { fontSize: 12, fontWeight: '700' },
   agendaTitle: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', marginTop: 1 },
   agendaSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
@@ -1147,10 +1152,10 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   dateChip: {
-    width: 44, paddingVertical: 4, borderRadius: 10, backgroundColor: '#F3F4F6', alignItems: 'center',
+    width: 44, paddingVertical: 5, borderRadius: 12, backgroundColor: '#F0FBF5', alignItems: 'center',
   },
-  dateChipDay: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
-  dateChipMonth: { fontSize: 10, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase' },
+  dateChipDay: { fontSize: 16, fontWeight: '800', color: '#1a1a1a', lineHeight: 19 },
+  dateChipMonth: { fontSize: 10, fontWeight: '800', color: '#16A34A', textTransform: 'uppercase' },
   upcomingPrice: { fontSize: 13, fontWeight: '800', color: '#1a1a1a' },
   fleetCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -1175,10 +1180,10 @@ const s = StyleSheet.create({
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' },
   liveText: { fontSize: 10, fontWeight: '800', color: '#EF4444', letterSpacing: 1 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a1a', letterSpacing: -0.2 },
   sectionCount: {
-    fontSize: 14, fontWeight: '700', color: '#4ECC8B',
-    backgroundColor: '#D1F2E3', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
+    fontSize: 12, fontWeight: '800', color: '#16A34A',
+    backgroundColor: '#E8F8F0', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, overflow: 'hidden',
   },
 
   ordersBand: { paddingHorizontal: 20, gap: 12, paddingBottom: 4 },
@@ -1238,13 +1243,13 @@ const s = StyleSheet.create({
 
   // Actions Section
   actionsSection: { marginTop: 22, paddingHorizontal: 20 },
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
+  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
   actionCard: {
-    width: (width - 60) / 3, backgroundColor: '#F7F7F8', borderRadius: 16, paddingVertical: 14,
+    width: (width - 60) / 3, backgroundColor: '#F7F7F8', borderRadius: 18, paddingVertical: 16,
     alignItems: 'center',
   },
   actionIcon: {
-    width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 8,
+    width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center', marginBottom: 8,
   },
   actionBadge: {
     position: 'absolute', top: -5, right: -7,
