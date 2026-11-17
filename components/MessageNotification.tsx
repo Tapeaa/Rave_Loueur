@@ -18,6 +18,7 @@ interface NotificationMessage {
   content: string;
   clientName: string;
   timestamp: number;
+  fromSupport?: boolean;
 }
 
 const { width } = Dimensions.get('window');
@@ -43,20 +44,21 @@ export default function DriverMessageNotification() {
 
     // Listen for chat notifications from clients
     const handleNotification = (data: { 
-      orderId: string; 
-      message: { id: string; content: string; createdAt: string; senderType?: string }; 
+      orderId?: string; 
+      message: { id?: string; content: string; createdAt?: string; senderType?: string }; 
       clientName?: string;
       fromClient?: boolean;
+      fromSupport?: boolean;
     }) => {
-      // Only show notifications from clients
       if (data.message?.senderType === 'driver') return;
       
       const newNotif: NotificationMessage = {
-        id: data.message.id,
-        orderId: data.orderId,
+        id: data.message.id || `support-${Date.now()}`,
+        orderId: data.orderId || '',
         content: data.message.content,
-        clientName: data.clientName || 'Client',
+        clientName: data.clientName || (data.fromSupport ? 'Support RAVE' : 'Client'),
         timestamp: Date.now(),
+        fromSupport: !!data.fromSupport,
       };
 
       // Create animation for this notification
@@ -86,6 +88,14 @@ export default function DriverMessageNotification() {
     // Use specific named handlers to avoid conflicts with chat.tsx listeners
     const handleChatNotification = (data: any) => {
       console.log('[DriverNotif] Received chat:notification:', data);
+      if (data.fromAdmin) {
+        handleNotification({
+          message: { content: data.message?.content || 'Nouveau message' },
+          clientName: data.senderName || 'Support RAVE',
+          fromSupport: true,
+        });
+        return;
+      }
       if (data.fromClient || data.message?.senderType === 'client') {
         handleNotification(data);
       }
@@ -134,6 +144,10 @@ export default function DriverMessageNotification() {
 
   const openChat = async (notification: NotificationMessage) => {
     dismissNotification(notification.id);
+    if (notification.fromSupport) {
+      router.push('/(chauffeur)/support-chat' as any);
+      return;
+    }
     
     router.push({
       pathname: '/(chauffeur)/chat',

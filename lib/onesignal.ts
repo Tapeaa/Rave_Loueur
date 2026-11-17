@@ -50,8 +50,8 @@ function registerNativeListenersOnce(OneSignal: any) {
     OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
       const notif = event?.notification;
       const type = notif?.additionalData?.type;
-      // Les messages de chat ont déjà leur bannière verte in-app quand l'app est ouverte
-      if (type === 'new_message') {
+      // Les messages de chat et du support ont déjà leur bannière verte in-app quand l'app est ouverte
+      if (type === 'new_message' || type === 'support_message') {
         event.preventDefault();
         return;
       }
