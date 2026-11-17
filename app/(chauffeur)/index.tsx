@@ -645,7 +645,7 @@ export default function ChauffeurHomeScreen() {
         {/* Header */}
         <View style={s.header}>
           <MenuBurger variant="dark" />
-          <Image source={require('@/assets/images/rave-header-logo.png')} style={s.logo} resizeMode="contain" />
+          <Image source={require('@/assets/images/rave-header-logo-white.png')} style={s.logo} resizeMode="contain" />
           <TouchableOpacity style={s.settingsBtn} onPress={() => router.push('/(chauffeur)/profil')}>
             <Ionicons name="settings-outline" size={21} color="#FFFFFF" />
           </TouchableOpacity>
@@ -777,6 +777,7 @@ export default function ChauffeurHomeScreen() {
 
               <ScrollView
                 horizontal
+                scrollEnabled={pendingOrders.length > 1}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={s.ordersBand}
                 decelerationRate="fast"
@@ -793,7 +794,7 @@ export default function ChauffeurHomeScreen() {
                   return (
                     <TouchableOpacity
                       key={order.id}
-                      style={s.orderCard}
+                      style={[s.orderCard, pendingOrders.length === 1 && { width: width - 40 }]}
                       activeOpacity={0.9}
                       onPress={() => navigateToOrderDetail(order)}
                     >
@@ -1080,7 +1081,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 10,
     backgroundColor: HERO_BG,
   },
-  logo: { width: 66, height: 22, tintColor: '#FFFFFF' },
+  logo: { width: 72, height: 23 },
   settingsBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center',
