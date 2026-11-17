@@ -43,21 +43,8 @@ import {
   onRentalOrderCancelRejected,
 } from '@/lib/socket';
 import type { Order } from '@/lib/types';
+import { getOrderStatusDisplay, hasPendingCancelRequest, isClosedOrderStatus } from '@/lib/order-status';
 import { isUsableMediaUri, shareHtmlAsPdf, shareImage } from '@/lib/share-media';
-
-const statusLabels: Record<string, { label: string; color: string; icon: string }> = {
-  pending: { label: 'En attente', color: '#F59E0B', icon: 'time' },
-  accepted: { label: 'Acceptée', color: '#3B82F6', icon: 'checkmark-circle' },
-  booked: { label: 'Réservée', color: '#4ECC8B', icon: 'calendar' },
-  in_progress: { label: 'En cours', color: '#10B981', icon: 'navigate' },
-  completed: { label: 'Terminée', color: '#22C55E', icon: 'checkmark-done-circle' },
-  cancelled: { label: 'Annulée', color: '#EF4444', icon: 'close-circle' },
-  declined: { label: 'Refusée', color: '#EF4444', icon: 'hand-left' },
-  expired: { label: 'Expirée', color: '#6B7280', icon: 'timer' },
-  payment_pending: { label: 'En attente', color: '#F59E0B', icon: 'time' },
-  payment_confirmed: { label: 'Confirmée', color: '#22C55E', icon: 'checkmark-circle' },
-  payment_failed: { label: 'Échec', color: '#EF4444', icon: 'close-circle' },
-};
 
 export default function CourseDetailsScreen() {
   const router = useRouter();
@@ -384,7 +371,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
     );
   }
 
-  const status = statusLabels[order.status] || { label: order.status, color: '#6B7280', icon: 'help-circle' };
+  const status = getOrderStatusDisplay(order);
 
   const rentalLike = isRentalOrderLike(order);
   const rideOpt = order.rideOption as any;
@@ -409,24 +396,14 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
   );
   const rentalPhase = getRentalLifecyclePhase(order);
   const rentalStepperState = getRentalStepperState(order);
-  const isClosed = ['completed', 'payment_confirmed', 'cancelled', 'declined', 'expired', 'payment_failed'].includes(order.status);
+  const isClosed = isClosedOrderStatus(order.status);
   const cancelRequest = rideOpt?.cancelRequest as
     | { status?: string; reason?: string; requestedAt?: string; resolvedAt?: string }
     | undefined;
-  const cancelPending = cancelRequest?.status === 'pending' && !isClosed;
+  const cancelPending = hasPendingCancelRequest(order);
   const cancellation = rideOpt?.cancellation as { by?: string; approvedByDriver?: boolean; reason?: string; at?: string } | undefined;
-  const statusTitle = cancelPending
-    ? 'Annulation demandée'
-    : order.status === 'cancelled'
-      ? cancellation?.by === 'driver'
-        ? 'Annulée par vous'
-        : cancellation?.by === 'client'
-          ? cancellation.approvedByDriver ? 'Annulée (demande du client acceptée)' : 'Annulée par le client'
-          : 'Annulée'
-      : !isClosed && hasClientSignature
-        ? 'Contrat signé'
-        : status.label;
-  const statusColor = cancelPending ? '#D97706' : status.color;
+  const statusTitle = status.label;
+  const statusColor = status.color;
 
   const saveMeetingPoint = async () => {
     const value = meetingDraft.trim();
@@ -499,7 +476,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
         {/* Statut et Date */}
         <Card style={styles.statusCard}>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '15' }]}>
-            <Ionicons name={cancelPending ? 'alert-circle' : 'key'} size={24} color={statusColor} />
+            <Ionicons name={status.icon as any} size={24} color={statusColor} />
             <Text style={[styles.statusText, { color: statusColor }]}>
               {statusTitle}
             </Text>

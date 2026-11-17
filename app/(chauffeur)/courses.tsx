@@ -18,45 +18,8 @@ import {
 } from '@/lib/api';
 import type { Order } from '@/lib/types';
 import { getRentalStepperState, isRentalOrderLike, getRentalLifecyclePhase } from '@/lib/rental-lifecycle';
+import { CLOSED_ORDER_STATUSES as CLOSED_STATUSES, getOrderStatusDisplay, hasPendingCancelRequest } from '@/lib/order-status';
 import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
-
-const statusLabels: Record<string, { label: string; color: string }> = {
-  pending: { label: 'À valider', color: '#F59E0B' },
-  accepted: { label: 'Validée', color: '#3B82F6' },
-  booked: { label: 'Réservée', color: '#4ECC8B' },
-  in_progress: { label: 'En cours', color: '#10B981' },
-  completed: { label: 'Terminée', color: '#22C55E' },
-  cancelled: { label: 'Annulée', color: '#EF4444' },
-  declined: { label: 'Refusée', color: '#EF4444' },
-  expired: { label: 'Expirée', color: '#6B7280' },
-  payment_pending: { label: 'En attente', color: '#F59E0B' },
-  payment_confirmed: { label: 'Confirmée', color: '#22C55E' },
-  payment_failed: { label: 'Échec paiement', color: '#EF4444' },
-};
-
-const CLOSED_STATUSES = ['completed', 'payment_confirmed', 'cancelled', 'declined', 'expired', 'payment_failed'];
-
-function hasPendingCancelRequest(order: Order): boolean {
-  return (order.rideOption as any)?.cancelRequest?.status === 'pending' && !CLOSED_STATUSES.includes(order.status);
-}
-
-function getOrderStatusDisplay(order: Order): { label: string; color: string } {
-  const ro = order.rideOption as any;
-  if (hasPendingCancelRequest(order)) return { label: 'Annulation demandée', color: '#D97706' };
-  if (order.status === 'cancelled') {
-    const by = ro?.cancellation?.by;
-    if (by === 'client') return { label: ro?.cancellation?.approvedByDriver ? 'Annulée (demande client)' : 'Annulée par le client', color: '#EF4444' };
-    if (by === 'driver') return { label: 'Annulée par vous', color: '#EF4444' };
-    return statusLabels.cancelled;
-  }
-  if (isRentalOrderLike(order) && !CLOSED_STATUSES.includes(order.status)) {
-    const phase = getRentalLifecyclePhase(order);
-    if (phase === 'awaiting_validation') return { label: 'À valider', color: '#F59E0B' };
-    if (phase === 'vehicle_ready') return { label: 'À remettre au client', color: '#3B82F6' };
-    if (phase === 'with_client') return { label: 'Chez le client', color: '#10B981' };
-  }
-  return statusLabels[order.status] || { label: order.status, color: '#6B7280' };
-}
 
 function activePriority(order: Order): number {
   if (hasPendingCancelRequest(order)) return 0;

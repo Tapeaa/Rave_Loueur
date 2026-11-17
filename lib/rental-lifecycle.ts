@@ -14,10 +14,14 @@ export function isRentalOrderLike(order: {
   );
 }
 
+/** Location arrêtée avant son terme (aucune étape ne reste à faire). */
+const RENTAL_ENDED_STATUSES: string[] = ['cancelled', 'declined', 'expired', 'payment_failed'];
+
 export function getRentalLifecyclePhase(order: Order): RentalLifecyclePhase | null {
   if (!isRentalOrderLike(order)) return null;
   const ro = order.rideOption as { rentalLifecyclePhase?: RentalLifecyclePhase };
   if (order.status === 'completed') return 'returned';
+  if (RENTAL_ENDED_STATUSES.includes(order.status)) return null;
   if (order.status === 'pending') return 'awaiting_validation';
   const fromApi = ro.rentalLifecyclePhase;
   if (fromApi === 'with_client' || fromApi === 'returned') return fromApi;
@@ -44,7 +48,7 @@ export function getRentalStepperState(order: Order): RentalStepperState {
 
   if (!isRentalOrderLike(order)) return empty;
 
-  if (order.status === 'cancelled' || order.status === 'declined') {
+  if (RENTAL_ENDED_STATUSES.includes(order.status)) {
     return {
       show: true,
       cancelled: true,

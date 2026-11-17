@@ -188,6 +188,7 @@ export default function DriverMessagesScreen() {
       cancelled: { label: 'Annulée', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.2)' },
       declined: { label: 'Refusée', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.2)' },
       expired: { label: 'Expirée', color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.2)' },
+      payment_failed: { label: 'Échec paiement', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.2)' },
     };
     return statusMap[status] || { label: status, color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.2)' };
   };
