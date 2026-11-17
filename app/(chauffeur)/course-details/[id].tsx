@@ -56,6 +56,7 @@ export default function CourseDetailsScreen() {
   const [showContractModal, setShowContractModal] = useState(false);
   const [contractHTML, setContractHTML] = useState('');
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [showCongrats, setShowCongrats] = useState(false);
   const [loueurSignature, setLoueurSignature] = useState<string | null>(null);
   const [meetingDraft, setMeetingDraft] = useState('');
   const [meetingBusy, setMeetingBusy] = useState(false);
@@ -453,6 +454,7 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
         headers: { 'X-Driver-Session': sessionId },
       });
       setOrder(orderData);
+      if (nextPhase === 'returned') setShowCongrats(true);
     } catch (err) {
       console.error('[CourseDetails] lifecycle:', err);
       Alert.alert(
@@ -1076,11 +1078,91 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
           </View>
         </View>
       </Modal>
+
+      <Modal visible={showCongrats} transparent animationType="fade" onRequestClose={() => setShowCongrats(false)}>
+        <View style={styles.congratsOverlay}>
+          <View style={styles.congratsCard}>
+            <View style={styles.congratsIcon}>
+              <Ionicons name="trophy" size={44} color="#4ECC8B" />
+            </View>
+            <Text style={styles.congratsTitle}>Félicitations !</Text>
+            <Text style={styles.congratsText}>
+              La location {rideOpt?.title ? `de ${rideOpt.title} ` : ''}
+              {order.clientName ? `avec ${order.clientName} ` : ''}est terminée. Merci pour votre confiance !
+            </Text>
+            <View style={styles.congratsAmountBox}>
+              <Text style={styles.congratsAmountLabel}>Revenus de cette location</Text>
+              <Text style={styles.congratsAmount}>{formatPrice(order.totalPrice)}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.congratsBtn}
+              onPress={() => {
+                setShowCongrats(false);
+                router.replace('/(chauffeur)/courses' as any);
+              }}
+            >
+              <Text style={styles.congratsBtnText}>Voir mes locations</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.congratsClose} onPress={() => setShowCongrats(false)}>
+              <Text style={styles.congratsCloseText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  congratsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  congratsCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+  },
+  congratsIcon: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#E8F8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  congratsTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a', marginBottom: 8 },
+  congratsText: { fontSize: 15, color: '#4B5563', textAlign: 'center', lineHeight: 21 },
+  congratsAmountBox: {
+    width: '100%',
+    marginTop: 18,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    alignItems: 'center',
+  },
+  congratsAmountLabel: { fontSize: 12, color: '#166534', fontWeight: '600' },
+  congratsAmount: { fontSize: 28, fontWeight: '800', color: '#166534', marginTop: 2 },
+  congratsBtn: {
+    width: '100%',
+    marginTop: 20,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  congratsBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  congratsClose: { marginTop: 12, padding: 6 },
+  congratsCloseText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
   cancelCard: {
     marginBottom: 16,
     padding: 16,
