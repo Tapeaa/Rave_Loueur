@@ -36,6 +36,7 @@ import {
   isRentalOrderLike,
 } from '@/lib/rental-lifecycle';
 import { RentalLifecycleStepper } from '@/components/RentalLifecycleStepper';
+import { DisputeSection } from '@/components/DisputeSection';
 import {
   joinRentalOrderRoom,
   onRentalLifecycleChanged,
@@ -1065,6 +1066,8 @@ ${rd?.pickupAddress ? `<tr><td>Adresse</td><td>${rd.pickupAddress}</td></tr>` : 
                 </View>
               </View>
             </Card>
+
+            <DisputeSection orderId={order.id} selfRole="driver" />
           </>
         )}
 
