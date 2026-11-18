@@ -206,6 +206,8 @@ export const CONTRACT_VARIABLES = [
   { token: "{date de fin}", label: "Date de fin" },
   { token: "{nombre de jours}", label: "Nombre de jours" },
   { token: "{prix total}", label: "Prix total" },
+  { token: "{montant ht}", label: "Montant HT" },
+  { token: "{tva}", label: "TVA" },
   { token: "{caution}", label: "Caution" },
   { token: "{lieu de remise}", label: "Lieu de remise" },
   { token: "{nom du loueur}", label: "Nom du loueur" },
@@ -221,6 +223,12 @@ function fillContractVariables(text: string, p: RentalContractParams): string {
     "{date de fin}": p.endLabel,
     "{nombre de jours}": `${p.days} jour${p.days > 1 ? "s" : ""}`,
     "{prix total}": p.totalLabel,
+    "{montant ht}": p.tva?.htLabel || p.totalLabel,
+    "{tva}": p.tva
+      ? `${p.tva.rateLabel} : ${p.tva.amountLabel}`
+      : p.tva === null
+        ? "TVA non applicable (franchise en base)"
+        : "—",
     "{caution}": p.depositLabel || "—",
     "{lieu de remise}": p.pickupLocation || "—",
     "{nom du loueur}": p.loueurName,
@@ -249,6 +257,8 @@ export type RentalContractParams = {
   pricePerDayLabel: string;
   priceRowsHtml?: string;
   totalLabel: string;
+  /** Détail TVA du loueur assujetti ; null = franchise en base, absent = inconnu (aperçu) */
+  tva?: { htLabel: string; rateLabel: string; amountLabel: string } | null;
   paymentNote?: string;
   insuranceArticle?: string;
   signatureHtml?: string;
@@ -282,7 +292,7 @@ export function buildDefaultRentalContractHtml(p: RentalContractParams): string 
 
   const payment =
     p.paymentNote ||
-    "Paiement chez le loueur (espèces ou autre moyen convenu), sauf si le professionnel propose le paiement en ligne par carte (PayZen / OSB).";
+    "Paiement chez le loueur (espèces ou autre moyen convenu), sauf si le professionnel propose le paiement en ligne par carte (PayZen / OSB ou Systempay / Banque de Tahiti).";
 
   const tahiti = String(p.loueurNumeroTahiti || "").trim();
   const loueurPartyInfo = [
@@ -423,6 +433,12 @@ export function buildCustomRentalContractHtml(p: RentalContractParams): string {
     row("vehicle", esc(p.vehicleName)),
     row("period", `${esc(p.startLabel)}<br/>→ ${esc(p.endLabel)}`),
     row("total", esc(p.totalLabel)),
+    ...(p.tva && !hidden.has("total")
+      ? [
+          `<div class="summary-row"><span class="summary-label">Dont montant HT</span><span class="summary-value">${esc(p.tva.htLabel)}</span></div>`,
+          `<div class="summary-row"><span class="summary-label">Dont ${esc(p.tva.rateLabel)}</span><span class="summary-value">${esc(p.tva.amountLabel)}</span></div>`,
+        ]
+      : []),
     ...(st.extraRows || []).map(
       (x) =>
         `<div class="summary-row"><span class="summary-label">${esc(x.label)}</span><span class="summary-value">${esc(
